@@ -1,2 +1,2 @@
 # spatial
-Spatial related algorithms
+Spatial and computational geometry related algorithms
