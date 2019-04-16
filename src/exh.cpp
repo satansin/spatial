@@ -3,6 +3,7 @@
 #include <fstream>
 #include <string>
 #include <cmath>
+#include <vector>
 using namespace std;
 
 struct Pt2D
@@ -160,18 +161,18 @@ double circumradi_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
 }
 
 long global_counter = 0;
-long get_next_glb_idx(long total) {
+void next_glb_idx(long total) {
 	long base = total / 100;
 	if (global_counter % base == 0) {
 		cout << (global_counter / base) << "%...\n";
 	}
-	return (global_counter++);
+	global_counter++;
 }
 
-void combination_tetra(long res_size, double radi[], Pt3D list[], Pt3D* tetra[], int start, int end, int index) {
+void combination_tetra(long res_size, vector<double> radi, Pt3D list[], Pt3D* tetra[], int start, int end, int index) {
 	if (index == 4) {
-		double radius = circumradi_3d(*tetra[0], *tetra[1], *tetra[2], *tetra[3]);
-		radi[get_next_glb_idx(res_size)] = radius;
+		radi.push_back(circumradi_3d(*tetra[0], *tetra[1], *tetra[2], *tetra[3]));
+		next_glb_idx(res_size);
 
 		// print_pt3d(tetra[0]);
 		// cout << endl;
@@ -190,7 +191,7 @@ void combination_tetra(long res_size, double radi[], Pt3D list[], Pt3D* tetra[],
 	}
 }
 
-int main() {
+int main(int argc, char **argv) {
 	ifstream input_ply;
 	input_ply.open("bun_zipper_res4.ply");
 	string line;
@@ -201,8 +202,10 @@ int main() {
 	int size = stoi(line.substr(line.find_last_of(' ')));
 	cout << size << endl;
 
-	// size = 50;
-	// cout << "size adjusted to " << size << endl;
+	if (argc > 1) {
+		size = atoi(argv[1]);
+		cout << "size adjusted to " << size << endl;
+	}
 
 	for (i = 0; i < 8; i++) {
 		getline(input_ply, line);
@@ -223,9 +226,8 @@ int main() {
 	perm_size *= (size - 1) * (size - 2) * (size - 3) / 24;
 	cout << perm_size << endl;
 
-	double radiis[perm_size];
+	vector<double> radiis;
 	Pt3D* tetra[4];
-	cout << 1 << endl;
 	combination_tetra(perm_size, radiis, point_list, tetra, 0, size - 1, 0);
 
 	// double r;
