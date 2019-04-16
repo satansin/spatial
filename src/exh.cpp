@@ -160,6 +160,8 @@ double circumradi_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
 	return rad;
 }
 
+vector<double> radiis;
+
 long global_counter = 0;
 void next_glb_idx(long total) {
 	long base = total / 100;
@@ -169,9 +171,11 @@ void next_glb_idx(long total) {
 	global_counter++;
 }
 
-void combination_tetra(long res_size, vector<double> radi, Pt3D list[], Pt3D* tetra[], int start, int end, int index) {
+void combination_tetra(long res_size, Pt3D list[], Pt3D* tetra[], int start, int end, int index) {
 	if (index == 4) {
-		radi.push_back(circumradi_3d(*tetra[0], *tetra[1], *tetra[2], *tetra[3]));
+		// radi.push_back(circumradi_3d(*tetra[0], *tetra[1], *tetra[2], *tetra[3]));
+		double r = circumradi_3d(*tetra[0], *tetra[1], *tetra[2], *tetra[3]);
+		radiis.push_back(r);
 		next_glb_idx(res_size);
 
 		// print_pt3d(tetra[0]);
@@ -187,7 +191,7 @@ void combination_tetra(long res_size, vector<double> radi, Pt3D list[], Pt3D* te
 
 	for (int i = start; i <= end && end - i >= 3 - index; i++) {
 		tetra[index] = &list[i];
-		combination_tetra(res_size, radi, list, tetra, i + 1, end, index + 1);
+		combination_tetra(res_size, list, tetra, i + 1, end, index + 1);
 	}
 }
 
@@ -226,9 +230,17 @@ int main(int argc, char **argv) {
 	perm_size *= (size - 1) * (size - 2) * (size - 3) / 24;
 	cout << perm_size << endl;
 
-	vector<double> radiis;
 	Pt3D* tetra[4];
-	combination_tetra(perm_size, radiis, point_list, tetra, 0, size - 1, 0);
+	combination_tetra(perm_size, point_list, tetra, 0, size - 1, 0);
+	cout << radiis.size() << endl;
+
+	/*
+	ofstream output_radi("radi.txt");
+	for (auto &i: radiis) {
+		output_radi << i << endl;
+	}
+	output_radi.close();
+	*/
 
 	// double r;
 	// Pt3D test = circumcenter_3d(point_list[5], point_list[7], point_list[8], point_list[9], r);
