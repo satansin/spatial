@@ -1,30 +1,8 @@
+#include "point.h"
+#include "circumcenter.h"
 #include <iostream>
 #include <cmath>
 using namespace std;
-
-struct Pt2D
-{
-	double x;
-	double y;
-};
-
-struct Pt3D
-{
-	double x;
-	double y;
-	double z;
-};
-
-double eucl_dist(Pt2D p, Pt2D q) {
-	return sqrt((p.x - q.x) * (p.x - q.x) +
-				(p.y - q.y) * (p.y - q.y));
-}
-
-double eucl_dist(Pt3D p, Pt3D q) {
-	return sqrt((p.x - q.x) * (p.x - q.x) +
-				(p.y - q.y) * (p.y - q.y) +
-				(p.z - q.z) * (p.z - q.z));
-}
 
 Pt2D matrix_mul_pt_2d(double m[][2], Pt2D p) {
 	return {m[0][0] * p.x + m[0][1] * p.y,
@@ -105,24 +83,40 @@ Pt3D circumcenter_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
 		ad.x * g.x + ad.y * g.y + ad.z * g.z});
 }
 
-int main(int argc, char** argv) {
-	Pt2D a = {0, 0};
-	Pt2D b = {8, 0};
-	Pt2D c = {5, 6};
-	Pt2D o1 = circumcenter_2d(a, b, c);
-	cout << "(" << o1.x << ", " << o1.y << ")" << endl;
-	cout << eucl_dist(o1, a) << endl;
-	cout << eucl_dist(o1, b) << endl;
-	cout << eucl_dist(o1, c) << endl;
+double circumradi_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
+	Pt3D ab = {b.x - a.x, b.y - a.y, b.z - a.z};
+	Pt3D ac = {c.x - a.x, c.y - a.y, c.z - a.z};
+	Pt3D ad = {d.x - a.x, d.y - a.y, d.z - a.z};
 
-	Pt3D p = {0, 0, 0};
-	Pt3D q = {8, 0, 0};
-	Pt3D r = {5, 6, 0};
-	Pt3D s = {2, 2, 5};
-	Pt3D o2 = circumcenter_3d(p, q, r, s);
-	cout << "(" << o2.x << ", " << o2.y << ", " << o2.z << ")" << endl;
-	cout << eucl_dist(o2, p) << endl;
-	cout << eucl_dist(o2, q) << endl;
-	cout << eucl_dist(o2, r) << endl;
-	cout << eucl_dist(o2, s) << endl;
+	Pt3D fac1 = scale_pt(sq_mode(ab), cross_prd(ac, ad));
+	Pt3D fac2 = scale_pt(sq_mode(ac), cross_prd(ad, ab));
+	Pt3D fac3 = scale_pt(sq_mode(ad), cross_prd(ab, ac));
+	double vol_by_6 = abs(dot_prd(ab, cross_prd(ac, ad)));
+
+	double rad = mode(sum_pt(sum_pt(fac1, fac2), fac3));
+	rad /= (2.0 * vol_by_6);
+
+	return rad;
 }
+
+// int main(int argc, char** argv) {
+// 	Pt2D a = {0, 0};
+// 	Pt2D b = {8, 0};
+// 	Pt2D c = {5, 6};
+// 	Pt2D o1 = circumcenter_2d(a, b, c);
+// 	cout << "(" << o1.x << ", " << o1.y << ")" << endl;
+// 	cout << eucl_dist(o1, a) << endl;
+// 	cout << eucl_dist(o1, b) << endl;
+// 	cout << eucl_dist(o1, c) << endl;
+
+// 	Pt3D p = {0, 0, 0};
+// 	Pt3D q = {8, 0, 0};
+// 	Pt3D r = {5, 6, 0};
+// 	Pt3D s = {2, 2, 5};
+// 	Pt3D o2 = circumcenter_3d(p, q, r, s);
+// 	cout << "(" << o2.x << ", " << o2.y << ", " << o2.z << ")" << endl;
+// 	cout << eucl_dist(o2, p) << endl;
+// 	cout << eucl_dist(o2, q) << endl;
+// 	cout << eucl_dist(o2, r) << endl;
+// 	cout << eucl_dist(o2, s) << endl;
+// }
