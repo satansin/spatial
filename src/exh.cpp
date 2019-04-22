@@ -4,38 +4,73 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <ios>
+#include <iomanip>
+#include <sstream>
 using namespace std;
 
 #define MAX_ARRAY_SIZE 50000
 
 vector<double> radiis;
 
-int dump_array(ofstream &ofs) {
+// int dump_array(ofstream &ofs) {
+// 	int size = radiis.size();
+// 	for (auto &i: radiis) {
+// 		ofs << i << endl;
+// 	}
+// 	radiis.clear();
+// 	return size;
+// }
+
+string get_indexed_filename(string leading, int index) {
+	ostringstream out;
+	out << leading << internal << setfill('0') << setw(3) << index;
+	return out.str();
+}
+
+int dump_array(string output_name, int index=-1) {
+	string file_name;
+	if (index < 0) {
+		file_name = output_name;
+	} else {
+		file_name = get_indexed_filename(output_name, index);
+	}
+
+	ofstream ofs(file_name);
+	if (!ofs) {
+		cerr << "cannot open " << file_name << endl;
+		exit(1);
+	}
+
 	int size = radiis.size();
 	for (auto &i: radiis) {
 		ofs << i << endl;
 	}
 	radiis.clear();
+
+	ofs.close();
+
 	return size;
 }
 
 long global_counter = 0;
-void next_glb_idx(long total, ofstream &ofs) {
+void next_glb_idx(long total, string output_name) {
 	long base = total / 100;
 	if (global_counter % base == 0 && global_counter > 0) {
+		int piece_index = global_counter / base;
 		if (total > MAX_ARRAY_SIZE) {
-			int piece_size = dump_array(ofs);
-			cout << piece_size << " items written\n";
+			int piece_size = dump_array(output_name, piece_index);
+			cout << piece_size << " items written" << " \n";
 		}
-		cout << (global_counter / base) << "%...\n";
+		cout << piece_index << "%...\n";
 	}
 	global_counter++;
 }
 
-void combination_tetra(long res_size, Pt3D list[], Pt3D* tetra[], int start, int end, int index, ofstream &ofs) {
+void combination_tetra(long res_size, Pt3D list[], Pt3D* tetra[], int start, int end, int index, string output_name) {
 	if (index == 4) {
 		double r = circumradi_3d(*tetra[0], *tetra[1], *tetra[2], *tetra[3]);
-		next_glb_idx(res_size, ofs);
+		next_glb_idx(res_size, output_name);
 		radiis.push_back(r);
 
 		// print_pt3d(tetra[0]);
@@ -51,7 +86,7 @@ void combination_tetra(long res_size, Pt3D list[], Pt3D* tetra[], int start, int
 
 	for (int i = start; i <= end && end - i >= 3 - index; i++) {
 		tetra[index] = &list[i];
-		combination_tetra(res_size, list, tetra, i + 1, end, index + 1, ofs);
+		combination_tetra(res_size, list, tetra, i + 1, end, index + 1, output_name);
 	}
 }
 
@@ -94,24 +129,17 @@ int main(int argc, char **argv) {
 	}
 	input_ply.close();
 
-	ofstream output_radi(output_file);
-	if (!output_radi) {
-		cerr << "cannot open output file " << output_file << endl;
-		return 1;
-	}
-
 	long perm_size = size;
 	perm_size *= (size - 1) * (size - 2) * (size - 3) / 24;
 	cout << "permutation size is " << perm_size << endl;
 
 	Pt3D* tetra[4];
-	combination_tetra(perm_size, point_list, tetra, 0, size - 1, 0, output_radi);
+	combination_tetra(perm_size, point_list, tetra, 0, size - 1, 0, output_file);
+
 	if (!radiis.empty()) {
-		int remaining_size = dump_array(output_radi);
+		int remaining_size = dump_array(output_file);
 		cout << "remaining " << remaining_size << " items written" << endl;
 	}
-
-	output_radi.close();
 
 	// double r;
 	// Pt3D test = circumcenter_3d(point_list[5], point_list[7], point_list[8], point_list[9], r);
