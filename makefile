@@ -23,7 +23,7 @@ RM=rm -f
 # distclean: clean
 #     $(RM) tool
 
-all: clean pcg.out exh.out trans.out
+all: clean pcg.out exh.out trans.out sta.out
 
 pcg.out:
 	$(CXX) src/pcg.cpp -o src/pcg.out
@@ -33,6 +33,9 @@ exh.out: point.o circumcenter.o
 
 trans.out: point.o
 	$(CXX) src/trans.cpp src/point.o -o src/trans.out
+
+sta.out:
+	$(CXX) src/sta.cpp -o src/sta.out
 
 point.o:
 	$(CXX) -c src/point.cpp -o src/point.o

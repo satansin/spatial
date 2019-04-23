@@ -13,15 +13,6 @@ using namespace std;
 
 vector<double> radiis;
 
-// int dump_array(ofstream &ofs) {
-// 	int size = radiis.size();
-// 	for (auto &i: radiis) {
-// 		ofs << i << endl;
-// 	}
-// 	radiis.clear();
-// 	return size;
-// }
-
 string get_indexed_filename(string leading, int index) {
 	ostringstream out;
 	out << leading << internal << setfill('0') << setw(3) << index;
