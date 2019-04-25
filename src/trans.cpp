@@ -49,7 +49,7 @@ void trans_pt(Trans* t, Pt3D* p) {
 }
 
 int main(int argc, char** argv) {
-	double al = 0.2;
+	double al = 0.8;
 	double be = 0.3;
 	double ga = 0.4;
 	double tx = 1.1;
@@ -57,9 +57,15 @@ int main(int argc, char** argv) {
 	double tz = 2.2;
 	Trans* tr = create_trans(al, be, ga, tx, ty, tz);
 
-	Pt3D test = {3.0, 4.0, 8.0};
+	Pt3D test1 = {3.0, 4.0, 8.0};
+	Pt3D test2 = {9.0, 1.0, -3.0};
+	Pt3D test3 = {7.0, 10.0, 2.0};
 	cout << "Before transformation: ";
-	print_pt3d(&test);
+	print_pt3d(&test1);
+	cout << endl;
+	print_pt3d(&test2);
+	cout << endl;
+	print_pt3d(&test3);
 	cout << endl;
 
 	trans_pt(tr, &test);
