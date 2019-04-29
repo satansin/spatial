@@ -32,7 +32,7 @@ exh.out: point.o circumcenter.o
 	$(CXX) src/exh.cpp src/point.o src/circumcenter.o -o src/exh.out
 
 trans.out: point.o
-	$(CXX) src/trans.cpp src/point.o -o src/trans.out
+	$(CXX) -I ./ src/trans.cpp src/point.o -o src/trans.out
 
 sta.out:
 	$(CXX) src/sta.cpp -o src/sta.out
