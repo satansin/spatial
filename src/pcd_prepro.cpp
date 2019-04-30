@@ -5,7 +5,7 @@ using namespace trimesh;
 
 int main(int argc, char *argv[])
 {
-    const char *filename = "foo.ply";
+    const char *filename = "../bun_zipper_res4.ply";
     TriMesh *m = TriMesh::read(filename);
     if (!m)
         exit(1);

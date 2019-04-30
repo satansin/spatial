@@ -2,6 +2,10 @@ CC=gcc
 CXX=g++ -std=c++0x
 RM=rm -f
 
+INC=-Isrc/include/
+USE_EIGEN=-IEigen/
+USE_TM=-Itrimesh2/include/ -Ltrimesh2/lib.Linux64/
+
 # examples for more complex make (see original webpage):
 # https://stackoverflow.com/questions/2481269/how-to-make-a-simple-c-makefile
 
@@ -23,26 +27,29 @@ RM=rm -f
 # distclean: clean
 #     $(RM) tool
 
-all: clean pcg.out exh.out trans.out sta.out
+all: clean pcd_prepro pcg exh trans sta
 
-pcg.out:
-	$(CXX) src/pcg.cpp -o src/pcg.out
+pcd_prepro:
+	$(CXX) $(INC) $(USE_TM) src/pcd_prepro.cpp -o src/out/pcd_prepro -ltrimesh -lgluit -fopenmp
 
-exh.out: point.o circumcenter.o
-	$(CXX) src/exh.cpp src/point.o src/circumcenter.o -o src/exh.out
+pcg:
+	$(CXX) $(INC) src/pcg.cpp -o src/out/pcg
 
-trans.out: point.o
-	$(CXX) -I ./ src/trans.cpp src/point.o -o src/trans.out
+exh: point.o circumcenter.o
+	$(CXX) $(INC) src/exh.cpp src/obj/point.o src/obj/circumcenter.o -o src/out/exh
 
-sta.out:
-	$(CXX) src/sta.cpp -o src/sta.out
+trans: point.o
+	$(CXX) $(INC) $(USE_EIGEN) src/trans.cpp src/obj/point.o -o src/out/trans
+
+sta:
+	$(CXX) $(INC) src/sta.cpp -o src/out/sta
 
 point.o:
-	$(CXX) -c src/point.cpp -o src/point.o
+	$(CXX) $(INC) -c src/point.cpp -o src/obj/point.o
 
 circumcenter.o:
-	$(CXX) -c src/circumcenter.cpp -o src/circumcenter.o
+	$(CXX) $(INC) -c src/circumcenter.cpp -o src/obj/circumcenter.o
 
 clean:
-	$(RM) src/*.o
-	$(RM) src/*.out
+	$(RM) src/obj/*
+	$(RM) src/out/*
