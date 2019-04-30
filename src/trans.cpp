@@ -1,7 +1,7 @@
 #include "point.h"
 #include <iostream>
 #include <cmath>
-#include <Eigen/Dense>
+#include <Dense>
 using namespace std;
 using namespace Eigen;
 
