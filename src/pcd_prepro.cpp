@@ -1,23 +1,61 @@
-#include "TriMesh.h"
+#include "point.h"
 #include <iostream>
+#include <fstream>
 using namespace std;
-using namespace trimesh;
 
-int main(int argc, char *argv[])
-{
-    const char *filename = "../bun_zipper_res4.ply";
-    TriMesh *m = TriMesh::read(filename);
-    if (!m)
-        exit(1);
+int main(int argc, char **argv) {
+	if (argc < 2) {
+		cerr << "missing output file" << endl;
+		exit(1);
+	}
+	ofstream output_ply(argv[1]);
+	if (!output_ply.is_open()) {
+		cerr << "error open output file" << endl;
+		exit(1);
+	}
 
-    cout << "There are " << m->vertices.size() << " vertices" << endl;
-    cout << "Vertex 0 is at " << m->vertices[0] << endl;
+	ifstream input_ply;
+	input_ply.open("../bun_zipper_res4.ply");
+	if (!input_ply.is_open()) {
+		cerr << "error open input file" << endl;
+		exit(1);
+	}
 
-    // Convert triangle strips to faces, if necessary
-    m->need_faces();
-    cout << "Face 0 has vertices " << m->faces[0][0] << ", "
-         << m->faces[0][1] << ", and " << m->faces[0][2] << endl;
+	cout << "reading bun_zipper_res4.ply..." << endl;
+	string line;
+	int i;
+	for (i = 0; i < 4; i++) {
+		getline(input_ply, line);
+		output_ply << line << endl;
+	}
+	int size = stoi(line.substr(line.find_last_of(' ')));
 
-    m->need_normals();
-    cout << "Vertex 0 has normal " << m->normals[0] << endl;
+	for (i = 0; i < 8; i++) {
+		getline(input_ply, line);
+		output_ply << line << endl;
+	}
+
+	for (i = 0; i < size; i++) {
+		float num;
+		input_ply >> num;
+		num *= 1000;
+		output_ply << num << " ";
+		input_ply >> num;
+		num *= 1000;
+		output_ply << num << " ";
+		input_ply >> num;
+		num *= 1000;
+		output_ply << num << " ";
+		input_ply >> num;
+		output_ply << num << " ";
+		input_ply >> num;
+		output_ply << num << " ";
+	}
+
+	while (getline(input_ply, line)) {
+		output_ply << line << endl;
+	}
+
+	input_ply.close();
+	output_ply.close();
 }
