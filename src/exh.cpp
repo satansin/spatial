@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 	}
 
 	ifstream input_ply;
-	input_ply.open("../bun_zipper_res4.ply");
+	input_ply.open("../data/bun_zipper_res4.ply");
 	string line;
 	int i;
 	for (i = 0; i < 4; i++) {

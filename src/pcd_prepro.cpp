@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
 	}
 
 	ifstream input_ply;
-	input_ply.open("../bun_zipper_res4.ply");
+	input_ply.open("../data/bun_zipper_res4.ply");
 	if (!input_ply.is_open()) {
 		cerr << "error open input file" << endl;
 		exit(1);
@@ -35,8 +35,8 @@ int main(int argc, char **argv) {
 		output_ply << line << endl;
 	}
 
+	float num;
 	for (i = 0; i < size; i++) {
-		float num;
 		input_ply >> num;
 		num *= 1000;
 		output_ply << num << " ";
@@ -50,11 +50,16 @@ int main(int argc, char **argv) {
 		output_ply << num << " ";
 		input_ply >> num;
 		output_ply << num << " ";
+		output_ply << endl;
 	}
 
 	while (getline(input_ply, line)) {
-		output_ply << line << endl;
+		if (line.find_first_not_of(' ') != string::npos) {
+			// lines with only spaces are skipped
+			output_ply << line << endl;
+		}
 	}
+	cout << "written to " << argv[1] << endl;
 
 	input_ply.close();
 	output_ply.close();
