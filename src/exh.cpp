@@ -84,7 +84,7 @@ void combination_tetra(long res_size, Pt3D list[], Pt3D* tetra[], int start, int
 int main(int argc, char **argv) {
 	if (argc < 2) {
 		cerr << "missing output file" << endl;
-		return 1;
+		exit(1);
 	}
 
 	ifstream input_ply;
