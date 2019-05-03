@@ -2,7 +2,11 @@
 #include <iostream>
 #include <cmath>
 
-void print_pt3d(Pt3D* p) {
+void print_pt(Pt2D* p) {
+	std::cout << "(" << p->x << ", " << p->y << ")";
+}
+
+void print_pt(Pt3D* p) {
 	std::cout << "(" << p->x << ", " << p->y << ", " << p->z << ")";
 }
 
