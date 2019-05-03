@@ -143,11 +143,11 @@ int main(int argc, char** argv) {
 	Pt3D test3 = {7.0, 10.0, 2.0};
 
 	cout << "Before transformation:\n";
-	print_pt3d(&test1);
+	print_pt(&test1);
 	cout << endl;
-	print_pt3d(&test2);
+	print_pt(&test2);
 	cout << endl;
-	print_pt3d(&test3);
+	print_pt(&test3);
 	cout << endl;
 
 	Pt3D original_mean;
@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
 	original_mean.y = (test1.y + test2.y + test3.y) / 3.0;
 	original_mean.z = (test1.z + test2.z + test3.z) / 3.0;
 	cout << "mean = ";
-	print_pt3d(&original_mean);
+	print_pt(&original_mean);
 	cout << endl << endl;
 
 	Pt3D t_test1 = trans_pt(tr, &test1);
@@ -163,11 +163,11 @@ int main(int argc, char** argv) {
 	Pt3D t_test3 = trans_pt(tr, &test3);
 
 	cout << "After transformation:\n";
-	print_pt3d(&t_test1);
+	print_pt(&t_test1);
 	cout << endl;
-	print_pt3d(&t_test2);
+	print_pt(&t_test2);
 	cout << endl;
-	print_pt3d(&t_test3);
+	print_pt(&t_test3);
 	cout << endl;
 
 	Pt3D t_mean;
@@ -175,7 +175,7 @@ int main(int argc, char** argv) {
 	t_mean.y = (t_test1.y + t_test2.y + t_test3.y) / 3.0;
 	t_mean.z = (t_test1.z + t_test2.z + t_test3.z) / 3.0;
 	cout << "mean = ";
-	print_pt3d(&t_mean);
+	print_pt(&t_mean);
 	cout << endl << endl;
 
 	delete tr;

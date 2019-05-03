@@ -37,7 +37,7 @@ OUT=src/out
 #     add $(USE_EIGEN)
 # How to use trimesh2:
 #     add $(USE_TM)
-#     add the following !!in the end!!: -ltrimesh -lgluit -fopenmp
+#     add the following !!in the end of out!!: -ltrimesh -lgluit -fopenmp
 
 all: clean pcd_prepro pcg exh trans sta
 
@@ -47,8 +47,8 @@ pcd_prepro:
 pcg:
 	$(CXX) $(INC) $(SRC)/pcg.cpp -o $(OUT)/pcg.out
 
-exh: point.o circumcenter.o
-	$(CXX) $(INC) $(SRC)/exh.cpp $(OBJ)/point.o $(OBJ)/circumcenter.o -o $(OUT)/exh.out
+exh: point.o tetra_meas.o
+	$(CXX) $(INC) $(USE_TM) $(SRC)/exh.cpp $(OBJ)/point.o $(OBJ)/tetra_meas.o -o $(OUT)/exh.out  -ltrimesh -lgluit -fopenmp
 
 trans: point.o
 	$(CXX) $(INC) $(USE_EIGEN) $(SRC)/trans.cpp $(OBJ)/point.o -o $(OUT)/trans.out
@@ -59,8 +59,11 @@ sta:
 point.o: $(OBJ)/
 	$(CXX) $(INC) -c $(SRC)/point.cpp -o $(OBJ)/point.o
 
-circumcenter.o:
-	$(CXX) $(INC) -c $(SRC)/circumcenter.cpp -o $(OBJ)/circumcenter.o
+tetra_meas.o:
+	$(CXX) $(INC) $(USE_EIGEN) $(USE_TM) -c $(SRC)/tetra_meas.cpp -o $(OBJ)/tetra_meas.o
+
+# circumcenter.o:
+# 	$(CXX) $(INC) -c $(SRC)/circumcenter.cpp -o $(OBJ)/circumcenter.o
 
 $(OBJ)/:
 	$(shell mkdir -p $(OBJ))

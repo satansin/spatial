@@ -1,5 +1,4 @@
-#include "point.h"
-#include "circumcenter.h"
+#include "tetra_meas.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -7,11 +6,34 @@
 #include <ios>
 #include <iomanip>
 #include <sstream>
+#include <limits>
 using namespace std;
 
 #define MAX_ARRAY_SIZE 50000
 
-vector<double> radiis;
+struct Tetra_stat {
+	double r_b;
+	double r_c;
+	double r_i;
+	double ratio;
+};
+
+vector<Tetra_stat> radiis;
+double r_b_max = 0;
+double r_b_min = numeric_limits<double>::max();
+double r_c_max = 0;
+double r_c_min = numeric_limits<double>::max();
+double r_i_max = 0;
+double r_i_min = numeric_limits<double>::max();
+
+void udpate_max_min(double r_b, double r_c, double r_i) {
+	if (r_b - r_b_max > 0) r_b_max = r_b;
+	if (r_b - r_b_min < 0) r_b_min = r_b;
+	if (r_c - r_c_max > 0) r_c_max = r_c;
+	if (r_c - r_c_min < 0) r_c_min = r_c;
+	if (r_i - r_i_max > 0) r_i_max = r_i;
+	if (r_i - r_i_min < 0) r_i_min = r_i;
+}
 
 string get_indexed_filename(string leading, int index) {
 	ostringstream out;
@@ -35,7 +57,7 @@ int dump_array(string output_name, int index=-1) {
 
 	int size = radiis.size();
 	for (auto &i: radiis) {
-		ofs << i << endl;
+		ofs << i.r_b << "\t" << i.r_c << "\t" << i.r_i << "\t" << i.ratio << endl;
 	}
 	radiis.clear();
 
@@ -60,9 +82,12 @@ void next_glb_idx(long total, string output_name) {
 
 void combination_tetra(long res_size, Pt3D list[], Pt3D* tetra[], int start, int end, int index, string output_name) {
 	if (index == 4) {
-		double r = circumradi_3d(*tetra[0], *tetra[1], *tetra[2], *tetra[3]);
+		// double r = circumradi_3d(*tetra[0], *tetra[1], *tetra[2], *tetra[3]);
+		auto s = get_ratio_set_3d(*tetra[0], *tetra[1], *tetra[2], *tetra[3]);
+		double r_b = bounding_radi_3d(*tetra[0], *tetra[1], *tetra[2], *tetra[3]);
 		next_glb_idx(res_size, output_name);
-		radiis.push_back(r);
+		radiis.push_back({r_b, s.circumradius, s.inradius, s.ratio});
+		udpate_max_min(r_b, s.circumradius, s.inradius);
 
 		// print_pt3d(tetra[0]);
 		// cout << endl;
@@ -88,7 +113,7 @@ int main(int argc, char **argv) {
 	}
 
 	ifstream input_ply;
-	input_ply.open("../data/bun_zipper_res4.ply");
+	input_ply.open("../data/t1.ply");
 	string line;
 	int i;
 	for (i = 0; i < 4; i++) {
@@ -131,6 +156,19 @@ int main(int argc, char **argv) {
 		int remaining_size = dump_array(output_file);
 		cout << "remaining " << remaining_size << " items written" << endl;
 	}
+
+	ofstream max_min_output(output_file + "_maxmin");
+	if (!max_min_output) {
+		cerr << "cannot open " << (output_file + "_maxmin") << endl;
+		exit(1);
+	}
+	max_min_output << "max bounding radius: " << r_b_max << endl;
+	max_min_output << "min bounding radius: " << r_b_min << endl;
+	max_min_output << "max circumradius: " << r_c_max << endl;
+	max_min_output << "min circumradius: " << r_c_min << endl;
+	max_min_output << "max inradius: " << r_i_max << endl;
+	max_min_output << "max inradius: " << r_i_min << endl;
+	max_min_output.close();
 
 	// double r;
 	// Pt3D test = circumcenter_3d(point_list[5], point_list[7], point_list[8], point_list[9], r);

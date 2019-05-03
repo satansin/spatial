@@ -11,7 +11,8 @@ struct Pt3D
 	double z;
 };
 
-void print_pt3d(Pt3D* p);
+void print_pt(Pt2D* p);
+void print_pt(Pt3D* p);
 
 double eucl_dist(Pt2D p, Pt2D q);
 double eucl_dist(Pt3D p, Pt3D q);
