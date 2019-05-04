@@ -94,7 +94,9 @@ double bounding_radi_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d){
 	m->vertices.push_back(point(c.x, c.y, c.z));
 	m->vertices.push_back(point(d.x, d.y, d.z));
 	m->need_bsphere();
-	return m->bsphere.r;
+	double ret = m->bsphere.r;
+	delete m;
+	return ret;
 }
 
 // int main() {
