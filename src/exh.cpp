@@ -26,6 +26,10 @@ double r_c_min = numeric_limits<double>::max();
 double r_i_max = 0;
 double r_i_min = numeric_limits<double>::max();
 
+bool need_split = false;
+long piece_size = 0;
+long radiis_realsize = 0;
+
 void udpate_max_min(double r_b, double r_c, double r_i) {
 	if (r_b - r_b_max > 0) r_b_max = r_b;
 	if (r_b - r_b_min < 0) r_b_min = r_b;
@@ -41,7 +45,11 @@ string get_indexed_filename(string leading, int index) {
 	return out.str();
 }
 
-int dump_array(string output_name, int index=-1) {
+void add_to_radiis(Tetra_stat stat) {
+	radiis[radiis_realsize++] = stat;
+}
+
+void dump_array(string output_name, int index=-1) {
 	string file_name;
 	if (index < 0) {
 		file_name = output_name;
@@ -55,54 +63,44 @@ int dump_array(string output_name, int index=-1) {
 		exit(1);
 	}
 
-	int size = radiis.size();
-	for (auto &i: radiis) {
+	for (long l = 0; l < radiis_realsize; l++) {
+		Tetra_stat i = radiis[l];
 		ofs << i.r_b << "\t" << i.r_c << "\t" << i.r_i << "\t" << i.ratio << endl;
 	}
-	radiis.clear();
+	cout << radiis_realsize << " items written" << " \n";
+	radiis_realsize = 0;
 
 	ofs.close();
-
-	return size;
 }
 
 long global_counter = 0;
-void next_glb_idx(long total, string output_name) {
-	long base = total / 100;
-	if (global_counter % base == 0 && global_counter > 0) {
-		int piece_index = global_counter / base;
-		if (total > MAX_ARRAY_SIZE) {
-			int piece_size = dump_array(output_name, piece_index);
-			cout << piece_size << " items written" << " \n";
+void next_glb_idx(string output_name) {
+	if (global_counter % piece_size == 0 && global_counter > 0) {
+		int piece_index = global_counter / piece_size;
+		if (need_split) {
+			dump_array(output_name, piece_index);
 		}
 		cout << piece_index << "%...\n";
 	}
 	global_counter++;
 }
 
-void combination_tetra(long res_size, Pt3D list[], Pt3D* tetra[], int start, int end, int index, string output_name) {
-	if (index == 4) {
-		// double r = circumradi_3d(*tetra[0], *tetra[1], *tetra[2], *tetra[3]);
-		auto s = get_ratio_set_3d(*tetra[0], *tetra[1], *tetra[2], *tetra[3]);
-		double r_b = bounding_radi_3d(*tetra[0], *tetra[1], *tetra[2], *tetra[3]);
-		next_glb_idx(res_size, output_name);
-		radiis.push_back({r_b, s.circumradius, s.inradius, s.ratio});
-		udpate_max_min(r_b, s.circumradius, s.inradius);
-
-		// print_pt3d(tetra[0]);
-		// cout << endl;
-		// print_pt3d(tetra[1]);
-		// cout << endl;
-		// print_pt3d(tetra[2]);
-		// cout << endl;
-		// print_pt3d(tetra[3]);
-		// cout << radius << endl;
-		return;
-	}
-
-	for (int i = start; i <= end && end - i >= 3 - index; i++) {
-		tetra[index] = &list[i];
-		combination_tetra(res_size, list, tetra, i + 1, end, index + 1, output_name);
+void combination_tetra(Pt3D list[], int size, string output_name) {
+	Ratio_set s;
+	double r_b;
+	for (int i = 0; i < size - 3; i++) {
+		for (int j = i + 1; j < size - 2; j++) {
+			for (int k = j + 1; k < size - 1; k++) {
+				for (int l = k + 1; l < size; l++) {
+					// cout << i << ", " << j << ", " << k << ", " << l << endl;
+					s = get_ratio_set_3d(list[i], list[j], list[k], list[l]);
+					r_b = bounding_radi_3d(list[i], list[j], list[k], list[l]);
+					next_glb_idx(output_name);
+					add_to_radiis({r_b, s.circumradius, s.inradius, s.ratio});
+					udpate_max_min(r_b, s.circumradius, s.inradius);
+				}
+			}
+		}
 	}
 }
 
@@ -149,12 +147,24 @@ int main(int argc, char **argv) {
 	perm_size *= (size - 1) * (size - 2) * (size - 3) / 24;
 	cout << "permutation size is " << perm_size << endl;
 
-	Pt3D* tetra[4];
-	combination_tetra(perm_size, point_list, tetra, 0, size - 1, 0, output_file);
+	piece_size = perm_size / 100;
+	long radiis_reservation = 0;
+	if (perm_size > MAX_ARRAY_SIZE) {
+		need_split = true;
+		radiis_reservation = piece_size * 1.1;
+		cout << "split needed with each piece size is " << piece_size << endl;
+	} else {
+		radiis_reservation = perm_size * 1.1;
+	}
+	for (long l = 0; l < radiis_reservation; l++) {
+		radiis.push_back({0, 0, 0, 0});
+	}
+	cout << "radiis initialized with {0}" << endl;
 
-	if (!radiis.empty()) {
-		int remaining_size = dump_array(output_file);
-		cout << "remaining " << remaining_size << " items written" << endl;
+	combination_tetra(point_list, size, output_file);
+
+	if (radiis_realsize > 0) {
+		dump_array(output_file);
 	}
 
 	ofstream max_min_output(output_file + "_maxmin");
