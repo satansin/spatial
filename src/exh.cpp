@@ -28,7 +28,6 @@ double r_i_min = numeric_limits<double>::max();
 
 bool need_split = false;
 long piece_size = 0;
-// long radiis_realsize = 0;
 
 void udpate_max_min(double r_b, double r_c, double r_i) {
 	if (r_b - r_b_max > 0) r_b_max = r_b;
@@ -46,7 +45,6 @@ string get_indexed_filename(string leading, int index) {
 }
 
 void add_to_radiis(Tetra_stat stat) {
-	// radiis[radiis_realsize++] = stat;
 	radiis.push_back(stat);
 }
 
@@ -149,18 +147,10 @@ int main(int argc, char **argv) {
 	cout << "permutation size is " << perm_size << endl;
 
 	piece_size = perm_size / 100;
-	// long radiis_reservation = 0;
 	if (perm_size > MAX_ARRAY_SIZE) {
 		need_split = true;
-		// radiis_reservation = piece_size * 1.1;
 		cout << "split needed with each piece size is " << piece_size << endl;
-	// } else {
-	// 	radiis_reservation = perm_size * 1.1;
 	}
-	// for (long l = 0; l < radiis_reservation; l++) {
-	// 	radiis.push_back({0, 0, 0, 0});
-	// }
-	// cout << "radiis initialized with {0}" << endl;
 
 	combination_tetra(point_list, size, output_file);
 
