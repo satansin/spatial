@@ -48,7 +48,7 @@ pcg:
 	$(CXX) $(INC) $(SRC)/pcg.cpp -o $(OUT)/pcg.out
 
 exh: point.o tetra_meas.o
-	$(CXX) $(INC) $(USE_TM) $(SRC)/exh.cpp $(OBJ)/point.o $(OBJ)/tetra_meas.o -o $(OUT)/exh.out  -ltrimesh -lgluit -fopenmp
+	$(CXX) $(INC) $(USE_TM) $(SRC)/exh.cpp $(OBJ)/point.o $(OBJ)/tetra_meas.o -o $(OUT)/exh.out -ltrimesh -lgluit -fopenmp
 
 trans: point.o
 	$(CXX) $(INC) $(USE_EIGEN) $(SRC)/trans.cpp $(OBJ)/point.o -o $(OUT)/trans.out

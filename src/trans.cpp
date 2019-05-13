@@ -20,11 +20,6 @@ struct Trans {
 	double tz;
 };
 
-// struct Trans {
-// 	Matrix3d R;
-// 	Vector3d t;
-// };
-
 Trans* create_trans(double al, double be, double ga, double tx, double ty, double tz) {
 	Trans* ret = new Trans;
 	double cal = cos(al);
@@ -125,9 +120,9 @@ Trans cal_trans(Pt3D* q1, Pt3D* q2, Pt3D* q3, Pt3D* s1, Pt3D* s2, Pt3D* s3) {
 }
 
 int main(int argc, char** argv) {
-	double al = 0.8;
-	double be = 0.7;
-	double ga = 0.4;
+	double al = 0;
+	double be = 0;
+	double ga = 0.5236;
 	double tx = 1.1;
 	double ty = 1.5;
 	double tz = 2.2;
@@ -137,6 +132,8 @@ int main(int argc, char** argv) {
 	cout << tr->r21 << ", " << tr->r22 << ", " << tr->r23 << ", " << tr->ty << endl;
 	cout << tr->r31 << ", " << tr->r32 << ", " << tr->r33 << ", " << tr->tz << endl;
 	cout << 0 << ", " << 0 << ", " << 0 << ", " << 1 << endl << endl;
+
+	exit(0);
 
 	Pt3D test1 = {3.0, 4.0, 8.0};
 	Pt3D test2 = {9.0, 1.0, -3.0};
