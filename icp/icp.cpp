@@ -1,30 +1,17 @@
 #include "point.h"
 #include <iostream>
 #include <cstdlib>
-#include <cstdarg>
 #include <cmath>
 #include <Dense>
+#include "TriMesh.h"
+#include "TriMesh_algo.h"
+#include "ICP.h"
 
 using namespace std;
 using namespace Eigen;
+using namespace trimesh;
 
 #define MAX_COM_LENGTH 100
-
-void invoke_system(const char *fmt, ...)
-{
-	char com[MAX_COM_LENGTH];
-	va_list args;
-	va_start(args, fmt);
-	vsnprintf(com, sizeof(com), fmt, args);
-	va_end(args);
-
-	cout << com << endl;
-	int rc = system(com);
-	if (rc != 0)
-	{
-		exit(1);
-	}
-}
 
 struct Trans {
 	double r11;
@@ -75,21 +62,51 @@ Pt3D trans_pt(const Trans* t, const Pt3D* p) {
 int main(int argc, char** argv) {
 
 	// test code
-	double al = 0;
-	double be = 0;
-	double ga = 0.5236;
-	double tx = 1.1;
-	double ty = 1.5;
-	double tz = 2.2;
-	Trans* tr = create_trans(al, be, ga, tx, ty, tz);
-	cout << "The transformation matrix is:" << endl;
-	cout << tr->r11 << ", " << tr->r12 << ", " << tr->r13 << ", " << tr->tx << endl;
-	cout << tr->r21 << ", " << tr->r22 << ", " << tr->r23 << ", " << tr->ty << endl;
-	cout << tr->r31 << ", " << tr->r32 << ", " << tr->r33 << ", " << tr->tz << endl;
-	cout << 0 << ", " << 0 << ", " << 0 << ", " << 1 << endl << endl;
+	// double al = 0;
+	// double be = 0;
+	// double ga = 0.5236;
+	// double tx = 1.1;
+	// double ty = 1.5;
+	// double tz = 2.2;
+	// Trans* tr = create_trans(al, be, ga, tx, ty, tz);
+	// cout << "The transformation matrix is:" << endl;
+	// cout << tr->r11 << ", " << tr->r12 << ", " << tr->r13 << ", " << tr->tx << endl;
+	// cout << tr->r21 << ", " << tr->r22 << ", " << tr->r23 << ", " << tr->ty << endl;
+	// cout << tr->r31 << ", " << tr->r32 << ", " << tr->r33 << ", " << tr->tz << endl;
+	// cout << 0 << ", " << 0 << ", " << 0 << ", " << 1 << endl << endl;
 
-	system("./mesh_align 1.ply 2.ply");
+	TriMesh *mesh1 = TriMesh::read("1.ply");
+	TriMesh *mesh2 = TriMesh::read("2.ply");
 
-	// TODO: read the output...
+	xform xf1;
+	// string xffilename1 = xfname(filename1);
+	// xf1.read(xffilename1);
+
+	xform xf2;
+	// string xffilename2 = xfname(filename2);
+	// xf2.read(xffilename2);
+
+	KDtree *kd1 = new KDtree(mesh1->vertices);
+	KDtree *kd2 = new KDtree(mesh2->vertices);
+	vector<float> weights1, weights2;
+
+	float err = ICP(mesh1, mesh2, xf1, xf2, kd1, kd2, weights1, weights2, 0.0f);
+
+	apply_xform(mesh2, xf2);
+
+	TriMesh *mesh2_margin = new TriMesh;
+	for (auto &v: mesh2->vertices) {
+		const float *nn = kd1->closest_to_pt((const float *) v, err);
+		if (nn == NULL) {
+			mesh2_margin->vertices.push_back(v);
+		}
+	}
+	cout << "After filtering, " << mesh2_margin->vertices.size() << " vertices left" << endl;
+
+	vector<TriMesh *> meshes;
+	meshes.push_back(mesh1);
+	meshes.push_back(mesh2_margin);
+
+	join(meshes)->write("join.ply");
 
 }

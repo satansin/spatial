@@ -15,6 +15,8 @@ struct Tetra_stat {
 	double r_b;
 	double r_c;
 	double r_i;
+	double v_b;
+	double v_t;
 	double ratio;
 };
 
@@ -25,17 +27,25 @@ double r_c_max = 0;
 double r_c_min = numeric_limits<double>::max();
 double r_i_max = 0;
 double r_i_min = numeric_limits<double>::max();
+double v_b_max = 0;
+double v_b_min = numeric_limits<double>::max();
+double v_t_max = 0;
+double v_t_min = numeric_limits<double>::max();
 
 bool need_split = false;
 long piece_size = 0;
 
-void udpate_max_min(double r_b, double r_c, double r_i) {
+void udpate_max_min(double r_b, double r_c, double r_i, double v_b, double v_t) {
 	if (r_b - r_b_max > 0) r_b_max = r_b;
 	if (r_b - r_b_min < 0) r_b_min = r_b;
 	if (r_c - r_c_max > 0) r_c_max = r_c;
 	if (r_c - r_c_min < 0) r_c_min = r_c;
 	if (r_i - r_i_max > 0) r_i_max = r_i;
 	if (r_i - r_i_min < 0) r_i_min = r_i;
+	if (v_b - v_b_max > 0) v_b_max = v_b;
+	if (v_b - v_b_min < 0) v_b_min = v_b;
+	if (v_t - v_t_max > 0) v_t_max = v_t;
+	if (v_t - v_t_min < 0) v_t_min = v_t;
 }
 
 string get_indexed_filename(string leading, int index) {
@@ -63,7 +73,8 @@ void dump_array(string output_name, int index=-1) {
 	}
 
 	for (auto &i: radiis) {
-		ofs << i.r_b << "\t" << i.r_c << "\t" << i.r_i << "\t" << i.ratio << endl;
+		// ofs << i.r_b << "\t" << i.r_c << "\t" << i.r_i << "\t" << i.ratio << endl;
+		ofs << i.v_b << "\t" << i.v_t << "\t" << i.ratio << endl;
 	}
 	cout << radiis.size() << " items written" << " \n";
 	
@@ -86,17 +97,21 @@ void next_glb_idx(string output_name) {
 
 void combination_tetra(Pt3D list[], int size, string output_name) {
 	Ratio_set s;
-	double r_b;
+	// double r_b;
+	double v_t, v_b;
 	for (int i = 0; i < size - 3; i++) {
 		for (int j = i + 1; j < size - 2; j++) {
 			for (int k = j + 1; k < size - 1; k++) {
 				for (int l = k + 1; l < size; l++) {
 					// cout << i << ", " << j << ", " << k << ", " << l << endl;
-					s = get_ratio_set_3d(list[i], list[j], list[k], list[l]);
-					r_b = bounding_radi_3d(list[i], list[j], list[k], list[l]);
+					// s = get_ratio_set_3d(list[i], list[j], list[k], list[l]);
+					// r_b = bounding_radi_3d(list[i], list[j], list[k], list[l]);
+					v_b = bounding_vol_3d(list[i], list[j], list[k], list[l]);
+					v_t = volume_3d(list[i], list[j], list[k], list[l]);
 					next_glb_idx(output_name);
-					add_to_radiis({r_b, s.circumradius, s.inradius, s.ratio});
-					udpate_max_min(r_b, s.circumradius, s.inradius);
+					// add_to_radiis({r_b, s.circumradius, s.inradius, s.ratio});
+					add_to_radiis({0, 0, 0, v_b, v_t, v_t / v_b});
+					udpate_max_min(0, 0, 0, v_b, v_t);
 				}
 			}
 		}
@@ -169,6 +184,10 @@ int main(int argc, char **argv) {
 	max_min_output << "min circumradius: " << r_c_min << endl;
 	max_min_output << "max inradius: " << r_i_max << endl;
 	max_min_output << "max inradius: " << r_i_min << endl;
+	max_min_output << "max bounding volume: " << v_b_max << endl;
+	max_min_output << "min bounding volume: " << v_b_min << endl;
+	max_min_output << "max tetra volume: " << v_t_max << endl;
+	max_min_output << "min tetra volume: " << v_t_min << endl;
 	max_min_output.close();
 
 	// double r;
