@@ -7,6 +7,8 @@ using namespace std;
 using namespace trimesh;
 using namespace Eigen;
 
+static const double PI = 3.14159265359;
+
 // local help function
 double area_3d(double a, double b, double c){
 	double s = (a + b + c) * 0.5;
@@ -71,6 +73,13 @@ Ratio_set get_ratio_set_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d){
 	return ret;
 }
 
+double volume_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d){
+	Vector3d ab(b.x - a.x, b.y - a.y, b.z - a.z);
+	Vector3d ac(c.x - a.x, c.y - a.y, c.z - a.z);
+	Vector3d ad(d.x - a.x, d.y - a.y, d.z - a.z);
+	return abs(ab.dot(ac.cross(ad))) / 6.0;
+}
+
 double circumradi_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
 	Pt3D ab = {b.x - a.x, b.y - a.y, b.z - a.z};
 	Pt3D ac = {c.x - a.x, c.y - a.y, c.z - a.z};
@@ -97,6 +106,11 @@ double bounding_radi_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d){
 	double ret = m->bsphere.r;
 	delete m;
 	return ret;
+}
+
+double bounding_vol_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d){
+	double r = bounding_radi_3d(a, b, c, d);
+	return r * r * r * PI * 4.0 / 3.0;
 }
 
 // int main() {

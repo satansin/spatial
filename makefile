@@ -39,7 +39,7 @@ OUT=src/out
 #     add $(USE_TM)
 #     add the following !!in the end of out!!: -ltrimesh -lgluit -fopenmp
 
-all: clean pcd_prepro pcg exh trans
+all: clean pcd_prepro pcg exh trans kitti
 
 pcd_prepro:
 	$(CXX) $(INC) $(SRC)/pcd_prepro.cpp -o $(OUT)/pcd_prepro.out
@@ -52,6 +52,9 @@ exh: point.o tetra_meas.o
 
 trans: point.o
 	$(CXX) $(INC) $(USE_EIGEN) $(SRC)/trans.cpp $(OBJ)/point.o -o $(OUT)/trans.out
+
+kitti:
+	$(CXX) $(INC) $(USE_TM) $(SRC)/kitti.cpp -o $(OUT)/kitti.out -ltrimesh -lgluit -fopenmp
 
 point.o: $(OBJ)/
 	$(CXX) $(INC) -c $(SRC)/point.cpp -o $(OBJ)/point.o
