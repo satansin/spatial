@@ -1,3 +1,6 @@
+#ifndef __POINT_H
+#define __POINT_H
+
 struct Pt2D
 {
 	double x;
@@ -28,3 +31,5 @@ Pt3D cross_prd(Pt3D a, Pt3D b);
 double sq_mode(Pt3D p);
 
 double mode(Pt3D p);
+
+#endif
