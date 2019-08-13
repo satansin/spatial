@@ -16,7 +16,7 @@ using namespace std;
 using namespace trimesh;
 
 const int TRAINING_SIZE = 7481;
-const int TESTING_SIZE = 8518;
+const int TESTING_SIZE = 7518;
 
 string get_indexed_filename(string leading, int index, string suffix) {
 	ostringstream out;
@@ -32,11 +32,11 @@ int main(int argc, char **argv) {
 	// char *input_filename = argv[1];
 	// char *output_filename = argv[2];
 	// use hardcoded file path instead
-	string input_filename = "/rwproject/kdd-db/hliubs/KITTI/data_object_velodyne/training/velodyne/";
-	string output_filename = "/rwproject/kdd-db/hliubs/KITTI/data_object_velodyne/training/ply/";
+	string input_filename = "/rwproject/kdd-db/hliubs/KITTI/data_object_velodyne/testing/velodyne/";
+	string output_filename = "/rwproject/kdd-db/hliubs/KITTI/data_object_velodyne/testing/ply/";
 
 	// process training data
-	for (int i = 0; i < TRAINING_SIZE; i++) {	
+	for (int i = 0; i < TESTING_SIZE; i++) {	
 		// allocate 4 MB buffer (only ~130*4*4 KB are needed)
 		int32_t num = 1000000;
 		float *data = (float *) malloc(num * sizeof(float));
