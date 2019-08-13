@@ -39,7 +39,7 @@ OUT=src/out
 #     add $(USE_TM)
 #     add the following !!in the end of out!!: -ltrimesh -lgluit -fopenmp
 
-all: clean pcd_prepro pcg exh trans kitti
+all: clean pcd_prepro pcg exh kitti range 4pcs
 
 pcd_prepro:
 	$(CXX) $(INC) $(SRC)/pcd_prepro.cpp -o $(OUT)/pcd_prepro.out
@@ -48,13 +48,19 @@ pcg:
 	$(CXX) $(INC) $(SRC)/pcg.cpp -o $(OUT)/pcg.out
 
 exh: point.o tetra_meas.o
-	$(CXX) $(INC) $(USE_TM) $(SRC)/exh.cpp $(OBJ)/point.o $(OBJ)/tetra_meas.o -o $(OUT)/exh.out -ltrimesh -lgluit -fopenmp
-
-trans: point.o
-	$(CXX) $(INC) $(USE_EIGEN) $(SRC)/trans.cpp $(OBJ)/point.o -o $(OUT)/trans.out
+	$(CXX) $(INC) $(USE_TM) $(SRC)/exh.cpp $(OBJ)/* -o $(OUT)/exh.out -ltrimesh -lgluit -fopenmp
 
 kitti:
 	$(CXX) $(INC) $(USE_TM) $(SRC)/kitti.cpp -o $(OUT)/kitti.out -ltrimesh -lgluit -fopenmp
+
+range:
+	$(CXX) $(INC) $(USE_TM) $(SRC)/range.cpp -o $(OUT)/range.out -ltrimesh -lgluit -fopenmp
+
+4pcs: trans.o point.o
+	$(CXX) $(INC) $(USE_TM) $(SRC)/4pcs.cpp $(OBJ)/* -o $(OUT)/4pcs.out -ltrimesh -lgluit -fopenmp
+
+trans.o: point.o
+	$(CXX) $(INC) $(USE_EIGEN) -c $(SRC)/trans.cpp -o $(OBJ)/trans.o
 
 point.o: $(OBJ)/
 	$(CXX) $(INC) -c $(SRC)/point.cpp -o $(OBJ)/point.o

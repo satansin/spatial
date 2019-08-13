@@ -1,24 +1,9 @@
-#include "point.h"
+#include "trans.h"
 #include <iostream>
 #include <cmath>
 #include <Dense>
 using namespace std;
 using namespace Eigen;
-
-struct Trans {
-	double r11;
-	double r12;
-	double r13;
-	double r21;
-	double r22;
-	double r23;
-	double r31;
-	double r32;
-	double r33;
-	double tx;
-	double ty;
-	double tz;
-};
 
 Trans* create_trans(double al, double be, double ga, double tx, double ty, double tz) {
 	Trans* ret = new Trans;
@@ -119,63 +104,63 @@ Trans cal_trans(Pt3D* q1, Pt3D* q2, Pt3D* q3, Pt3D* s1, Pt3D* s2, Pt3D* s3) {
 	return Trans{0.0};
 }
 
-int main(int argc, char** argv) {
-	double al = 0;
-	double be = 0;
-	double ga = 0.5236;
-	double tx = 1.1;
-	double ty = 1.5;
-	double tz = 2.2;
-	Trans* tr = create_trans(al, be, ga, tx, ty, tz);
-	cout << "The transformation matrix is:" << endl;
-	cout << tr->r11 << ", " << tr->r12 << ", " << tr->r13 << ", " << tr->tx << endl;
-	cout << tr->r21 << ", " << tr->r22 << ", " << tr->r23 << ", " << tr->ty << endl;
-	cout << tr->r31 << ", " << tr->r32 << ", " << tr->r33 << ", " << tr->tz << endl;
-	cout << 0 << ", " << 0 << ", " << 0 << ", " << 1 << endl << endl;
+// int main(int argc, char** argv) {
+// 	double al = 0;
+// 	double be = 0;
+// 	double ga = 0.5236;
+// 	double tx = 1.1;
+// 	double ty = 1.5;
+// 	double tz = 2.2;
+// 	Trans* tr = create_trans(al, be, ga, tx, ty, tz);
+// 	cout << "The transformation matrix is:" << endl;
+// 	cout << tr->r11 << ", " << tr->r12 << ", " << tr->r13 << ", " << tr->tx << endl;
+// 	cout << tr->r21 << ", " << tr->r22 << ", " << tr->r23 << ", " << tr->ty << endl;
+// 	cout << tr->r31 << ", " << tr->r32 << ", " << tr->r33 << ", " << tr->tz << endl;
+// 	cout << 0 << ", " << 0 << ", " << 0 << ", " << 1 << endl << endl;
 
-	exit(0);
+// 	exit(0);
 
-	Pt3D test1 = {3.0, 4.0, 8.0};
-	Pt3D test2 = {9.0, 1.0, -3.0};
-	Pt3D test3 = {7.0, 10.0, 2.0};
+// 	Pt3D test1 = {3.0, 4.0, 8.0};
+// 	Pt3D test2 = {9.0, 1.0, -3.0};
+// 	Pt3D test3 = {7.0, 10.0, 2.0};
 
-	cout << "Before transformation:\n";
-	print_pt(&test1);
-	cout << endl;
-	print_pt(&test2);
-	cout << endl;
-	print_pt(&test3);
-	cout << endl;
+// 	cout << "Before transformation:\n";
+// 	print_pt(&test1);
+// 	cout << endl;
+// 	print_pt(&test2);
+// 	cout << endl;
+// 	print_pt(&test3);
+// 	cout << endl;
 
-	Pt3D original_mean;
-	original_mean.x = (test1.x + test2.x + test3.x) / 3.0;
-	original_mean.y = (test1.y + test2.y + test3.y) / 3.0;
-	original_mean.z = (test1.z + test2.z + test3.z) / 3.0;
-	cout << "mean = ";
-	print_pt(&original_mean);
-	cout << endl << endl;
+// 	Pt3D original_mean;
+// 	original_mean.x = (test1.x + test2.x + test3.x) / 3.0;
+// 	original_mean.y = (test1.y + test2.y + test3.y) / 3.0;
+// 	original_mean.z = (test1.z + test2.z + test3.z) / 3.0;
+// 	cout << "mean = ";
+// 	print_pt(&original_mean);
+// 	cout << endl << endl;
 
-	Pt3D t_test1 = trans_pt(tr, &test1);
-	Pt3D t_test2 = trans_pt(tr, &test2);
-	Pt3D t_test3 = trans_pt(tr, &test3);
+// 	Pt3D t_test1 = trans_pt(tr, &test1);
+// 	Pt3D t_test2 = trans_pt(tr, &test2);
+// 	Pt3D t_test3 = trans_pt(tr, &test3);
 
-	cout << "After transformation:\n";
-	print_pt(&t_test1);
-	cout << endl;
-	print_pt(&t_test2);
-	cout << endl;
-	print_pt(&t_test3);
-	cout << endl;
+// 	cout << "After transformation:\n";
+// 	print_pt(&t_test1);
+// 	cout << endl;
+// 	print_pt(&t_test2);
+// 	cout << endl;
+// 	print_pt(&t_test3);
+// 	cout << endl;
 
-	Pt3D t_mean;
-	t_mean.x = (t_test1.x + t_test2.x + t_test3.x) / 3.0;
-	t_mean.y = (t_test1.y + t_test2.y + t_test3.y) / 3.0;
-	t_mean.z = (t_test1.z + t_test2.z + t_test3.z) / 3.0;
-	cout << "mean = ";
-	print_pt(&t_mean);
-	cout << endl << endl;
+// 	Pt3D t_mean;
+// 	t_mean.x = (t_test1.x + t_test2.x + t_test3.x) / 3.0;
+// 	t_mean.y = (t_test1.y + t_test2.y + t_test3.y) / 3.0;
+// 	t_mean.z = (t_test1.z + t_test2.z + t_test3.z) / 3.0;
+// 	cout << "mean = ";
+// 	print_pt(&t_mean);
+// 	cout << endl << endl;
 
-	delete tr;
+// 	delete tr;
 
-	cal_trans(&test1, &test2, &test3, &t_test1, &t_test2, &t_test3);
-}
+// 	cal_trans(&test1, &test2, &test3, &t_test1, &t_test2, &t_test3);
+// }

@@ -1,27 +1,28 @@
-#include "point.h"
 #include <iostream>
 #include <fstream>
 using namespace std;
 
 int main(int argc, char **argv) {
-	if (argc < 2) {
-		cerr << "missing output file" << endl;
+	if (argc < 3) {
+		cerr << "Usage: " << argv[0] << " input_filename output_filename" << endl;
 		exit(1);
 	}
-	ofstream output_ply(argv[1]);
+	auto input_filename = argv[1];
+	auto output_filename = argv[2];
+	ofstream output_ply(output_filename);
 	if (!output_ply.is_open()) {
 		cerr << "error open output file" << endl;
 		exit(1);
 	}
 
 	ifstream input_ply;
-	input_ply.open("../data/bun_zipper_res4.ply");
+	input_ply.open(input_filename);
 	if (!input_ply.is_open()) {
 		cerr << "error open input file" << endl;
 		exit(1);
 	}
 
-	cout << "reading bun_zipper_res4.ply..." << endl;
+	cout << "reading " << input_filename << endl;
 	string line;
 	int i;
 	for (i = 0; i < 4; i++) {
@@ -59,7 +60,7 @@ int main(int argc, char **argv) {
 			output_ply << line << endl;
 		}
 	}
-	cout << "written to " << argv[1] << endl;
+	cout << "written to " << output_filename << endl;
 
 	input_ply.close();
 	output_ply.close();
