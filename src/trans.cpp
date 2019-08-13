@@ -1,9 +1,17 @@
 #include "trans.h"
+#include "point.h"
 #include <iostream>
 #include <cmath>
 #include <Dense>
 using namespace std;
 using namespace Eigen;
+
+void print_trans(const Trans* t) {
+	cout << t->r11 << " " << t->r12 << " " << t->r13 << " " << t->tx << endl;
+	cout << t->r21 << " " << t->r22 << " " << t->r23 << " " << t->ty << endl;
+	cout << t->r31 << " " << t->r32 << " " << t->r33 << " " << t->tz << endl;
+	cout << "0 0 0 1" << endl;
+}
 
 Trans* create_trans(double al, double be, double ga, double tx, double ty, double tz) {
 	Trans* ret = new Trans;
@@ -34,6 +42,42 @@ Pt3D trans_pt(const Trans* t, const Pt3D* p) {
 	t_p.y = t->r21 * p->x + t->r22 * p->y + t->r23 * p->z + t->ty;
 	t_p.z = t->r31 * p->x + t->r32 * p->y + t->r33 * p->z + t->tz;
 	return t_p;
+}
+
+Trans cal_trans(Pt3D* q, Pt3D* p, int num) {
+	Vector3d vq[num], vp[num];
+	Vector3d sum_q(0, 0, 0), sum_p(0, 0, 0);
+	for (int i = 0; i < num; i++) {
+		vq[i] << q[i].x, q[i].y, q[i].z;
+		vp[i] << p[i].x, p[i].y, p[i].z;
+		sum_q += vq[i];
+		sum_p += vp[i];
+	}
+	Vector3d vq_bar = sum_q / num;
+	Vector3d vp_bar = sum_p / num;
+
+	// x = vq - vq_bar, y = vp - vp_bar
+	MatrixXd x(3, num), y(3, num);
+	for (int i = 0; i < num; i++) {
+		for (int j = 0; j < 3; j++) {
+			x(j, i) = vq[i](j) - vq_bar(j);
+			y(j, i) = vp[i](j) - vp_bar(j);
+		}
+	}
+
+	// S = X * Y^T, SVD(S) = U * D * V^T
+	Matrix3d s = x * y.transpose();
+	JacobiSVD<Matrix3d> svd(s, ComputeFullU | ComputeFullV);
+
+	// R = V * U^T, t = vp_bar - R * vq_bar
+	Matrix3d r = svd.matrixV() * svd.matrixU().transpose();
+	Vector3d t = vp_bar - r * vq_bar;
+
+	return {
+		r(0, 0), r(0, 1), r(0, 2),
+		r(1, 0), r(1, 1), r(1, 2),
+		r(2, 0), r(2, 1), r(2, 2),
+		t(0), t(1), t(2) };
 }
 
 Trans cal_trans(Pt3D* q1, Pt3D* q2, Pt3D* q3, Pt3D* s1, Pt3D* s2, Pt3D* s3) {

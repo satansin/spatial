@@ -1,3 +1,6 @@
+#ifndef __TETRA_MEAS_H
+#define __TETRA_MEAS_H
+
 #include "point.h"
 
 struct Ratio_set {
@@ -19,3 +22,5 @@ double inradi_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d);
 
 double bounding_radi_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d);
 double bounding_vol_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d);
+
+#endif
