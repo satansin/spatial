@@ -1,6 +1,8 @@
 #ifndef __POINT_H
 #define __POINT_H
 
+#include "TriMesh.h"
+
 struct Pt2D
 {
 	double x;
@@ -13,6 +15,11 @@ struct Pt3D
 	double y;
 	double z;
 };
+
+
+inline Pt3D pt(trimesh::point p) {
+	return {p[0], p[1], p[2]};
+}
 
 void print_pt(Pt2D* p);
 void print_pt(Pt3D* p);

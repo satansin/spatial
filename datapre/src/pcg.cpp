@@ -144,7 +144,12 @@ void savePly(string out_path, vector<Point> &lin){
     outfile.close();
 }
 
-int main() {
+int main(int argc, char** argv) {
+
+    if (argc < 4) {
+        cerr << "Usage: " << argv[0] << " #pts size_diagonal outfile_absolute" << endl;
+        exit(1);
+    }
 
     // Getting current path
     char cCurrentPath[FILENAME_MAX];
@@ -170,7 +175,12 @@ int main() {
     double tightness;
     string file;
 
+    type = 0;
+    nPoints = atoi(argv[1]);
+    diag = atof(argv[2]);
+    file = argv[3];
     cout << endl;
+    /*
     cout << "------------------------------------------------------------------------------------" << endl;
     cout << "                               POINT CLOUD GENERATOR" << endl;
     cout << "------------------------------------------------------------------------------------" << endl;
@@ -193,8 +203,9 @@ int main() {
     cout << "Ok, it's almost done. Give me the name of the output file:" << endl;
     cin >> file;
     cout << endl;
-    cout << "========================> Generating Point Cloud..." << endl;
-    cout << " Type: " << typenames[type] << endl;
+    */
+    cout << "Generating Point Cloud..." << endl;
+    // cout << " Type: " << typenames[type] << endl;
     cout << " # of points: " << nPoints << endl;
     cout << " Diagonal: " << diag << endl;
     cout << " File name: " << file << endl;
@@ -206,15 +217,15 @@ int main() {
 
     vector<Point> cloud = createPointCloud(type, nPoints, diag,tightness);
 
-    cout << "========================> Saving file..." << endl;
-    cout << endl;
+    cout << "Saving file..." << endl;
+    // cout << endl;
 
-    string path = string(cCurrentPath) + "/" + file;
-    savePly(path, cloud);
+    // string path = string(cCurrentPath) + "/" + file;
+    savePly(file, cloud);
     //printCloud(cloud);
 
-    cout << "Good! Your point cloud has been created and saved in:" << endl;
-    cout << cCurrentPath << "/" << file << endl;
+    // cout << "Good! Your point cloud has been created and saved in:" << endl;
+    // cout << cCurrentPath << "/" << file << endl;
 
     return 0;
 }
