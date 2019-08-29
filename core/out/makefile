@@ -2,7 +2,7 @@ MAKE=make
 CLEAN=make clean
 
 all:
-	$(MAKE) -C ../../
+	$(MAKE) -C ../
 
 clean:
-	$(CLEAN) -C ../../
+	$(CLEAN) -C ../

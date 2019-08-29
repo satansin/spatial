@@ -32,8 +32,8 @@ int main(int argc, char **argv) {
 	// char *input_filename = argv[1];
 	// char *output_filename = argv[2];
 	// use hardcoded file path instead
-	string input_filename = "/rwproject/kdd-db/hliubs/KITTI/data_object_velodyne/testing/velodyne/";
-	string output_filename = "/rwproject/kdd-db/hliubs/KITTI/data_object_velodyne/testing/ply/";
+	string input_filename = "/rwproject/kdd-db/hliubs/spatial/3dor/KITTI/data_object_velodyne/testing/velodyne/";
+	string output_filename = "/rwproject/kdd-db/hliubs/spatial/3dor/KITTI/data_object_velodyne/testing/ply/";
 
 	// process training data
 	for (int i = 0; i < TESTING_SIZE; i++) {	

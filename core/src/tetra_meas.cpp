@@ -1,4 +1,5 @@
 #include "tetra_meas.h"
+#include "point.h"
 #include "TriMesh.h"
 #include <iostream>
 #include <cmath>
@@ -44,7 +45,7 @@ Pt3D circumcenter_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
 	return {o(0), o(1), o(2)};
 }
 
-Ratio_set get_ratio_set_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d){
+Ratio_set get_ratio_set_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
 	Ratio_set ret;
 	Vector3d ab(b.x - a.x, b.y - a.y, b.z - a.z);
 	Vector3d ac(c.x - a.x, c.y - a.y, c.z - a.z);
@@ -73,7 +74,14 @@ Ratio_set get_ratio_set_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d){
 	return ret;
 }
 
-double volume_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d){
+Ratio_set_vol get_ratio_set_vol(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
+	Ratio_set_vol ret;
+	ret.volume = volume_3d(a, b, c, d);
+	ret.ratio = 8.162097 * ret.volume / bounding_vol_3d(a, b, c, d);
+	return ret;
+}
+
+double volume_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
 	Vector3d ab(b.x - a.x, b.y - a.y, b.z - a.z);
 	Vector3d ac(c.x - a.x, c.y - a.y, c.z - a.z);
 	Vector3d ad(d.x - a.x, d.y - a.y, d.z - a.z);
@@ -96,7 +104,7 @@ double circumradi_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
 	return rad;
 }
 
-double bounding_radi_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d){
+double bounding_radi_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
 	TriMesh *m = new TriMesh;
 	m->vertices.push_back(point(a.x, a.y, a.z));
 	m->vertices.push_back(point(b.x, b.y, b.z));
@@ -108,29 +116,47 @@ double bounding_radi_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d){
 	return ret;
 }
 
-double bounding_vol_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d){
+double bounding_vol_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
 	double r = bounding_radi_3d(a, b, c, d);
 	return r * r * r * PI * 4.0 / 3.0;
 }
 
-// int main() {
-// 	Pt3D a = {0, 0, 0};
-// 	Pt3D b = {0, 20, 0};
-// 	Pt3D c = {20, 0, 0};
-// 	Pt3D d = {0, 0, 20};
-// 	cout << bounding_radi_3d(a, b, c, d) << endl;
-// 	Pt3D e = circumcenter_3d(a, b, c, d);
-// 	print_pt(&e);
-// 	cout << endl;
-// 	auto r = get_ratio_set_3d(a, b, c, d);
-// 	cout << r.inradius << endl;
-// 	cout << r.circumradius << endl;
-// 	cout << r.ratio << endl;
+void get_plane_params(Pt3D p, Pt3D q, Pt3D r, double& a, double& b, double& c) {
+	Matrix3d m;
+	m << p.x, p.y, p.z, q.x, q.y, q.z, r.x, r.y, r.z;
+	Vector3d one(1, 1, 1);
+	Vector3d n = m.inverse() * one;
+	a = n(0);
+	b = n(1);
+	c = n(2);
+}
 
-// 	Pt2D x = {0, 0};
-// 	Pt2D y = {20, 0};
-// 	Pt2D z = {0, 20};
-// 	Pt2D o = circumcenter_2d(x, y, z);
-// 	print_pt(&o);
-// 	cout << endl;
-// }
+void get_nearest_farest(Pt3D o, Pt3D p, Pt3D q, Pt3D r, double drift, Pt3D& nearest, Pt3D& farest) {
+	double a, b, c;
+	get_plane_params(p, q, r, a, b, c);
+	double length = sqrt(a * a + b * b + c * c);
+	a = a / length * drift;
+	b = b / length * drift;
+	c = c / length * drift;
+	nearest = { o.x + a, o.y + b, o.z + c };
+	farest = { o.x - a, o.y - b, o.z - c };
+}
+
+void cal_range(Pt3D a, Pt3D b, Pt3D c, Pt3D d, double drift,
+	double& low_vol, double& high_vol, double& low_ratio, double& high_ratio) {
+	Pt3D a_n, b_n, c_n, d_n, a_f, b_f, c_f, d_f;
+	get_nearest_farest(a, b, c, d, drift, a_n, a_f);
+	get_nearest_farest(b, a, c, d, drift, b_n, b_f);
+	get_nearest_farest(c, a, b, d, drift, c_n, c_f);
+	get_nearest_farest(d, a, b, c, drift, d_n, d_f);
+	low_vol = volume_3d(a_n, b_n, c_n, d_n);
+	high_vol = volume_3d(a_f, b_f, c_f, d_f);
+
+	double b_r = bounding_radi_3d(a, b, c, d);
+	double low_b_r = b_r - drift;
+	double high_b_r = b_r + drift;
+	double low_b_v = low_b_r * low_b_r * low_b_r * PI * 4.0 / 3.0;
+	double high_b_v = high_b_r * high_b_r * high_b_r * PI * 4.0 / 3.0;
+	low_ratio = 8.162097 * low_vol / high_b_v;
+	high_ratio = 8.162097 * high_vol / low_b_v;
+}
