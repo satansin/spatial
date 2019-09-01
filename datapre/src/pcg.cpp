@@ -43,7 +43,7 @@ vector<Point> createPointCloud(int type, int nPoints, float diag,double tightnes
     vector<Point> res;
 
     // find side size
-    float side = diag / sqrt(2);
+    float side = diag / sqrt(3);
 
     if(type == RANDOM){
 
