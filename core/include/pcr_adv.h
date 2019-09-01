@@ -5,15 +5,44 @@
 #include "trans.h"
 #include <vector>
 #include <string>
+#include <cmath>
 
 struct PtwID {
 	int id;
 	Pt3D pt;
+	PtwID() {}
+	PtwID(int id, Pt3D pt) {
+		this->id = id;
+		this->pt = pt;
+	}
 };
 
 struct Cell {
 	int x, y, z;
 	std::vector<PtwID> list;
+	Cell() {}
+	Cell(int x, int y, int z) {
+		this->x = x;
+		this->y = y;
+		this->z = z;
+	}
+	void add_pt(PtwID p) {
+		list.push_back(p);
+	}
+	void add_pt(int id, Pt3D pt) {
+		list.push_back(PtwID(id, pt));
+	}
+	std::string to_str() {
+		std::string s =
+			std::to_string(x) + " " +
+			std::to_string(y) + " " +
+			std::to_string(z) + " " +
+			std::to_string(list.size());
+		for (PtwID &p: list) {
+		 	s = s + " " + std::to_string(p.id);
+		}
+		return s;
+	}
 };
 
 struct Entry {
@@ -22,7 +51,23 @@ struct Entry {
 	double vol;
 	double meas;
 	bool fail;
-
+	Entry() {
+        repre.id = -1;
+        remai[0].id = -1;
+        remai[1].id = -1;
+        remai[2].id = -1;
+        vol = -1;
+    	meas = -1;
+    	fail = false;
+	}
+	void set(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, double vol, double meas) {
+		this->repre = repre;
+		this->remai[0] = remai_0;
+		this->remai[1] = remai_1;
+		this->remai[2] = remai_2;
+		this->vol = vol;
+		this->meas = meas;
+	}
 	std::string to_str() {
 		return
 			std::to_string(repre.id) + " " +
@@ -77,5 +122,16 @@ struct Entry_Pair {
 		xf = cal_trans(q_array, p_array, 4);
 	}
 };
+
+int get_cell_id(double val, double w) {
+    return (int) floor(val / w);
+}
+
+int get_cell_key(int cell_id[], int min_id[], int max_id[]) {
+    int span[3] = { max_id[0] - min_id[0] + 1, max_id[1] - min_id[1] + 1, max_id[2] - min_id[2] + 1 };
+    return ( (cell_id[0] - min_id[0]) * span[1] * span[2] +
+             (cell_id[1] - min_id[1]) * span[2] +
+             (cell_id[2] - min_id[2]) );
+}
 
 #endif

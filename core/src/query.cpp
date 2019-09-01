@@ -2,14 +2,15 @@
 #include "point.h"
 #include "tetra_meas.h"
 #include "pcr_adv.h"
+#include "RTree.h"
 #include "share.h"
 #include <iostream>
 #include <vector>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 using namespace std;
 using namespace trimesh;
-
-const double epsilon_m = 0.1;
 
 vector<Entry> cal_entries(PtwID q, Pt3D pts_q[], int m, double min, double max) {
 	vector<Entry> ret;
@@ -48,7 +49,7 @@ vector<Entry> cal_entries(PtwID q, Pt3D pts_q[], int m, double min, double max) 
 	return ret;
 }
 
-bool check_congr(Entry e, Entry f) {
+bool check_congr(Entry e, Entry f, double epsilon_m) {
 	double e_edges[5], f_edges[5];
 	e_edges[0] = eucl_dist(e.repre.pt, e.remai[0].pt);
 	e_edges[1] = eucl_dist(e.repre.pt, e.remai[1].pt);
@@ -68,135 +69,212 @@ bool check_congr(Entry e, Entry f) {
 	return true;
 }
 
-vector<Entry_Pair> look_up_index(Entry e, vector<Entry> index_list) {
-	vector<Entry_Pair> ret;
-	double low_vol, high_vol, low_meas, high_meas;
-	cal_range(e.repre.pt, e.remai[0].pt, e.remai[1].pt, e.remai[2].pt, epsilon_m,
-		low_vol, high_vol, low_meas, high_meas);
+vector<int> tree_search_return;
 
-	for (Entry &f: index_list) {
-		if (f.vol >= low_vol &&	f.vol <= high_vol &&
-			f.meas >= low_meas && f.meas <= high_meas && check_congr(e, f)) {
-			Entry_Pair p(e, f);
-			ret.push_back(p);
-		}
-	}
+// TODO: improve performance by not using callback
+bool tree_search_callback(int key) {
+    // cout << key << ":\n";
+    tree_search_return.push_back(key);
+    return true;
+}
+
+vector<Entry_Pair> look_up_index(Entry e, double epsilon_m, RTree<int, double, 2>* tree,
+    unordered_map<int, Entry>* entries_map) {
+
+	vector<Entry_Pair> ret;
+
+    double low[2], high[2];
+	cal_range(e.repre.pt, e.remai[0].pt, e.remai[1].pt, e.remai[2].pt, epsilon_m,
+		low[0], high[0], low[1], high[1]);
+
+    int nhits = tree->Search(low, high, tree_search_callback);
+
+    for (int &hit_key: tree_search_return) {
+        Entry f = (*entries_map)[hit_key];
+        if (check_congr(e, f, epsilon_m)) {
+            Entry_Pair p(e, f);
+            ret.push_back(p);
+        }
+    }
+    tree_search_return.clear();
+
 	return ret;
 }
 
+// tmp function
+int look_up_index(int repre_id, unordered_map<int, Entry>* entries_map) {
+    for (auto it = entries_map->begin(); it != entries_map->end(); it++) {
+        if (it->second.repre.id == repre_id) {
+            return it->first;
+        }
+    }
+    return -1;
+}
+
 int main(int argc, char **argv) {
-	// if (argc < 4) {
-	// 	cerr << "Usage: " << argv[0] << " w min max" << endl;
-	// 	exit(1);
-	// }
+	if (argc < 6) {
+		cerr << "Usage: " << argv[0] << " database_filename index_filename query_filename epsilon_m eta" << endl;
+		exit(1);
+	}
 
 	cout << "Reading dababase file" << endl;
-	string database_filename = "../data/t2.ply";
+	string database_filename = argv[1];
 	TriMesh *mesh_p = TriMesh::read(database_filename);
 
 	cout << "Loading index entries" << endl;
-    string idx_filename = "../data/t2.idx";
-    ifstream idx_ifs(idx_filename);
+    string idx_filename = argv[2];
+    RTree<int, double, 2> tree;
+    tree.Load(idx_filename.c_str());
 
-    vector<Entry> index_list;
-    while (!idx_ifs.eof()) {
-    	int id_repre, id_0, id_1, id_2;
-    	double vol, meas;
-    	bool fail;
-    	idx_ifs >> id_repre >> id_0 >> id_1 >> id_2 >> vol >> meas >> fail;
-    	if (fail) {
-    		continue;
-    	}
+    string grid_filename = idx_filename + ".grid";
+    ifstream grid_ifs(grid_filename);
 
-    	Entry e;
-    	e.repre.id = id_repre;
-    	e.repre.pt = pt(mesh_p->vertices[id_repre]);
-    	e.remai[0].id = id_0;
-    	e.remai[0].pt = pt(mesh_p->vertices[id_0]);
-    	e.remai[1].id = id_1;
-    	e.remai[1].pt = pt(mesh_p->vertices[id_1]);
-    	e.remai[2].id = id_2;
-    	e.remai[2].pt = pt(mesh_p->vertices[id_2]);
-    	e.vol = vol;
-    	e.meas = meas;
-    	e.fail = fail;
+    double w_db, ann_min_db, ann_max_db;
+    grid_ifs >> w_db >> ann_min_db >> ann_max_db;
 
-    	index_list.push_back(e);
+    int cells_count_db; grid_ifs >> cells_count_db;
+
+    int cell_id_min_db[3], cell_id_max_db[3];
+    grid_ifs >> cell_id_min_db[0] >> cell_id_min_db[1] >> cell_id_min_db[2]
+             >> cell_id_max_db[0] >> cell_id_max_db[1] >> cell_id_max_db[2];
+
+    unordered_map<int, Cell> cells_map;
+    unordered_map<int, Entry> entries_map;
+    for (int i = 0; i < cells_count_db; i++) {
+        int key, x, y, z, list_size;
+        grid_ifs >> key >> x >> y >> z >> list_size;
+        
+        Cell c(x, y, z);
+        for (int j = 0; j < list_size; j++) {
+            int pt_id; grid_ifs >> pt_id;
+            c.add_pt(pt_id, pt(mesh_p->vertices[pt_id]));
+        }
+        cells_map[key] = c;
+
+        int repre_id, remai_0_id, remai_1_id, remai_2_id;
+        double vol, meas;
+        bool fail;
+        grid_ifs >> repre_id >> remai_0_id >> remai_1_id >> remai_2_id >> vol >> meas >> fail;
+
+        Entry e;
+        e.set(PtwID(repre_id, pt(mesh_p->vertices[repre_id])),
+              PtwID(remai_0_id, pt(mesh_p->vertices[remai_0_id])),
+              PtwID(remai_1_id, pt(mesh_p->vertices[remai_1_id])),
+              PtwID(remai_2_id, pt(mesh_p->vertices[remai_2_id])),
+              vol, meas);
+        e.fail = fail;
+        entries_map[key] = e;
     }
 
     cout << "Reading query file" << endl;
-	string query_filename = "../data/t2_query.ply";
+	string query_filename = argv[3];
 	TriMesh *mesh_q = TriMesh::read(query_filename);
 
 	cout << "Reading id maps" << endl;
-	string idmap_filename = "../data/t2_id";
+	string idmap_filename = query_filename + ".map";
 	ifstream idmap_ifs(idmap_filename);
 
 	int m = mesh_q->vertices.size();
-	Pt3D pts_q[m];
-	int idmap[m];
+	vector<Pt3D> pts_q;
+	vector<int> idmap;
     for (int i = 0; i < m; i++) {
-    	pts_q[i] = pt(mesh_q->vertices[i]);
-    	idmap_ifs >> idmap[i];
+    	pts_q.push_back(pt(mesh_q->vertices[i]));
+        int db_mapping; idmap_ifs >> db_mapping;
+    	idmap.push_back(db_mapping);
     }
 
-    // double w = atof(argv[1]);
-    double w = 17.5;
-    cout << "Query voxelized of grid size " << w << endl;
-    vector<Cell> cells;
+    double w_q = 3.464102 * w_db;
+    cout << "Query voxelized of grid size " << w_q << endl;
+
+    mesh_q->need_bbox();
+    int cell_id_min_q[3] = {
+        get_cell_id(mesh_q->bbox.min[0], w_q),
+        get_cell_id(mesh_q->bbox.min[1], w_q),
+        get_cell_id(mesh_q->bbox.min[2], w_q)
+    };
+    int cell_id_max_q[3] = {
+        get_cell_id(mesh_q->bbox.max[0], w_q),
+        get_cell_id(mesh_q->bbox.max[1], w_q),
+        get_cell_id(mesh_q->bbox.max[2], w_q)
+    };
+
+    unordered_map<int, Cell> cells_map_q;
+    vector<int> key_array_q;
     for (int i = 0; i < m; i++) {
-    	int x = (int) floor(pts_q[i].x / w);
-    	int y = (int) floor(pts_q[i].y / w);
-    	int z = (int) floor(pts_q[i].z / w);
+        int cell_id_q[3] = {
+            get_cell_id(pts_q[i].x, w_q),
+            get_cell_id(pts_q[i].y, w_q),
+            get_cell_id(pts_q[i].z, w_q)    
+        };
 
-    	bool is_existing = false;
-    	for (int j = 0; j < cells.size(); j++) {
-    		if (cells[j].x == x && cells[j].y == y && cells[j].z == z) {
-    			is_existing = true;
-    			cells[j].list.push_back({ i, pts_q[i] });
-    		}
-    	}
+        int key = get_cell_key(cell_id_q, cell_id_min_q, cell_id_max_q);
 
-    	if (!is_existing) {
-    		Cell new_cell;
-    		new_cell.x = x;
-    		new_cell.y = y;
-    		new_cell.z = z;
-    		new_cell.list.push_back({ i, pts_q[i] });
-    		cells.push_back(new_cell);
-    	}
+        auto it = cells_map_q.find(key);
+        if (it != cells_map_q.end()) {
+            // cell already exists
+            it->second.add_pt(i, pts_q[i]);
+        } else {
+            Cell new_cell(cell_id_q[0], cell_id_q[1], cell_id_q[2]);
+            new_cell.add_pt(i, pts_q[i]);
+            cells_map_q[key] = new_cell;
+            key_array_q.push_back(key);
+        }
     }
 
-    cout << "Total number of cells: " << cells.size() << endl;
+    int cells_count_q = cells_map_q.size();
+    cout << "Total number of query cells: " << cells_count_q << endl;
 
-    // cout << "Displaying info of each cell:" << endl;
-    // for (int i = 0; i < cells.size(); i++) {
-    // 	cout << cells[i].x << " "
-    // 		 << cells[i].y << " "
-    // 		 << cells[i].z << " "
-    // 		 << cells[i].list.size() << endl;
-    // }
+    cout << "Displaying info of each query cell:" << endl;
+    for (auto it = cells_map_q.begin(); it != cells_map_q.end(); it++) {
+        cout << it->second.x << " "
+             << it->second.y << " "
+             << it->second.z << " "
+             << it->second.list.size() << endl;
+    }
     cout << endl;
 
-    // double min = atof(argv[2]);
-    // double max = atof(argv[3]);
-    double min = 20 - epsilon_m;
-    double max = 20.5 + epsilon_m;
+    // // test verification
+    // cout << "Test verification..." << endl;
+    // int counter = 0;
+    // unordered_set<int> tmp_idmap_set;
+    // tmp_idmap_set.insert(idmap.begin(), idmap.end());
+    // for (auto it = cells_map_q.begin(); it != cells_map_q.end(); it++) {
+    //     cout << "For query cell #" << counter << endl;
+    //     for (PtwID &p: it->second.list) {
+    //         int mapping = idmap[p.id];
+    //         if (mapping >= 0) {
+    //             int entry_key = look_up_index(mapping, &entries_map);
+    //             if (entry_key >= 0) {
+    //                 cout << "Query pt #" << p.id << " matched with a representative pt #" << mapping << endl;
+    //                 for (int i = 0; i < 3; i++) {
+    //                     int remai_id = entries_map[entry_key].remai[i].id;
+    //                     if (tmp_idmap_set.find(remai_id) == tmp_idmap_set.end()) {
+    //                         cout << "But remai[" << i << "] of db#" << remai_id << " not appearing in the query" << endl; 
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     counter++;
+    // }
 
-    int selected_cell_id = 3;
-    Cell selected_cell = cells[selected_cell_id];
+    int selected_cell_id = 6;
+    Cell selected_cell = cells_map_q[key_array_q[selected_cell_id]];
     cout << "Selecting cell #" << selected_cell_id
     	 << " with " << selected_cell.list.size() << " pts" << endl;
+
+    double epsilon_m = atof(argv[4]);
+    double eta = atof(argv[5]);
 
     vector<Entry_Pair> hit_list;
     for (int i = 0; i < selected_cell.list.size(); i++) {
     	PtwID q = selected_cell.list[i];
 
-    	// if (q.id != 12) {
+    	// if (q.id != 762) {
     	// 	continue;
     	// }
 
-    	auto list = cal_entries(q, pts_q, m, min, max);
+    	auto list = cal_entries(q, &pts_q[0], m, ann_min_db - epsilon_m, ann_max_db + epsilon_m);
     	// cout << "Calculating entry list for query pt #" << q.id << endl;
     	// cout << "Size of the entry list: " << list.size() << endl;
 
@@ -204,18 +282,19 @@ int main(int argc, char **argv) {
     		// if (e.remai[0].id != 160 || e.remai[1].id != 167 || e.remai[2].id != 343) {
     		// 	continue;
     		// }
-    		vector<Entry_Pair> tmp_list = look_up_index(e, index_list);
+    		vector<Entry_Pair> tmp_list = look_up_index(e, epsilon_m, &tree, &entries_map);
     		hit_list.insert(hit_list.end(), tmp_list.begin(), tmp_list.end());
     	}
     }
     cout << endl;
 
     cout << "Returned hit size is " << hit_list.size() << endl;
-    for (Entry_Pair &h: hit_list) {
-    	h.cal_xf();
-    	double err = cal_err(mesh_q, mesh_p, h.xf);
-    	if (err < 0.2) {
-    		cout << h.to_str() << endl << err << endl;
-    	}
+    for (auto &h: hit_list) {
+        cout << h.to_str() << endl;
+    // 	h.cal_xf();
+    // 	double err = cal_err(mesh_q, mesh_p, h.xf);
+    // 	if (err < 0.2) {
+    		// cout << h.to_str() << endl << err << endl;
+    // 	}
     }
 }
