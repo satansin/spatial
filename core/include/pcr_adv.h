@@ -1,11 +1,13 @@
 #ifndef __PCR_ADV_H
 #define __PCR_ADV_H
 
+#include "TriMesh.h"
 #include "point.h"
 #include "trans.h"
 #include <vector>
 #include <string>
 #include <cmath>
+#include <unordered_map>
 
 struct PtwID {
 	int id;
@@ -43,6 +45,62 @@ struct Cell {
 		}
 		return s;
 	}
+};
+
+int get_cell_id(double val, double w) {
+    return (int) floor(val / w);
+}
+
+int get_cell_key(const int cell_id[], const int min_id[], const int max_id[]) {
+    int span[3] = { max_id[0] - min_id[0] + 1, max_id[1] - min_id[1] + 1, max_id[2] - min_id[2] + 1 };
+    return ( (cell_id[0] - min_id[0]) * span[1] * span[2] +
+             (cell_id[1] - min_id[1]) * span[2] +
+             (cell_id[2] - min_id[2]) );
+}
+
+struct Grid {
+	double w;
+	int cell_id_min[3], cell_id_max[3];
+    std::unordered_map<int, Cell> cells_map;
+    int cells_count;
+    Grid() {}
+    Grid(double w) {
+    	this->w = w;
+    }
+    void set_width(double w) {
+    	this->w = w;
+    }
+    void gridify(trimesh::TriMesh* mesh) {
+    	int n = mesh->vertices.size();
+    	mesh->need_bbox();
+    	for (int zero_to_two = 0; zero_to_two < 3; zero_to_two++) {
+            cell_id_min[zero_to_two] = get_cell_id(mesh->bbox.min[zero_to_two], w);
+            cell_id_max[zero_to_two] = get_cell_id(mesh->bbox.max[zero_to_two], w);
+        }
+    	cells_map.clear();
+        for (int i = 0; i < n; i++) {
+        	auto pt3d = pt(mesh->vertices[i]);
+            int cell_id[3] = {
+                get_cell_id(pt3d.x, w),
+                get_cell_id(pt3d.y, w),
+                get_cell_id(pt3d.z, w)    
+            };
+
+            int key = get_cell_key(cell_id, cell_id_min, cell_id_max);
+
+            auto it = cells_map.find(key);
+            if (it != cells_map.end()) {
+                // cell already exists
+                it->second.add_pt(i, pt3d);
+            } else {
+                Cell new_cell(cell_id[0], cell_id[1], cell_id[2]);
+                new_cell.add_pt(i, pt3d);
+                cells_map[key] = new_cell;
+            }
+        }
+        cells_count = cells_map.size();
+    }
+
 };
 
 struct Entry {
@@ -122,16 +180,5 @@ struct Entry_Pair {
 		xf = cal_trans(q_array, p_array, 4);
 	}
 };
-
-int get_cell_id(double val, double w) {
-    return (int) floor(val / w);
-}
-
-int get_cell_key(int cell_id[], int min_id[], int max_id[]) {
-    int span[3] = { max_id[0] - min_id[0] + 1, max_id[1] - min_id[1] + 1, max_id[2] - min_id[2] + 1 };
-    return ( (cell_id[0] - min_id[0]) * span[1] * span[2] +
-             (cell_id[1] - min_id[1]) * span[2] +
-             (cell_id[2] - min_id[2]) );
-}
 
 #endif
