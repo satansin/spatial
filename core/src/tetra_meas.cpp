@@ -29,12 +29,12 @@ Pt2D circumcenter_2d(Pt2D a, Pt2D b, Pt2D c) {
 }
 
 Pt3D circumcenter_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
-	Pt3D ab = {b.x - a.x, b.y - a.y, b.z - a.z};
-	Pt3D e = {(a.x + b.x) * 0.5, (a.y + b.y) * 0.5, (a.z + b.z) * 0.5};
-	Pt3D ac = {c.x - a.x, c.y - a.y, c.z - a.z};
-	Pt3D f = {(a.x + c.x) * 0.5, (a.y + c.y) * 0.5, (a.z + c.z) * 0.5};
-	Pt3D ad = {d.x - a.x, d.y - a.y, d.z - a.z};
-	Pt3D g = {(a.x + d.x) * 0.5, (a.y + d.y) * 0.5, (a.z + d.z) * 0.5};
+	Pt3D ab = b - a;
+	Pt3D e = middle_pt(a, b);
+	Pt3D ac = c - a;
+	Pt3D f = middle_pt(a, c);
+	Pt3D ad = d - a;
+	Pt3D g = middle_pt(a, d);
 	Matrix3d m;
 	m << ab.x, ab.y, ab.z, ac.x, ac.y, ac.z, ad.x, ad.y, ad.z;
 	Vector3d p(
@@ -81,6 +81,17 @@ Ratio_set_vol get_ratio_set_vol(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
 	return ret;
 }
 
+Ratio_set_area get_ratio_set_area(Pt3D a, Pt3D b, Pt3D c) {
+	Ratio_set_area ret;
+	auto ab = b - a, ac = c - a, bc = c - b;
+	double a_cross_mode = cross_prd(b - a, c - a).mode();
+	ret.area = 0.5 * a_cross_mode;
+	double circum_r = 0.5 * ab.mode() * ac.mode() * bc.mode() / a_cross_mode;
+	double circum_area = PI * circum_r * circum_r;
+	ret.ratio = 2.418399 * ret.area / circum_area;
+	return ret;
+}
+
 double volume_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
 	Vector3d ab(b.x - a.x, b.y - a.y, b.z - a.z);
 	Vector3d ac(c.x - a.x, c.y - a.y, c.z - a.z);
@@ -93,12 +104,12 @@ double circumradi_3d(Pt3D a, Pt3D b, Pt3D c, Pt3D d) {
 	Pt3D ac = {c.x - a.x, c.y - a.y, c.z - a.z};
 	Pt3D ad = {d.x - a.x, d.y - a.y, d.z - a.z};
 
-	Pt3D fac1 = scale_pt(sq_mode(ab), cross_prd(ac, ad));
-	Pt3D fac2 = scale_pt(sq_mode(ac), cross_prd(ad, ab));
-	Pt3D fac3 = scale_pt(sq_mode(ad), cross_prd(ab, ac));
+	Pt3D fac1 = cross_prd(ac, ad) * ab.sq_mode();
+	Pt3D fac2 = cross_prd(ad, ab) * ac.sq_mode();
+	Pt3D fac3 = cross_prd(ab, ac) * ad.sq_mode();
 	double vol_by_6 = abs(dot_prd(ab, cross_prd(ac, ad)));
 
-	double rad = mode(sum_pt(sum_pt(fac1, fac2), fac3));
+	double rad = (fac1 + fac2 + fac3).mode();
 	rad /= (2.0 * vol_by_6);
 
 	return rad;

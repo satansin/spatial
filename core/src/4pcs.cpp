@@ -210,7 +210,7 @@ int main(int argc, char **argv) {
 				    Trans xf = cal_trans(q, p, 4);
 				    // print_trans(&xf);
 
-                    cout << cal_err(pts_q, m, pts_p, n, xf) << endl;
+                    // cout << cal_err(pts_q, m, pts_p, n, xf) << endl;
     			}
     		}
     	}

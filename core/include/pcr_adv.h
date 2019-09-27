@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <limits>
 #include <unordered_map>
 
 struct PtwID {
@@ -16,6 +17,76 @@ struct PtwID {
 	PtwID(int id, Pt3D pt) {
 		this->id = id;
 		this->pt = pt;
+	}
+};
+
+struct Box3D_Int {
+	int min_id[3], max_id[3];
+	bool empty;
+	void set(int min_id_x, int min_id_y, int min_id_z, int max_id_x, int max_id_y, int max_id_z, bool empty) {
+		min_id[0] = min_id_x;
+		min_id[1] = min_id_y;
+		min_id[2] = min_id_z;
+		max_id[0] = max_id_x;
+		max_id[1] = max_id_y;
+		max_id[2] = max_id_z;
+		this->empty = empty;
+	}
+	Box3D_Int() {}
+	Box3D_Int(int min_id_x, int min_id_y, int min_id_z, int max_id_x, int max_id_y, int max_id_z, bool empty) {
+		this->set(min_id_x, min_id_y, min_id_z, max_id_x, max_id_y, max_id_z, empty);
+	}
+	Box3D_Int& operator=(const Box3D_Int& b) {
+        this->set(b.min_id[0], b.min_id[1], b.min_id[2], b.max_id[0], b.max_id[1], b.max_id[2], b.empty);
+        return *this;
+    }
+	void expand(int by_scale = 1) {
+		for (int i = 0; i < 3; i++) {
+			min_id[i] -= by_scale;
+			max_id[i] += by_scale;
+		}
+	}
+	bool includes(const int* id) const {
+		if (empty) {
+			return false;
+		}
+		for (int i = 0; i < 3; i++) {
+			if (id[i] < min_id[i] || id[i] > max_id[i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+	int width() const {
+		if (empty) {
+			return 0;
+		} else {
+			return (max_id[0] - min_id[0] + 1);
+		}
+	}
+	int size() const {
+		if (empty){
+			return 0;
+		} else {
+			return (max_id[0] - min_id[0] + 1) * (max_id[1] - min_id[1] + 1) * (max_id[2] - min_id[2] + 1);
+		}
+	}
+	void list_cell_id(std::vector<int>& list) const {
+		list.clear();
+		for (int i = this->min_id[0]; i <= this->max_id[0]; i++) {
+            for (int j = this->min_id[1]; j <= this->max_id[1]; j++) {
+                for (int k = this->min_id[2]; k <= this->max_id[2]; k++) {
+                	list.push_back(i);
+                	list.push_back(j);
+                	list.push_back(k);
+                }
+            }
+        }
+	}
+	std::string to_str() const {
+		return "([" + std::to_string(min_id[0]) + ", " + std::to_string(max_id[0]) + "], [" +
+					  std::to_string(min_id[1]) + ", " + std::to_string(max_id[1]) + "], [" +
+					  std::to_string(min_id[2]) + ", " + std::to_string(max_id[2]) + "])";
 	}
 };
 
@@ -34,16 +105,52 @@ struct Cell {
 	void add_pt(int id, Pt3D pt) {
 		list.push_back(PtwID(id, pt));
 	}
-	std::string to_str() {
+	PtwID find_nn(Pt3D q) const {
+		PtwID nn;
+		double nn_dist = std::numeric_limits<double>::max();
+		for (auto &p: this->list) {
+			double tmp_dist = eucl_dist(p.pt, q);
+			if (tmp_dist - nn_dist < 0) {
+				nn = p;
+				nn_dist = tmp_dist;
+			}
+		}
+		return nn;
+	}
+	std::string to_str() const {
 		std::string s =
 			std::to_string(x) + " " +
 			std::to_string(y) + " " +
 			std::to_string(z) + " " +
 			std::to_string(list.size());
-		for (PtwID &p: list) {
+		for (auto &p: list) {
 		 	s = s + " " + std::to_string(p.id);
 		}
 		return s;
+	}
+};
+
+struct Box3D {
+	double min[3], max[3];
+	Box3D() {}
+	Box3D(const Cell* c, double w, int scale = 0) {
+		min[0] = (c->x - scale) * w;
+		min[1] = (c->y - scale) * w;
+		min[2] = (c->z - scale) * w;
+		max[0] = (c->x + 1 + scale) * w;
+		max[1] = (c->y + 1 + scale) * w;
+		max[2] = (c->z + 1 + scale) * w;
+	}
+	Box3D(Box3D_Int box_int, double w) {
+		for (int i = 0; i < 3; i++){
+			min[i] = box_int.min_id[i] * w;
+			max[i] = (box_int.max_id[i] + 1) * w;
+		}
+	}
+	std::string to_str() const {
+		return "([" + std::to_string(min[0]) + ", " + std::to_string(max[0]) + "], [" +
+					  std::to_string(min[1]) + ", " + std::to_string(max[1]) + "], [" +
+					  std::to_string(min[2]) + ", " + std::to_string(max[2]) + "])";
 	}
 };
 
@@ -51,16 +158,24 @@ int get_cell_id(double val, double w) {
     return (int) floor(val / w);
 }
 
-int get_cell_key(const int cell_id[], const int min_id[], const int max_id[]) {
-    int span[3] = { max_id[0] - min_id[0] + 1, max_id[1] - min_id[1] + 1, max_id[2] - min_id[2] + 1 };
-    return ( (cell_id[0] - min_id[0]) * span[1] * span[2] +
-             (cell_id[1] - min_id[1]) * span[2] +
-             (cell_id[2] - min_id[2]) );
+const int* get_cell_id(Pt3D pt, double w) {
+	static int* cell_id = new int[3];
+	cell_id[0] = get_cell_id(pt.x, w);
+	cell_id[1] = get_cell_id(pt.y, w);
+	cell_id[2] = get_cell_id(pt.z, w);
+    return cell_id;
+}
+
+int get_cell_key(const int* cell_id, Box3D_Int box) {
+    int span[3] = { box.max_id[0] - box.min_id[0] + 1, box.max_id[1] - box.min_id[1] + 1, box.max_id[2] - box.min_id[2] + 1 };
+    return ( (cell_id[0] - box.min_id[0]) * span[1] * span[2] +
+             (cell_id[1] - box.min_id[1]) * span[2] +
+             (cell_id[2] - box.min_id[2]) );
 }
 
 struct Grid {
 	double w;
-	int cell_id_min[3], cell_id_max[3];
+	Box3D_Int cells_box;
     std::unordered_map<int, Cell> cells_map;
     int cells_count;
     Grid() {}
@@ -70,24 +185,27 @@ struct Grid {
     void set_width(double w) {
     	this->w = w;
     }
+    const Cell* find_cell(const int* cell_id) const {
+    	int key = get_cell_key(cell_id, this->cells_box);
+    	auto it = this->cells_map.find(key);
+        if (it != this->cells_map.end()) {
+        	return &(it->second);
+        } else {
+        	return nullptr;
+        }
+    }
     void gridify(trimesh::TriMesh* mesh) {
     	int n = mesh->vertices.size();
     	mesh->need_bbox();
-    	for (int zero_to_two = 0; zero_to_two < 3; zero_to_two++) {
-            cell_id_min[zero_to_two] = get_cell_id(mesh->bbox.min[zero_to_two], w);
-            cell_id_max[zero_to_two] = get_cell_id(mesh->bbox.max[zero_to_two], w);
+    	for (int i = 0; i < 3; i++) {
+            cells_box.min_id[i] = get_cell_id(mesh->bbox.min[i], w);
+            cells_box.max_id[i] = get_cell_id(mesh->bbox.max[i], w);
         }
     	cells_map.clear();
         for (int i = 0; i < n; i++) {
         	auto pt3d = pt(mesh->vertices[i]);
-            int cell_id[3] = {
-                get_cell_id(pt3d.x, w),
-                get_cell_id(pt3d.y, w),
-                get_cell_id(pt3d.z, w)    
-            };
-
-            int key = get_cell_key(cell_id, cell_id_min, cell_id_max);
-
+            auto cell_id = get_cell_id(pt3d, this->w);
+            int key = get_cell_key(cell_id, cells_box);
             auto it = cells_map.find(key);
             if (it != cells_map.end()) {
                 // cell already exists
@@ -100,7 +218,48 @@ struct Grid {
         }
         cells_count = cells_map.size();
     }
-
+	Box3D_Int get_outer_box(double min_x, double min_y, double min_z, double max_x, double max_y, double max_z) const {
+		return Box3D_Int{
+	        get_cell_id(min_x, this->w),
+	        get_cell_id(min_y, this->w),
+	        get_cell_id(min_z, this->w),
+	        get_cell_id(max_x, this->w),
+	        get_cell_id(max_y, this->w),
+	        get_cell_id(max_z, this->w),
+	        false // default non-empty
+		};
+	}
+	PtwID relocate(const float* pt) const {
+		Pt3D pt3d = { pt[0], pt[1], pt[2] };
+		auto cell_id = get_cell_id(pt3d, this->w);
+		auto cell_found = find_cell(cell_id);
+		if (cell_found) {
+			return cell_found->find_nn(pt3d);
+		} else {
+			return {-1, Pt3D()};
+		}
+	}
+    // PtwID get_nn(Pt3D q) {
+    //     int cell_id[3] = {
+    //         get_cell_id(q.x, w),
+    //         get_cell_id(q.y, w),
+    //         get_cell_id(q.z, w)
+    //     };
+    //     Box3D_Int box(cell_id[0], cell_id[1], cell_id[2], cell_id[0], cell_id[1], cell_id[2], false);
+    //     do {
+    //     	Box3D_Int prev_box = box;
+    //     	box.expand();
+    // 		for (int i = box.min_id[0]; i <= box.max_id[0]; i++) {
+    //     		for (int j = box.min_id[1]; j <= box.max_id[1]; j++) {
+    //         		for (int k = box.min_id[2]; k <= box.max_id[2]; k++) {
+    //     				if (prev_box.get_width() > 1 && prev_box.includes(cell_id)) {
+    //     					continue;
+    //     				}
+    //     			}
+    //     		}
+    //     	}
+    //     } while (true);
+    // }
 };
 
 struct Entry {

@@ -6,6 +6,7 @@ RMDIR=rm -rf
 INC=-Iinclude/
 USE_EIGEN=-I../Eigen/
 USE_TM=-I../trimesh2/include/ -L../trimesh2/lib.Linux64/
+USE_RS=-I../rstree/ ../rstree/*.o
 
 SRC=src
 OBJ=obj
@@ -21,21 +22,24 @@ OUT=out
 #     add $(USE_TM)
 #     add the following (!!in the end of out!!): -ltrimesh -lgluit -fopenmp
 
-all: clean 4pcs index query
+all: clean 4pcs index query pre_index
 
 4pcs: trans.o point.o
 	$(CXX) $(INC) $(USE_TM) $(SRC)/4pcs.cpp $(OBJ)/* -o $(OUT)/4pcs.out -ltrimesh -lgluit -fopenmp
 
-index: point.o tetra_meas.o
-	$(CXX) $(INC) $(USE_TM) $(SRC)/index.cpp $(OBJ)/* -o $(OUT)/index.out -ltrimesh -lgluit -fopenmp
+index: tetra_meas.o point.o
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/index.cpp $(OBJ)/* -o $(OUT)/index.out -ltrimesh -lgluit -fopenmp
 
-query: point.o tetra_meas.o
+query: tetra_meas.o point.o
 	$(CXX) $(INC) $(USE_TM) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query.out -ltrimesh -lgluit -fopenmp
 
-trans.o: point.o
+pre_index:
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/pre_index.cpp $(OBJ)/* -o $(OUT)/pre_index.out -ltrimesh -lgluit -fopenmp
+
+trans.o: point.o $(OBJ)/
 	$(CXX) $(INC) $(USE_EIGEN) $(USE_TM) -c $(SRC)/trans.cpp -o $(OBJ)/trans.o
 
-tetra_meas.o: point.o
+tetra_meas.o: point.o $(OBJ)/
 	$(CXX) $(INC) $(USE_EIGEN) $(USE_TM) -c $(SRC)/tetra_meas.cpp -o $(OBJ)/tetra_meas.o
 
 point.o: $(OBJ)/

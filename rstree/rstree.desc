@@ -1,0 +1,64 @@
+======================
+R*-tree  (version 1.0)
+======================
+
+
+A.  File Description
+====================
+rstree.desc		-- This README file
+rtree.h			-- Head file for both rstree_build.c and rstree_search.c
+rstree_build.c		-- R*-tree building part
+rstree_search.c		-- R*-tree searching part: support both kNN and range search
+Makefile		-- Makefile to compile the build and search programs
+
+
+B. Compilation
+==============
+Type:   make  rstree_build
+Type:   make  rstree_search
+
+Note:  Please compile it under Solaris platform.
+
+
+C. Execution
+============
+Try the following example:
+
+Type:    rstree_build  <config file>
+
+	You can also type "rstree_build" for more details about the usage.
+
+Type:    rstree_search <config file> <k: for kNN search> <#query>
+
+	You can also type "rstree_search" for more details about the usage.
+
+
+D.  Data File Format
+====================
+Each line of data file store a single vector for an object (point).
+Each line consists of the coordinate of the point in each dimension.
+
+
+E.  Config. File Format
+=======================
+Content of config. file:
+Line 1:  Minimum branching factor, m.
+Line 2:  Miximum branching factor, M.
+Line 3:  Dimension.
+Line 4:  Reinsert factor.
+Line 5:  Number of points.
+Line 6:  Path of data file.
+Line 7:  Path of query file storing a number of query points.
+
+
+F.  Execute Sample
+===================
+Type:   rstree_build  configSample
+Type:   rstree_search configSample 5  1
+
+
+G.  Reference
+=============
+Title:       The R*-tree: an efficient and robust access method for points and rectangles
+Author:      Beckmann, N. and Kriegel, H.P. and Schneider, R. and Seeger, B.
+Conference:  ACM SIGMOD, 1990

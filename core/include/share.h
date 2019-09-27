@@ -4,46 +4,67 @@
 #include "point.h"
 #include "trans.h"
 #include "TriMesh.h"
+#include "KDtree.h"
+#include <limits>
+#include <chrono>
+#include <stack>
 
-double nn(Pt3D q, Pt3D* p, int n) {
-	double min_dist = 99999999999;
-	// int min_index = -1;
-	for (int i = 0; i < n; i++) {
-		double new_dist = eucl_dist(q, p[i]);
-		if (new_dist < min_dist) {
-			min_dist = new_dist;
-			// min_index = i;
-		}
-	}
-	return min_dist;
+enum Time_Unit {
+    MILLISECOND, SECOND, MINUTE, HOUR
+};
+
+std::stack<std::chrono::time_point<std::chrono::high_resolution_clock>> timer_stack;
+
+void timer_start() {
+    timer_stack.push(std::chrono::high_resolution_clock::now());
 }
 
-double cal_err(Pt3D pts_q[], int num_q, Pt3D pts_p[], int num_p, Trans xf) {
-	double err = 0;
-    // int no_inlier = 0;
-    for (int i = 0; i < num_q; i++) {
-    	Pt3D xf_q = trans_pt(&xf, pts_q + i);
-    	double nn_err = nn(xf_q, pts_p, num_p);
-    	err += nn_err;
-    	// if (nn_err <= 0.1) {
-    	// 	no_inlier++;
-    	// }
+double timer_end(Time_Unit unit) {
+    if (timer_stack.empty()) {
+        return 0.0;
     }
-    err /= num_q;
+    auto start = timer_stack.top();
+    timer_stack.pop();
+    auto end = std::chrono::high_resolution_clock::now();
+    double interval = 0.0;
+    switch (unit) {
+        case MILLISECOND: {
+            std::chrono::duration<double, std::milli> span_milli = end - start;
+            interval = span_milli.count();
+        }
+        break;
+        case SECOND: {
+            std::chrono::duration<double> span_sec = end - start;
+            interval = span_sec.count();
+        }
+        break;
+        case MINUTE: {
+            std::chrono::duration<double, std::ratio<60>> span_min = end - start;
+            interval = span_min.count();
+        }
+        break;
+        case HOUR: {
+            std::chrono::duration<double, std::ratio<3600>> span_hour = end - start;
+            interval = span_hour.count();
+        }
+        break;
+    }
+    return interval;
+}
+
+double cal_corr_err(trimesh::TriMesh* mesh_q, trimesh::KDtree* kdtree_p, Trans* xf, double stop_at = std::numeric_limits<double>::max()) {
+    double err = 0.0;
+    for (auto &v: mesh_q->vertices) {
+        Pt3D xf_q = trans_pt(xf, pt(v));
+        float pt_arr[3] = { (float) xf_q.x, (float) xf_q.y, (float) xf_q.z };
+        auto nn = kdtree_p->closest_to_pt(pt_arr);
+        double nn_err = eucl_dist(nn, pt_arr);
+        err += nn_err;
+        if (err - stop_at > 0) {
+            return -1;
+        }
+    }
     return err;
-}
-
-double cal_err(trimesh::TriMesh* mesh_q, trimesh::TriMesh* mesh_p, Trans xf) {
-	int m = mesh_q->vertices.size();
-    int n = mesh_p->vertices.size();
-    Pt3D pts_q[m], pts_p[n];
-    for (int i = 0; i < m; i++) {
-    	pts_q[i] = pt(mesh_q->vertices[i]);
-    }
-    for (int i = 0; i < n; i++) {
-    	pts_p[i] = pt(mesh_p->vertices[i]);
-    }
-    return cal_err(pts_q, m, pts_p, n, xf);
 }
 
 #endif

@@ -1,4 +1,5 @@
 #include "TriMesh.h"
+#include "KDtree.h"
 #include "point.h"
 #include "tetra_meas.h"
 #include "pcr_adv.h"
@@ -7,6 +8,9 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <cstdlib>
+#include <ctime>
+#include <limits>
 #include <unordered_map>
 #include <unordered_set>
 using namespace std;
@@ -112,14 +116,23 @@ int look_up_index(int repre_id, unordered_map<int, Entry>* entries_map) {
 }
 
 int main(int argc, char **argv) {
-	if (argc < 6) {
-		cerr << "Usage: " << argv[0] << " database_filename index_filename query_filename epsilon_m eta" << endl;
+	if (argc < 4) {
+		cerr << "Usage: " << argv[0] << " database_filename index_filename query_filename [-test]" << endl;
 		exit(1);
 	}
+
+    bool test_mode = false;
+    if (argc >= 5 && string(argv[4]) == "-test") {
+        test_mode = true;
+    }
+
+    srand(time(NULL));
 
 	cout << "Reading dababase file" << endl;
 	string database_filename = argv[1];
 	TriMesh *mesh_p = TriMesh::read(database_filename);
+
+    KDtree *kdtree_p = new KDtree(mesh_p->vertices);
 
 	cout << "Loading index entries" << endl;
     string idx_filename = argv[2];
@@ -129,18 +142,14 @@ int main(int argc, char **argv) {
     string grid_filename = idx_filename + ".grid";
     ifstream grid_ifs(grid_filename);
 
-    double w_db, ann_min_db, ann_max_db;
-    grid_ifs >> w_db >> ann_min_db >> ann_max_db;
+    Grid g_db;
+    double ann_min_db, ann_max_db;
+    grid_ifs >> g_db.w >> ann_min_db >> ann_max_db >> g_db.cells_count;
+    grid_ifs >> g_db.cells_box.min_id[0] >> g_db.cells_box.min_id[1] >> g_db.cells_box.min_id[2]
+             >> g_db.cells_box.max_id[0] >> g_db.cells_box.max_id[1] >> g_db.cells_box.max_id[2];
 
-    int cells_count_db; grid_ifs >> cells_count_db;
-
-    int cell_id_min_db[3], cell_id_max_db[3];
-    grid_ifs >> cell_id_min_db[0] >> cell_id_min_db[1] >> cell_id_min_db[2]
-             >> cell_id_max_db[0] >> cell_id_max_db[1] >> cell_id_max_db[2];
-
-    unordered_map<int, Cell> cells_map;
     unordered_map<int, Entry> entries_map;
-    for (int i = 0; i < cells_count_db; i++) {
+    for (int i = 0; i < g_db.cells_count; i++) {
         int key, x, y, z, list_size;
         grid_ifs >> key >> x >> y >> z >> list_size;
         
@@ -149,7 +158,7 @@ int main(int argc, char **argv) {
             int pt_id; grid_ifs >> pt_id;
             c.add_pt(pt_id, pt(mesh_p->vertices[pt_id]));
         }
-        cells_map[key] = c;
+        g_db.cells_map[key] = c;
 
         int repre_id, remai_0_id, remai_1_id, remai_2_id;
         double vol, meas;
@@ -170,11 +179,15 @@ int main(int argc, char **argv) {
 	string query_filename = argv[3];
 	TriMesh *mesh_q = TriMesh::read(query_filename);
 
+    string query_info_filename = query_filename + ".info";
+    ifstream info_q_ifs(query_info_filename);
+
 	cout << "Reading id maps" << endl;
 	string idmap_filename = query_filename + ".map";
 	ifstream idmap_ifs(idmap_filename);
 
-	int m = mesh_q->vertices.size();
+	int m;
+    info_q_ifs >> m;
 	vector<Pt3D> pts_q;
 	vector<int> idmap;
     for (int i = 0; i < m; i++) {
@@ -183,118 +196,129 @@ int main(int argc, char **argv) {
     	idmap.push_back(db_mapping);
     }
 
-    double w_q = 3.464102 * w_db;
+    double epsilon_m, eta;
+    info_q_ifs >> epsilon_m >> eta;
+    cout << endl;
+
+    int total_num_verification = 0;
+    double total_time = 0.0, proposal_time = 0.0, verification_time = 0.0;
+    timer_start();
+
+    double w_q = 3.464102 * g_db.w;
     cout << "Query voxelized of grid size " << w_q << endl;
 
-    mesh_q->need_bbox();
-    int cell_id_min_q[3] = {
-        get_cell_id(mesh_q->bbox.min[0], w_q),
-        get_cell_id(mesh_q->bbox.min[1], w_q),
-        get_cell_id(mesh_q->bbox.min[2], w_q)
-    };
-    int cell_id_max_q[3] = {
-        get_cell_id(mesh_q->bbox.max[0], w_q),
-        get_cell_id(mesh_q->bbox.max[1], w_q),
-        get_cell_id(mesh_q->bbox.max[2], w_q)
-    };
+    Grid g_q(w_q);
+    g_q.gridify(mesh_q);
 
-    unordered_map<int, Cell> cells_map_q;
-    vector<int> key_array_q;
-    for (int i = 0; i < m; i++) {
-        int cell_id_q[3] = {
-            get_cell_id(pts_q[i].x, w_q),
-            get_cell_id(pts_q[i].y, w_q),
-            get_cell_id(pts_q[i].z, w_q)    
-        };
+    cout << "Total number of query cells: " << g_q.cells_count << endl;
 
-        int key = get_cell_key(cell_id_q, cell_id_min_q, cell_id_max_q);
-
-        auto it = cells_map_q.find(key);
-        if (it != cells_map_q.end()) {
-            // cell already exists
-            it->second.add_pt(i, pts_q[i]);
-        } else {
-            Cell new_cell(cell_id_q[0], cell_id_q[1], cell_id_q[2]);
-            new_cell.add_pt(i, pts_q[i]);
-            cells_map_q[key] = new_cell;
-            key_array_q.push_back(key);
-        }
-    }
-
-    int cells_count_q = cells_map_q.size();
-    cout << "Total number of query cells: " << cells_count_q << endl;
-
-    cout << "Displaying info of each query cell:" << endl;
-    for (auto it = cells_map_q.begin(); it != cells_map_q.end(); it++) {
-        cout << it->second.x << " "
-             << it->second.y << " "
-             << it->second.z << " "
-             << it->second.list.size() << endl;
-    }
-    cout << endl;
-
-    // // test verification
-    // cout << "Test verification..." << endl;
-    // int counter = 0;
-    // unordered_set<int> tmp_idmap_set;
-    // tmp_idmap_set.insert(idmap.begin(), idmap.end());
-    // for (auto it = cells_map_q.begin(); it != cells_map_q.end(); it++) {
-    //     cout << "For query cell #" << counter << endl;
-    //     for (PtwID &p: it->second.list) {
-    //         int mapping = idmap[p.id];
-    //         if (mapping >= 0) {
-    //             int entry_key = look_up_index(mapping, &entries_map);
-    //             if (entry_key >= 0) {
-    //                 cout << "Query pt #" << p.id << " matched with a representative pt #" << mapping << endl;
-    //                 for (int i = 0; i < 3; i++) {
-    //                     int remai_id = entries_map[entry_key].remai[i].id;
-    //                     if (tmp_idmap_set.find(remai_id) == tmp_idmap_set.end()) {
-    //                         cout << "But remai[" << i << "] of db#" << remai_id << " not appearing in the query" << endl; 
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     counter++;
+    // cout << "Displaying info of each query cell:" << endl;
+    // for (auto it = g_q.cells_map.begin(); it != g_q.cells_map.end(); it++) {
+    //     cout << it->second.x << " "
+    //          << it->second.y << " "
+    //          << it->second.z << " "
+    //          << it->second.list.size() << endl;
     // }
+    // cout << endl;
 
-    int selected_cell_id = 6;
-    Cell selected_cell = cells_map_q[key_array_q[selected_cell_id]];
-    cout << "Selecting cell #" << selected_cell_id
-    	 << " with " << selected_cell.list.size() << " pts" << endl;
-
-    double epsilon_m = atof(argv[4]);
-    double eta = atof(argv[5]);
-
-    vector<Entry_Pair> hit_list;
-    for (int i = 0; i < selected_cell.list.size(); i++) {
-    	PtwID q = selected_cell.list[i];
-
-    	// if (q.id != 762) {
-    	// 	continue;
-    	// }
-
-    	auto list = cal_entries(q, &pts_q[0], m, ann_min_db - epsilon_m, ann_max_db + epsilon_m);
-    	// cout << "Calculating entry list for query pt #" << q.id << endl;
-    	// cout << "Size of the entry list: " << list.size() << endl;
-
-    	for (Entry &e: list) {
-    		// if (e.remai[0].id != 160 || e.remai[1].id != 167 || e.remai[2].id != 343) {
-    		// 	continue;
-    		// }
-    		vector<Entry_Pair> tmp_list = look_up_index(e, epsilon_m, &tree, &entries_map);
-    		hit_list.insert(hit_list.end(), tmp_list.begin(), tmp_list.end());
-    	}
+    // test verification
+    if (test_mode) {
+        cout << "Test verification..." << endl;
+        int counter = 0, matched_cells_count = 0;
+        unordered_set<int> tmp_idmap_set;
+        tmp_idmap_set.insert(idmap.begin(), idmap.end());
+        for (auto it = g_q.cells_map.begin(); it != g_q.cells_map.end(); it++) {
+            cout << "For query cell #" << counter << endl;
+            int matching_repre_point_count = 0;
+            int matching_all_point_count = 0;
+            for (PtwID &p: it->second.list) {
+                int mapping = idmap[p.id];
+                if (mapping >= 0) {
+                    int entry_key = look_up_index(mapping, &entries_map);
+                    if (entry_key >= 0) {
+                        // cout << "Query pt #" << p.id << " matched with a representative pt #" << mapping << endl;
+                        matching_repre_point_count++;
+                        bool all_matching = true;
+                        for (int i = 0; i < 3; i++) {
+                            int remai_id = entries_map[entry_key].remai[i].id;
+                            if (tmp_idmap_set.find(remai_id) == tmp_idmap_set.end()) {
+                                // cout << "But remai[" << i << "] of db#" << remai_id << " not appearing in the query" << endl; 
+                                all_matching = false;
+                            }
+                        }
+                        if (all_matching) {
+                            matching_all_point_count++;
+                        }
+                    }
+                }
+            }
+            if (matching_all_point_count > 0) {
+                matched_cells_count++;
+            }
+            cout << "Matching repre: " << matching_repre_point_count << endl;
+            cout << "Matching all: " << matching_all_point_count << endl;
+            counter++;
+        }
+        cout << "Summary: " << matched_cells_count << "/" << g_q.cells_count << " cells are matched" << endl;
     }
+
     cout << endl;
 
-    cout << "Returned hit size is " << hit_list.size() << endl;
-    for (auto &h: hit_list) {
-        cout << h.to_str() << endl;
-    // 	h.cal_xf();
-    // 	double err = cal_err(mesh_q, mesh_p, h.xf);
-    // 	if (err < 0.2) {
-    		// cout << h.to_str() << endl << err << endl;
-    // 	}
+    int k_m = 10;
+    int verified_size = 0;
+    for (int t = 0; t < k_m; t++) {
+        int selected_cell_id = rand() % g_q.cells_count;
+        auto ptr = g_q.cells_map.begin();
+        for (int i = 0; i < selected_cell_id; i++, ptr++) { }
+        Cell selected_cell = ptr->second;
+        cout << "Selecting cell #" << selected_cell_id
+             << " with " << selected_cell.list.size() << " pts" << endl;
+
+        vector<Entry_Pair> hit_list;
+        for (int i = 0; i < selected_cell.list.size(); i++) {
+            PtwID q = selected_cell.list[i];
+
+            auto list = cal_entries(q, &pts_q[0], m, ann_min_db - epsilon_m, ann_max_db + epsilon_m);
+            // cout << "Calculating entry list for query pt #" << q.id << endl;
+            // cout << "Size of the entry list: " << list.size() << endl;
+
+            for (Entry &e: list) {
+                vector<Entry_Pair> tmp_list = look_up_index(e, epsilon_m, &tree, &entries_map);
+                hit_list.insert(hit_list.end(), tmp_list.begin(), tmp_list.end());
+            }
+        }
+        cout << "Returned hit size is " << hit_list.size() << endl;
+        total_num_verification += hit_list.size();
+
+        timer_start();
+        verified_size = 0;
+        for (auto &h: hit_list) {
+            // cout << h.to_str() << endl;
+            h.cal_xf();
+
+            double result = cal_corr_err(mesh_q, kdtree_p, &h.xf, 50000);
+            if (result > 0) {
+                // cout << h.to_str() << endl
+                //      << err << endl;
+                verified_size++;
+            }
+        }
+        verification_time += timer_end(SECOND);
+
+        if (verified_size > 0) {
+            break;
+        }
+
     }
+
+    total_time = timer_end(SECOND);
+    proposal_time = total_time - verification_time;
+
+    cout << endl;
+    cout << "Total number of candidate transformations: " << total_num_verification << endl;
+    cout << "Final number of valid transformations: " << verified_size << endl;
+    cout << "Total time: " << total_time << "(s)" << endl;
+    cout << "Proposal time: " << proposal_time << "(s)" << endl;
+    cout << "Verification time: " << verification_time << "(s)" << endl;
+
 }

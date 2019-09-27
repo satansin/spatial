@@ -1,0 +1,7 @@
+m=2
+M=3
+dim=3
+reinsert_p=2
+no_histogram=6
+./data.txt
+./querySample

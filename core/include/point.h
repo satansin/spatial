@@ -14,6 +14,24 @@ struct Pt3D
 	double x;
 	double y;
 	double z;
+	Pt3D operator-(const Pt3D& q) const {
+		return { x - q.x, y - q.y, z - q.z };
+	}
+	Pt3D operator+(const Pt3D& q) const {
+		return { x + q.x, y + q.y, z + q.z };
+	}
+	Pt3D operator*(double scalar) const {
+		return { x * scalar, y * scalar, z * scalar };
+	}
+	Pt3D operator/(double scalar) const {
+		return { x / scalar, y / scalar, z / scalar };
+	}
+	double mode() const {
+		return sqrt(this->sq_mode());
+	}
+	double sq_mode() const {
+		return (x * x + y * y + z * z);
+	}
 };
 
 
@@ -21,22 +39,24 @@ inline Pt3D pt(trimesh::point p) {
 	return {p[0], p[1], p[2]};
 }
 
+inline Pt3D middle_pt(Pt3D p, Pt3D q) {
+	return { (p.x + q.x) * 0.5, (p.y + q.y) * 0.5, (p.z + q.z ) * 0.5 };
+}
+
 void print_pt(Pt2D* p);
+
 void print_pt(Pt3D* p);
 
+float sq_dist(const float* p, const float* q, int dim);
+
+float eucl_dist(const float* p, const float* q, int dim = 3);
+
 double eucl_dist(Pt2D p, Pt2D q);
+
 double eucl_dist(Pt3D p, Pt3D q);
-
-Pt3D sum_pt(Pt3D a, Pt3D b);
-
-Pt3D scale_pt(double scalar, Pt3D p);
 
 double dot_prd(Pt3D a, Pt3D b);
 
 Pt3D cross_prd(Pt3D a, Pt3D b);
-
-double sq_mode(Pt3D p);
-
-double mode(Pt3D p);
 
 #endif

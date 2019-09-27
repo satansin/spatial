@@ -1,0 +1,7 @@
+m=18
+M=36
+dim=4
+reinsert_p=27
+no_histogram=500
+./pData1-u.txt
+./querySample

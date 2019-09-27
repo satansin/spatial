@@ -1,0 +1,7 @@
+m=2
+M=3
+dim=11
+reinsert_p=2
+no_histogram=100
+./dataSample
+./querySample

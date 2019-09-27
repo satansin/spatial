@@ -36,15 +36,15 @@ Trans* create_trans(double al, double be, double ga, double tx, double ty, doubl
 	return ret;
 }
 
-Pt3D trans_pt(const Trans* t, const Pt3D* p) {
+Pt3D trans_pt(const Trans* t, Pt3D p) {
 	Pt3D t_p = {0.0};
-	t_p.x = t->r11 * p->x + t->r12 * p->y + t->r13 * p->z + t->tx;
-	t_p.y = t->r21 * p->x + t->r22 * p->y + t->r23 * p->z + t->ty;
-	t_p.z = t->r31 * p->x + t->r32 * p->y + t->r33 * p->z + t->tz;
+	t_p.x = t->r11 * p.x + t->r12 * p.y + t->r13 * p.z + t->tx;
+	t_p.y = t->r21 * p.x + t->r22 * p.y + t->r23 * p.z + t->ty;
+	t_p.z = t->r31 * p.x + t->r32 * p.y + t->r33 * p.z + t->tz;
 	return t_p;
 }
 
-Trans cal_trans(Pt3D* q, Pt3D* p, int num) {
+Trans cal_trans(const Pt3D* q, const Pt3D* p, int num) {
 	Vector3d vq[num], vp[num];
 	Vector3d sum_q(0, 0, 0), sum_p(0, 0, 0);
 	for (int i = 0; i < num; i++) {
@@ -80,73 +80,73 @@ Trans cal_trans(Pt3D* q, Pt3D* p, int num) {
 		t(0), t(1), t(2) };
 }
 
-Trans cal_trans(Pt3D* q1, Pt3D* q2, Pt3D* q3, Pt3D* s1, Pt3D* s2, Pt3D* s3) {
-	// column vectors for si
-	Vector3d cv_s1(s1->x, s1->y, s1->z);
-	Vector3d cv_s2(s2->x, s2->y, s2->z);
-	Vector3d cv_s3(s3->x, s3->y, s3->z);
+// Trans cal_trans(Pt3D* q1, Pt3D* q2, Pt3D* q3, Pt3D* s1, Pt3D* s2, Pt3D* s3) {
+// 	// column vectors for si
+// 	Vector3d cv_s1(s1->x, s1->y, s1->z);
+// 	Vector3d cv_s2(s2->x, s2->y, s2->z);
+// 	Vector3d cv_s3(s3->x, s3->y, s3->z);
 
-	// mean of si
-	Vector3d cv_smean = (cv_s1 + cv_s2 + cv_s3) / 3.0;
+// 	// mean of si
+// 	Vector3d cv_smean = (cv_s1 + cv_s2 + cv_s3) / 3.0;
 
-	// transform si into relative coordinates
-	Vector3d cv_s1_prime = cv_s1 - cv_smean;
-	Vector3d cv_s2_prime = cv_s2 - cv_smean;
-	Vector3d cv_s3_prime = cv_s3 - cv_smean;
+// 	// transform si into relative coordinates
+// 	Vector3d cv_s1_prime = cv_s1 - cv_smean;
+// 	Vector3d cv_s2_prime = cv_s2 - cv_smean;
+// 	Vector3d cv_s3_prime = cv_s3 - cv_smean;
 
-	// row vectors for qi
-	RowVector3d rv_q1(q1->x, q1->y, q1->z);
-	RowVector3d rv_q2(q2->x, q2->y, q2->z);
-	RowVector3d rv_q3(q3->x, q3->y, q3->z);
+// 	// row vectors for qi
+// 	RowVector3d rv_q1(q1->x, q1->y, q1->z);
+// 	RowVector3d rv_q2(q2->x, q2->y, q2->z);
+// 	RowVector3d rv_q3(q3->x, q3->y, q3->z);
 
-	// mean of qi
-	RowVector3d rv_qmean = (rv_q1 + rv_q2 + rv_q3) / 3.0;
+// 	// mean of qi
+// 	RowVector3d rv_qmean = (rv_q1 + rv_q2 + rv_q3) / 3.0;
 
-	// transform qi into relative coordinates
-	RowVector3d rv_q1_prime = rv_q1 - rv_qmean;
-	RowVector3d rv_q2_prime = rv_q2 - rv_qmean;
-	RowVector3d rv_q3_prime = rv_q3 - rv_qmean;
+// 	// transform qi into relative coordinates
+// 	RowVector3d rv_q1_prime = rv_q1 - rv_qmean;
+// 	RowVector3d rv_q2_prime = rv_q2 - rv_qmean;
+// 	RowVector3d rv_q3_prime = rv_q3 - rv_qmean;
 
-	// sum of outer products
-	Matrix3d M = cv_s1_prime * rv_q1_prime + cv_s2_prime * rv_q2_prime + cv_s3_prime * rv_q3_prime;
+// 	// sum of outer products
+// 	Matrix3d M = cv_s1_prime * rv_q1_prime + cv_s2_prime * rv_q2_prime + cv_s3_prime * rv_q3_prime;
 
-	// calculate Q = M^T * M
-	Matrix3d Q = M.transpose() * M;
-	cout << Q << endl;
+// 	// calculate Q = M^T * M
+// 	Matrix3d Q = M.transpose() * M;
+// 	cout << Q << endl;
 
-	// perform eigen decomposition on Q
-	SelfAdjointEigenSolver<Matrix3d> solver(Q);
-	if (solver.info() != Success) {
-		cerr << "Error in eigen decomposition" << endl;
-		exit(1);
-	}
+// 	// perform eigen decomposition on Q
+// 	SelfAdjointEigenSolver<Matrix3d> solver(Q);
+// 	if (solver.info() != Success) {
+// 		cerr << "Error in eigen decomposition" << endl;
+// 		exit(1);
+// 	}
 
-	// eigenvalues and diagonal matrix^(-0.5)
-	auto eigenvalues = solver.eigenvalues();
-	// cout << eigenvalues << endl;
-	double l1 = eigenvalues(0, 0);
-	double l2 = eigenvalues(1, 0);
-	double l3 = eigenvalues(2, 0);
-	Matrix3d L_neg_0pt5;
-	L_neg_0pt5 <<
-		1.0/sqrt(l1),            0,            0,
-		           0, 1.0/sqrt(l2),            0,
-		           0,            0, 1.0/sqrt(l3);
+// 	// eigenvalues and diagonal matrix^(-0.5)
+// 	auto eigenvalues = solver.eigenvalues();
+// 	// cout << eigenvalues << endl;
+// 	double l1 = eigenvalues(0, 0);
+// 	double l2 = eigenvalues(1, 0);
+// 	double l3 = eigenvalues(2, 0);
+// 	Matrix3d L_neg_0pt5;
+// 	L_neg_0pt5 <<
+// 		1.0/sqrt(l1),            0,            0,
+// 		           0, 1.0/sqrt(l2),            0,
+// 		           0,            0, 1.0/sqrt(l3);
 
-	// eigenvectors and Q^(-0.5)
-	auto eigenvectors = solver.eigenvectors();
-	// cout << eigenvectors << endl;
-	Matrix3d Q_neg_0pt5 = eigenvectors * L_neg_0pt5 * eigenvectors.transpose();
+// 	// eigenvectors and Q^(-0.5)
+// 	auto eigenvectors = solver.eigenvectors();
+// 	// cout << eigenvectors << endl;
+// 	Matrix3d Q_neg_0pt5 = eigenvectors * L_neg_0pt5 * eigenvectors.transpose();
 
-	// rotation matrix
-	Matrix3d R = M * Q_neg_0pt5;
-	cout << "R =" << endl << R << endl;
+// 	// rotation matrix
+// 	Matrix3d R = M * Q_neg_0pt5;
+// 	cout << "R =" << endl << R << endl;
 
-	// translation
-	Vector3d t = cv_smean - (R * rv_qmean.transpose());
-	cout << "t =" << endl << t << endl;
-	return Trans{0.0};
-}
+// 	// translation
+// 	Vector3d t = cv_smean - (R * rv_qmean.transpose());
+// 	cout << "t =" << endl << t << endl;
+// 	return Trans{0.0};
+// }
 
 // int main(int argc, char** argv) {
 // 	double al = 0;
