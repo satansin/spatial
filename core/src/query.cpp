@@ -17,60 +17,60 @@ using namespace std;
 using namespace trimesh;
 
 vector<Entry> cal_entries(PtwID q, Pt3D pts_q[], int m, double min, double max) {
-	vector<Entry> ret;
+    vector<Entry> ret;
 
-	vector<PtwID> ann_pts;
-	for (int i_s = 0; i_s < m; i_s++) {
-		Pt3D s = pts_q[i_s];
-		double d = eucl_dist(s, q.pt);
-		if (d - min >= 0 && d - max <= 0) {
-			ann_pts.push_back({ i_s, s });
-		}
-	}
-	int hit_size = ann_pts.size();
-	if (hit_size < 3) {
-		return ret;
-	}
+    vector<PtwID> ann_pts;
+    for (int i_s = 0; i_s < m; i_s++) {
+        Pt3D s = pts_q[i_s];
+        double d = eucl_dist(s, q.pt);
+        if (d - min >= 0 && d - max <= 0) {
+            ann_pts.push_back({ i_s, s });
+        }
+    }
+    int hit_size = ann_pts.size();
+    if (hit_size < 3) {
+        return ret;
+    }
 
-	for (int i = 0; i < hit_size; i++) {
-		for (int j = i + 1; j < hit_size; j++) {
-			for (int k = j + 1; k < hit_size; k++) {
-				auto ratio_set = get_ratio_set_vol(q.pt,
-					ann_pts[i].pt, ann_pts[j].pt, ann_pts[k].pt);
-				Entry e;
-				e.fail = false;
-				e.repre = q;
-				e.remai[0] = ann_pts[i];
-				e.remai[1] = ann_pts[j];
-				e.remai[2] = ann_pts[k];
-				e.vol = ratio_set.volume;
-				e.meas = ratio_set.ratio;
-				sort_remai(e);
-				ret.push_back(e);
-			}
-		}
-	}
-	return ret;
+    for (int i = 0; i < hit_size; i++) {
+        for (int j = i + 1; j < hit_size; j++) {
+            for (int k = j + 1; k < hit_size; k++) {
+                auto ratio_set = get_ratio_set_vol(q.pt,
+                    ann_pts[i].pt, ann_pts[j].pt, ann_pts[k].pt);
+                Entry e;
+                e.fail = false;
+                e.repre = q;
+                e.remai[0] = ann_pts[i];
+                e.remai[1] = ann_pts[j];
+                e.remai[2] = ann_pts[k];
+                e.vol = ratio_set.volume;
+                e.meas = ratio_set.ratio;
+                sort_remai(e);
+                ret.push_back(e);
+            }
+        }
+    }
+    return ret;
 }
 
 bool check_congr(Entry e, Entry f, double epsilon_m) {
-	double e_edges[5], f_edges[5];
-	e_edges[0] = eucl_dist(e.repre.pt, e.remai[0].pt);
-	e_edges[1] = eucl_dist(e.repre.pt, e.remai[1].pt);
-	e_edges[2] = eucl_dist(e.remai[0].pt, e.remai[1].pt);
-	e_edges[3] = eucl_dist(e.repre.pt, e.remai[2].pt);
-	e_edges[4] = eucl_dist(e.remai[0].pt, e.remai[2].pt);
-	f_edges[0] = eucl_dist(f.repre.pt, f.remai[0].pt);
-	f_edges[1] = eucl_dist(f.repre.pt, f.remai[1].pt);
-	f_edges[2] = eucl_dist(f.remai[0].pt, f.remai[1].pt);
-	f_edges[3] = eucl_dist(f.repre.pt, f.remai[2].pt);
-	f_edges[4] = eucl_dist(f.remai[0].pt, f.remai[2].pt);
-	for (int i = 0; i < 5; i++)	{
-		if (abs(e_edges[i] - f_edges[i]) > 2 * epsilon_m) {
-			return false;
-		}
-	}
-	return true;
+    double e_edges[5], f_edges[5];
+    e_edges[0] = eucl_dist(e.repre.pt, e.remai[0].pt);
+    e_edges[1] = eucl_dist(e.repre.pt, e.remai[1].pt);
+    e_edges[2] = eucl_dist(e.remai[0].pt, e.remai[1].pt);
+    e_edges[3] = eucl_dist(e.repre.pt, e.remai[2].pt);
+    e_edges[4] = eucl_dist(e.remai[0].pt, e.remai[2].pt);
+    f_edges[0] = eucl_dist(f.repre.pt, f.remai[0].pt);
+    f_edges[1] = eucl_dist(f.repre.pt, f.remai[1].pt);
+    f_edges[2] = eucl_dist(f.remai[0].pt, f.remai[1].pt);
+    f_edges[3] = eucl_dist(f.repre.pt, f.remai[2].pt);
+    f_edges[4] = eucl_dist(f.remai[0].pt, f.remai[2].pt);
+    for (int i = 0; i < 5; i++) {
+        if (abs(e_edges[i] - f_edges[i]) > 2 * epsilon_m) {
+            return false;
+        }
+    }
+    return true;
 }
 
 vector<int> tree_search_return;
@@ -85,11 +85,11 @@ bool tree_search_callback(int key) {
 vector<Entry_Pair> look_up_index(Entry e, double epsilon_m, RTree<int, double, 2>* tree,
     unordered_map<int, Entry>* entries_map) {
 
-	vector<Entry_Pair> ret;
+    vector<Entry_Pair> ret;
 
     double low[2], high[2];
-	cal_range(e.repre.pt, e.remai[0].pt, e.remai[1].pt, e.remai[2].pt, epsilon_m,
-		low[0], high[0], low[1], high[1]);
+    cal_range(e.repre.pt, e.remai[0].pt, e.remai[1].pt, e.remai[2].pt, epsilon_m,
+        low[0], high[0], low[1], high[1]);
 
     int nhits = tree->Search(low, high, tree_search_callback);
 
@@ -102,7 +102,7 @@ vector<Entry_Pair> look_up_index(Entry e, double epsilon_m, RTree<int, double, 2
     }
     tree_search_return.clear();
 
-	return ret;
+    return ret;
 }
 
 // tmp function
@@ -116,10 +116,10 @@ int look_up_index(int repre_id, unordered_map<int, Entry>* entries_map) {
 }
 
 int main(int argc, char **argv) {
-	if (argc < 4) {
-		cerr << "Usage: " << argv[0] << " database_filename index_filename query_filename [-test]" << endl;
-		exit(1);
-	}
+    if (argc < 4) {
+        cerr << "Usage: " << argv[0] << " database_filename index_filename query_filename [-test]" << endl;
+        exit(1);
+    }
 
     bool test_mode = false;
     if (argc >= 5 && string(argv[4]) == "-test") {
@@ -128,13 +128,13 @@ int main(int argc, char **argv) {
 
     srand(time(NULL));
 
-	cout << "Reading dababase file" << endl;
-	string database_filename = argv[1];
-	TriMesh *mesh_p = TriMesh::read(database_filename);
+    cout << "Reading dababase file" << endl;
+    string database_filename = argv[1];
+    TriMesh *mesh_p = TriMesh::read(database_filename);
 
     KDtree *kdtree_p = new KDtree(mesh_p->vertices);
 
-	cout << "Loading index entries" << endl;
+    cout << "Loading index entries" << endl;
     string idx_filename = argv[2];
     RTree<int, double, 2> tree;
     tree.Load(idx_filename.c_str());
@@ -176,24 +176,24 @@ int main(int argc, char **argv) {
     }
 
     cout << "Reading query file" << endl;
-	string query_filename = argv[3];
-	TriMesh *mesh_q = TriMesh::read(query_filename);
+    string query_filename = argv[3];
+    TriMesh *mesh_q = TriMesh::read(query_filename);
 
     string query_info_filename = query_filename + ".info";
     ifstream info_q_ifs(query_info_filename);
 
-	cout << "Reading id maps" << endl;
-	string idmap_filename = query_filename + ".map";
-	ifstream idmap_ifs(idmap_filename);
+    cout << "Reading id maps" << endl;
+    string idmap_filename = query_filename + ".map";
+    ifstream idmap_ifs(idmap_filename);
 
-	int m;
+    int m;
     info_q_ifs >> m;
-	vector<Pt3D> pts_q;
-	vector<int> idmap;
+    vector<Pt3D> pts_q;
+    vector<int> idmap;
     for (int i = 0; i < m; i++) {
-    	pts_q.push_back(pt(mesh_q->vertices[i]));
+        pts_q.push_back(pt(mesh_q->vertices[i]));
         int db_mapping; idmap_ifs >> db_mapping;
-    	idmap.push_back(db_mapping);
+        idmap.push_back(db_mapping);
     }
 
     double epsilon_m, eta;

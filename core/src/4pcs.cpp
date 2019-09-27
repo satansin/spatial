@@ -11,8 +11,8 @@ using namespace std;
 using namespace trimesh;
 
 struct Pred_coin {
-	Pt3D e;
-	int endpt1, endpt2;
+    Pt3D e;
+    int endpt1, endpt2;
 };
 
 const double ZERO = 0.1;
@@ -25,20 +25,20 @@ inline bool eqf(double a, double b) { return abs(a - b) <= FINE_ZERO; };
 int main(int argc, char **argv) {
     srand(time(NULL));
 
-	string database_filename = "../data/t2.ply";
-	string query_filename = "../data/t2_query.ply";
+    string database_filename = "../data/t2.ply";
+    string query_filename = "../data/t2_query.ply";
 
-	TriMesh *mesh_p = TriMesh::read(database_filename);
-	TriMesh *mesh_q = TriMesh::read(query_filename);
+    TriMesh *mesh_p = TriMesh::read(database_filename);
+    TriMesh *mesh_q = TriMesh::read(query_filename);
 
     int m = mesh_q->vertices.size();
     int n = mesh_p->vertices.size();
     Pt3D pts_q[m], pts_p[n];
     for (int i = 0; i < m; i++) {
-    	pts_q[i] = pt(mesh_q->vertices[i]);
+        pts_q[i] = pt(mesh_q->vertices[i]);
     }
     for (int i = 0; i < n; i++) {
-    	pts_p[i] = pt(mesh_p->vertices[i]);
+        pts_p[i] = pt(mesh_p->vertices[i]);
     }
 
 
@@ -126,8 +126,8 @@ int main(int argc, char **argv) {
     Pt3D q12 = {q[1].x - q[0].x, q[1].y - q[0].y, q[1].z - q[0].z};
     Pt3D q34 = {q[3].x - q[2].x, q[3].y - q[2].y, q[3].z - q[2].z};
     double r34 =
-    	(q12.y * q[0].x - q12.x * q[0].y + q12.x * q[2].y - q12.y * q[2].x) / 
-    	(q34.x * q12.y - q34.y * q12.x);
+        (q12.y * q[0].x - q12.x * q[0].y + q12.x * q[2].y - q12.y * q[2].x) / 
+        (q34.x * q12.y - q34.y * q12.x);
     double r12 = (q[2].x + r34 * q34.x - q[0].x) / q12.x;
     // cout << r12 << endl << r34 << endl;
 
@@ -140,47 +140,47 @@ int main(int argc, char **argv) {
             double dij_p = eucl_dist(pi, pj);
             if(abs(dij_p - d12_q) <= 0.2) {
                 pred_coin12.push_back({
-                	{ pi.x + (pj.x - pi.x) * r12,
-                	  pi.y + (pj.y - pi.y) * r12,
-                	  pi.z + (pj.z - pi.z) * r12,
-                	}, i, j});
+                    { pi.x + (pj.x - pi.x) * r12,
+                      pi.y + (pj.y - pi.y) * r12,
+                      pi.z + (pj.z - pi.z) * r12,
+                    }, i, j});
                 pred_coin12.push_back({
-                	{ pj.x + (pi.x - pj.x) * r12,
-                	  pj.y + (pi.y - pj.y) * r12,
-                	  pj.z + (pi.z - pj.z) * r12,
-                	}, j, i});
+                    { pj.x + (pi.x - pj.x) * r12,
+                      pj.y + (pi.y - pj.y) * r12,
+                      pj.z + (pi.z - pj.z) * r12,
+                    }, j, i});
             }
             if (abs(dij_p - d34_q) <= 0.2) {
                 pred_coin34.push_back({
-                	{ pi.x + (pj.x - pi.x) * r34,
-                	  pi.y + (pj.y - pi.y) * r34,
-                	  pi.z + (pj.z - pi.z) * r34,
-                	}, i, j});
+                    { pi.x + (pj.x - pi.x) * r34,
+                      pi.y + (pj.y - pi.y) * r34,
+                      pi.z + (pj.z - pi.z) * r34,
+                    }, i, j});
                 pred_coin34.push_back({
-                	{ pj.x + (pi.x - pj.x) * r34,
-                	  pj.y + (pi.y - pj.y) * r34,
-                	  pj.z + (pi.z - pj.z) * r34,
-                	}, j, i});
+                    { pj.x + (pi.x - pj.x) * r34,
+                      pj.y + (pi.y - pj.y) * r34,
+                      pj.z + (pi.z - pj.z) * r34,
+                    }, j, i});
             }
             // if (i == 3411 && j == 4079) {
-            // 	cout << pred_coin12[pred_coin12.size() - 2].endpt1 << " ";
-            // 	cout << pred_coin12[pred_coin12.size() - 2].endpt2 << " ";
-            // 	print_pt(&pred_coin12[pred_coin12.size() - 2].e);
-            // 	cout << endl;
-            // 	cout << pred_coin12[pred_coin12.size() - 1].endpt1 << " ";
-            // 	cout << pred_coin12[pred_coin12.size() - 1].endpt2 << " ";
-            // 	print_pt(&pred_coin12[pred_coin12.size() - 1].e);
-            // 	cout << endl;
+            //  cout << pred_coin12[pred_coin12.size() - 2].endpt1 << " ";
+            //  cout << pred_coin12[pred_coin12.size() - 2].endpt2 << " ";
+            //  print_pt(&pred_coin12[pred_coin12.size() - 2].e);
+            //  cout << endl;
+            //  cout << pred_coin12[pred_coin12.size() - 1].endpt1 << " ";
+            //  cout << pred_coin12[pred_coin12.size() - 1].endpt2 << " ";
+            //  print_pt(&pred_coin12[pred_coin12.size() - 1].e);
+            //  cout << endl;
             // }
             // if (i == 296 && j == 5374) {
-            // 	cout << pred_coin34[pred_coin34.size() - 2].endpt1 << " ";
-            // 	cout << pred_coin34[pred_coin34.size() - 2].endpt2 << " ";
-            // 	print_pt(&pred_coin34[pred_coin34.size() - 2].e);
-            // 	cout << endl;
-            // 	cout << pred_coin34[pred_coin34.size() - 1].endpt1 << " ";
-            // 	cout << pred_coin34[pred_coin34.size() - 1].endpt2 << " ";
-            // 	print_pt(&pred_coin34[pred_coin34.size() - 1].e);
-            // 	cout << endl;
+            //  cout << pred_coin34[pred_coin34.size() - 2].endpt1 << " ";
+            //  cout << pred_coin34[pred_coin34.size() - 2].endpt2 << " ";
+            //  print_pt(&pred_coin34[pred_coin34.size() - 2].e);
+            //  cout << endl;
+            //  cout << pred_coin34[pred_coin34.size() - 1].endpt1 << " ";
+            //  cout << pred_coin34[pred_coin34.size() - 1].endpt2 << " ";
+            //  print_pt(&pred_coin34[pred_coin34.size() - 1].e);
+            //  cout << endl;
             // }
         }
     }
@@ -188,32 +188,32 @@ int main(int argc, char **argv) {
     int no_e12 = pred_coin12.size();
     int no_e34 = pred_coin34.size();
     cout << "matching set of q1q2: " << no_e12 << endl
-    	 << "matching set of q3q4: " << no_e34 << endl;
+         << "matching set of q3q4: " << no_e34 << endl;
 
     double d13_q = eucl_dist(q[0], q[2]);
     int sta = 0;
     for (int i = 0; i < no_e12; i++) {
-    	for (int j = 0; j < no_e34; j++) {
-    		if (eucl_dist(pred_coin12[i].e, pred_coin34[j].e) <= 0.5) {
-    			double d13_p = eucl_dist(pts_p[pred_coin12[i].endpt1], pts_p[pred_coin34[j].endpt1]);
-    			if (abs(d13_p - d13_q) <= 0.2) {
-    				sta++;
-	    			// cout << "coin found: "
-	    			// 	 << pred_coin12[i].endpt1 << "-" << pred_coin12[i].endpt2
-	    			// 	 << " and "
-	    			// 	 << pred_coin34[j].endpt1 << "-" << pred_coin34[j].endpt2 << endl;
-	    			p[0] = pts_p[pred_coin12[i].endpt1];
-	    			p[1] = pts_p[pred_coin12[i].endpt2];
-	    			p[2] = pts_p[pred_coin34[j].endpt1];
-	    			p[3] = pts_p[pred_coin34[j].endpt2];
+        for (int j = 0; j < no_e34; j++) {
+            if (eucl_dist(pred_coin12[i].e, pred_coin34[j].e) <= 0.5) {
+                double d13_p = eucl_dist(pts_p[pred_coin12[i].endpt1], pts_p[pred_coin34[j].endpt1]);
+                if (abs(d13_p - d13_q) <= 0.2) {
+                    sta++;
+                    // cout << "coin found: "
+                    //   << pred_coin12[i].endpt1 << "-" << pred_coin12[i].endpt2
+                    //   << " and "
+                    //   << pred_coin34[j].endpt1 << "-" << pred_coin34[j].endpt2 << endl;
+                    p[0] = pts_p[pred_coin12[i].endpt1];
+                    p[1] = pts_p[pred_coin12[i].endpt2];
+                    p[2] = pts_p[pred_coin34[j].endpt1];
+                    p[3] = pts_p[pred_coin34[j].endpt2];
 
-				    Trans xf = cal_trans(q, p, 4);
-				    // print_trans(&xf);
+                    Trans xf = cal_trans(q, p, 4);
+                    // print_trans(&xf);
 
                     // cout << cal_err(pts_q, m, pts_p, n, xf) << endl;
-    			}
-    		}
-    	}
+                }
+            }
+        }
     }
 
     // cout << sta << endl;

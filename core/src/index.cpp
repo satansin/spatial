@@ -106,8 +106,8 @@ vector<PtwID> get_ann_pts(const Cell* c, PtwID p, double ann_min, double ann_max
             Box3D cell_box(cell_ptr, g->w);
             if (max_dist(p.pt, cell_box) - ann_min >= 0 &&
                 min_dist(p.pt, cell_box) - ann_max <= 0) {
-            	if (debug_mode) intersecting_cells_count++;
-            	if (debug_mode) timer_start();
+                if (debug_mode) intersecting_cells_count++;
+                if (debug_mode) timer_start();
                 add_ann_pts_in_cell(cell_ptr, p, ann_min, ann_max, ann_pts);
                 if (debug_mode) inner_time += timer_end(MILLISECOND);
             }
@@ -129,39 +129,39 @@ bool test_index_entry(const Cell* c, PtwID p, double ann_min, double ann_max, co
 }
 
 Entry cal_index_entry_depr(const Cell* c, PtwID p, double ann_min, double ann_max, const Grid* g, bool debug_mode) {
-	if (debug_mode) cout << TAB << "Pt #" << p.id << endl;
+    if (debug_mode) cout << TAB << "Pt #" << p.id << endl;
 
-	if (debug_mode)	timer_start();
-	vector<PtwID> ann_pts = get_ann_pts(c, p, ann_min, ann_max, g, debug_mode);
-	if (debug_mode) cout << TABTAB << "Total time of get_ann_pts: " << timer_end(MILLISECOND) << "(ms)" << endl;
+    if (debug_mode) timer_start();
+    vector<PtwID> ann_pts = get_ann_pts(c, p, ann_min, ann_max, g, debug_mode);
+    if (debug_mode) cout << TABTAB << "Total time of get_ann_pts: " << timer_end(MILLISECOND) << "(ms)" << endl;
 
-	int hit_size = ann_pts.size();
+    int hit_size = ann_pts.size();
 
     if (debug_mode) cout << TABTAB << "# ann pts: " << hit_size << endl;
     
-	if (hit_size < 3) {
-		Entry fail;
-		fail.repre = p;
-		fail.fail = true;
-		return fail;
-	}
+    if (hit_size < 3) {
+        Entry fail;
+        fail.repre = p;
+        fail.fail = true;
+        return fail;
+    }
 
-	if (debug_mode)	timer_start();
+    if (debug_mode) timer_start();
 
-	Entry prem;
-	prem.meas = -1;
+    Entry prem;
+    prem.meas = -1;
     prem.fail = false;
-	for (int i = 0; i < hit_size; i++) {
-		for (int j = i + 1; j < hit_size; j++) {
-			for (int k = j + 1; k < hit_size; k++) {
-				auto ratio_set = get_ratio_set_vol(p.pt,
-					ann_pts[i].pt, ann_pts[j].pt, ann_pts[k].pt);
-				if (ratio_set.ratio - prem.meas > 0) {
+    for (int i = 0; i < hit_size; i++) {
+        for (int j = i + 1; j < hit_size; j++) {
+            for (int k = j + 1; k < hit_size; k++) {
+                auto ratio_set = get_ratio_set_vol(p.pt,
+                    ann_pts[i].pt, ann_pts[j].pt, ann_pts[k].pt);
+                if (ratio_set.ratio - prem.meas > 0) {
                     prem.set(p, ann_pts[i], ann_pts[j], ann_pts[k], ratio_set.volume, ratio_set.ratio);
-				}
-			}
-		}
-	}
+                }
+            }
+        }
+    }
     sort_remai(prem);
     // double bc = eucl_dist(prem.remai[0].pt, prem.remai[1].pt);
     // double bd = eucl_dist(prem.remai[0].pt, prem.remai[2].pt);
@@ -170,9 +170,9 @@ Entry cal_index_entry_depr(const Cell* c, PtwID p, double ann_min, double ann_ma
     //     prem.fail = true;
     // }
 
-    if (debug_mode)	cout << TABTAB << "Time of calculating prem entry: " << timer_end(MILLISECOND) << "(ms)" << endl;
+    if (debug_mode) cout << TABTAB << "Time of calculating prem entry: " << timer_end(MILLISECOND) << "(ms)" << endl;
 
-	return prem;
+    return prem;
 }
 
 // For a 3D circle centered at o, normal vector oa, and radius r
@@ -340,8 +340,8 @@ Entry cal_index_entry_new(PtwID p, double min, const TriMesh* mesh_p, const KDtr
 
     if (debug_mode) cout << TABTAB << "Second pt #" << nn_b->oid << " dist=" << sqrt(nn_b->dist) << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
-	// start looking for the third subsidiary pt c
-	if (debug_mode) timer_start();
+    // start looking for the third subsidiary pt c
+    if (debug_mode) timer_start();
 
     Pt3D std_coor[3] = { {0, 0, 0}, {r, 0, 0}, {0, 0, d_pm} }; // put m, b_est, a in a righthand coordinate system
     Pt3D real_coor[3] = { m, b_est, a.pt };
@@ -390,10 +390,10 @@ void performance_test(TriMesh *mesh, int n, KDtree *kd, node_type *r_root, rtree
 }
 
 int main(int argc, char **argv) {
-	if (argc < 6) {
-		cerr << "Usage: " << argv[0] << " database_filename w ann_min ann_max output_index_filename [-test] [-show_prog_bar] [-debug]" << endl;
-		exit(1);
-	}
+    if (argc < 6) {
+        cerr << "Usage: " << argv[0] << " database_filename w ann_min ann_max output_index_filename [-test] [-show_prog_bar] [-debug]" << endl;
+        exit(1);
+    }
 
     bool test_mode = false, show_prog_bar = false, debug_mode = false;
     for (int i = 0; i < argc; i++) {
@@ -406,10 +406,10 @@ int main(int argc, char **argv) {
         }
     }
 
-	string database_filename = argv[1];
-	TriMesh *mesh_p = TriMesh::read(database_filename);
+    string database_filename = argv[1];
+    TriMesh *mesh_p = TriMesh::read(database_filename);
 
-	int n = mesh_p->vertices.size();
+    int n = mesh_p->vertices.size();
     KDtree *kd_p = new KDtree(mesh_p->vertices);
     
     char tmp_save_filename[] = "/rwproject/kdd-db/hliubs/spatial/3dor/rstree/redwood-01-hotel.rstree.0";
@@ -465,9 +465,9 @@ int main(int argc, char **argv) {
 
     // write grid headers
     if (!debug_mode) {
-    	outgrid_ifs << w << " " << ann_min << " " << ann_max << " " << g.cells_count << endl;
-    	outgrid_ifs << g.cells_box.min_id[0] << " " << g.cells_box.min_id[1] << " " << g.cells_box.min_id[2] << " "
-                	<< g.cells_box.max_id[0] << " " << g.cells_box.max_id[1] << " " << g.cells_box.max_id[2] << endl;
+        outgrid_ifs << w << " " << ann_min << " " << ann_max << " " << g.cells_count << endl;
+        outgrid_ifs << g.cells_box.min_id[0] << " " << g.cells_box.min_id[1] << " " << g.cells_box.min_id[2] << " "
+                    << g.cells_box.max_id[0] << " " << g.cells_box.max_id[1] << " " << g.cells_box.max_id[2] << endl;
     }
     
     RTree<int, double, 2> tree;
@@ -483,17 +483,17 @@ int main(int argc, char **argv) {
         }
 
         int key = it->first;
-    	Cell c = it->second;
+        Cell c = it->second;
         if (debug_mode) {
-        	printf("Processing cell (%d, %d, %d) with %d pts\n", c.x, c.y, c.z, c.list.size());
+            printf("Processing cell (%d, %d, %d) with %d pts\n", c.x, c.y, c.z, c.list.size());
         }
         
         // output per-cell information
         if (!debug_mode) {
-        	outgrid_ifs << key << " " << c.to_str() << endl;
+            outgrid_ifs << key << " " << c.to_str() << endl;
         }
 
-    	Entry prem_entry;
+        Entry prem_entry;
         prem_entry.fail = true;
         prem_entry.meas = -1;
         for (PtwID &p: c.list) {
@@ -504,22 +504,22 @@ int main(int argc, char **argv) {
                     break;
                 }
             } else {
-        		// Entry e = cal_index_entry(&c, p, ann_min, ann_max, &g, kd_p, debug_mode);
+                // Entry e = cal_index_entry(&c, p, ann_min, ann_max, &g, kd_p, debug_mode);
                 Entry e = cal_index_entry_new(p, ann_min, mesh_p, kd_p, root, &db_rtree_info, debug_mode);
-        		// find premium entry having the largest meas
+                // find premium entry having the largest meas
                 if (e.meas > prem_entry.meas && e.fail == false) {
-        			prem_entry = e;
-        		}
+                    prem_entry = e;
+                }
             }
-    	}
+        }
 
         if (debug_mode) {
-    		cout << TAB << "Prem entry: " << prem_entry.to_str() << endl;
-    	}
+            cout << TAB << "Prem entry: " << prem_entry.to_str() << endl;
+        }
 
         // output per-cell premium entry
         if (!debug_mode && !test_mode) {
-        	outgrid_ifs << prem_entry.to_str() << endl;
+            outgrid_ifs << prem_entry.to_str() << endl;
         }
 
         if (prem_entry.fail) {
@@ -531,7 +531,7 @@ int main(int argc, char **argv) {
         }
 
         if (debug_mode && distance(g.cells_map.begin(), it) >= 30) {
-        	break;
+            break;
         }
     }
 
@@ -544,7 +544,7 @@ int main(int argc, char **argv) {
 
     outgrid_ifs.close();
     if (!debug_mode && !test_mode) {
-    	tree.Save(outidx_filename.c_str());
+        tree.Save(outidx_filename.c_str());
     }
 
     cout << "Total time: " << timer_end(SECOND) << "(s)" << endl;
