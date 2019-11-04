@@ -46,18 +46,21 @@ point rand_pt(double x1, double x2, double y1, double y2, double z1, double z2) 
 int main(int argc, char** argv) {
 	srand(time(NULL));
 
-	string db_filename = argv[1];
+	int argi = 0;
+	string db_filename = argv[(++argi)];
 
-	double r_x1 = atof(argv[2]);
-	double r_x2 = atof(argv[3]);
-	double r_y1 = atof(argv[4]);
-	double r_y2 = atof(argv[5]);
-	double r_z1 = atof(argv[6]);
-	double r_z2 = atof(argv[7]);
+	double r_x1 = atof(argv[(++argi)]);
+	double r_x2 = atof(argv[(++argi)]);
+	double r_y1 = atof(argv[(++argi)]);
+	double r_y2 = atof(argv[(++argi)]);
+	double r_z1 = atof(argv[(++argi)]);
+	double r_z2 = atof(argv[(++argi)]);
 
-	int m = atoi(argv[8]);
-	double epsilon_m = atof(argv[9]);
-	double eta = atof(argv[10]);
+	// int m = atoi(argv[(++argi)]);
+	double epsilon_m = atof(argv[(++argi)]);
+	double eta = atof(argv[(++argi)]);
+
+	string output_filename = argv[(++argi)];
 
 	cout << endl;
 
@@ -82,7 +85,8 @@ int main(int argc, char** argv) {
 	int in_range_count = query_mesh->vertices.size();
 	printf("Found %d pts in range\n", in_range_count);
 
-	int target_inlier_count = m * eta;
+	// int target_inlier_count = m * eta;
+	int target_inlier_count = in_range_count;
 	printf("Target inlier count is %d, thus %d pts to be removed\n",
 		target_inlier_count, max(in_range_count - target_inlier_count, 0));
 
@@ -116,7 +120,8 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	int outlier_to_add = m - target_inlier_count;
+	int m = target_inlier_count / eta;
+	int outlier_to_add = max(m - target_inlier_count, 0);
 	if (outlier_to_add > 0)	{
 		printf("Adding %d outliers\n", outlier_to_add);
 	}
@@ -141,7 +146,6 @@ int main(int argc, char** argv) {
 		vec(rand_double_in_range(-1, 1), rand_double_in_range(-1, 1), rand_double_in_range(-1, 1)));
 	trans(query_mesh, -mesh_center_of_mass(query_mesh));
 
-	string output_filename = argv[11];
 	cout << "Writing query point cloud to " << output_filename << endl;
 	query_mesh->write(output_filename);
 
