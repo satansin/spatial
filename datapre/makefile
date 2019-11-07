@@ -3,9 +3,10 @@ CXX=g++ -std=c++0x
 RM=rm -f
 RMDIR=rm -rf
 
-# INC=-Isrc/include/
+# INC=-I../common/include/
 # USE_EIGEN=-IEigen/
 USE_TM=-I../trimesh2/include/ -L../trimesh2/lib.Linux64/
+USE_RS=-I../rstree/ ../rstree/*.o
 
 SRC=src
 OBJ=obj

@@ -1,3 +1,4 @@
+
 #ifndef __SHARE_H
 #define __SHARE_H
 

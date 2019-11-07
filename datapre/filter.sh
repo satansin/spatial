@@ -1,7 +1,6 @@
 #!/bin/bash
 
-DIR_RAW="/project/kdd/hliubs/data/spatial/3dor/raw"
-DIR_DB="/project/kdd/hliubs/data/spatial/3dor/db"
+source ../common/config/dir_loc.sh
 
 # ./filter.out "$DIR_REDW"/raw/iml_hotel_umd_slac_mesh.ply "$DIR_REDW"/redwood-01-hotel.ply 1000
 # ./filter.out "$DIR_REDW"/redwood/raw/iml_mit_32_d507_slac_mesh.ply "$DIR_REDW"/redwood-02-d507.ply 1000

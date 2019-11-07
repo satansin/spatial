@@ -20,7 +20,7 @@ OUT=out
 #     add $(USE_EIGEN)
 # How to use trimesh2:
 #     add $(USE_TM)
-#     add the following (!!in the end of out!!): -ltrimesh -lgluit -fopenmp
+#     add the following (!!in the end!!): -ltrimesh -lgluit -fopenmp
 
 all: clean 4pcs index query pre_index
 

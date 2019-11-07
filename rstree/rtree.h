@@ -33,7 +33,7 @@
 #endif
 #define UNDEFINED -3  // for id of entries in PR
 
-//#define R_FLOAT
+#define R_FLOAT
 // #define R_TYPE int
 #define R_TYPE float
 
@@ -60,11 +60,11 @@ typedef struct node {
 }   node_type;
 	
 typedef struct NN {	
-		double dist;
-		int oid;
-		struct node *pointer; 
-		int level;
-		struct NN *next; 
+	double dist;
+	int oid;
+	struct node *pointer; 
+	int level;
+	struct NN *next; 
 } NN_type;
 		
 typedef struct BranchArray {	
@@ -72,6 +72,10 @@ typedef struct BranchArray {
 	double max;
 	node_type *node;
 } ABL;
+
+typedef struct RangeReturn {
+
+} RangeReturn_type;
 
 
 typedef struct config { 
@@ -109,6 +113,7 @@ void NN_freeChain(NN_type *aNN);
 void build_tree(node_type **root, R_TYPE **data, int no_data, rtree_info *aInfo);
 void k_NN_search(node_type *root, R_TYPE *query, int k, NN_type **returnResult, rtree_info *aInfo);
 void k_NN_search_sphere(node_type *root, R_TYPE *query, int k, NN_type **returnResult, rtree_info *aInfo, float rad);
+void sphere_search(node_type *root, R_TYPE *query, float min, float max, RangeReturn_type **returnResult, rtree_info *r_info);
 
 void save_rtree(node_type *root, const char save_tree_file[], rtree_info *aInfo);
 void read_rtree(node_type **root, const char save_tree_file[], rtree_info *aInfo);
