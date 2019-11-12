@@ -1,3 +1,6 @@
+#ifndef __RSTREE_H_
+#define __RSTREE_H_
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -118,3 +121,5 @@ void sphere_search(node_type *root, R_TYPE *query, float min, float max, RangeRe
 void save_rtree(node_type *root, const char save_tree_file[], rtree_info *aInfo);
 void read_rtree(node_type **root, const char save_tree_file[], rtree_info *aInfo);
 void free_tree(node_type *node, rtree_info *aInfo);
+
+#endif

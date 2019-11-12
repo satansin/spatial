@@ -34,9 +34,12 @@ struct Pt3D
 	}
 };
 
-
 inline Pt3D pt(trimesh::point p) {
 	return {p[0], p[1], p[2]};
+}
+
+inline Pt3D get_pt(const trimesh::TriMesh *mesh, int id) {
+	return pt(mesh->vertices[id]);
 }
 
 inline Pt3D middle_pt(Pt3D p, Pt3D q) {

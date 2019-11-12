@@ -22,7 +22,7 @@ OUT=out
 #     add $(USE_TM)
 #     add the following (!!in the end!!): -ltrimesh -lgluit -fopenmp
 
-all: clean 4pcs index query pre_index
+all: clean 4pcs index pre_index #query
 
 4pcs: trans.o point.o
 	$(CXX) $(INC) $(USE_TM) $(SRC)/4pcs.cpp $(OBJ)/* -o $(OUT)/4pcs.out -ltrimesh -lgluit -fopenmp
@@ -31,7 +31,7 @@ index: tetra_meas.o point.o
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/index.cpp $(OBJ)/* -o $(OUT)/index.out -ltrimesh -lgluit -fopenmp
 
 query: tetra_meas.o point.o
-	$(CXX) $(INC) $(USE_TM) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query.out -ltrimesh -lgluit -fopenmp
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query.out -ltrimesh -lgluit -fopenmp
 
 pre_index:
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/pre_index.cpp $(OBJ)/* -o $(OUT)/pre_index.out -ltrimesh -lgluit -fopenmp

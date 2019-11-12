@@ -1,11 +1,6 @@
 #!/bin/bash
 
-DIR_SYNTHETIC="/rwproject/kdd-db/hliubs/spatial/3dor/synthetic"
-DIR_KITTI="/rwproject/kdd-db/hliubs/spatial/3dor/KITTI"
-DIR_REDWOOD="/rwproject/kdd-db/hliubs/spatial/3dor/redwood"
-DIR_INDEX="/rwproject/kdd-db/hliubs/spatial/3dor/index"
-
-cd out/
+source ../common/config/dir_loc.sh
 
 # # index on synthetic datasets (origin)
 # ./index.out "$DIR_SYNTHETIC"/data/pcd-001M.ply 150.0 600.0 602.0 "$DIR_SYNTHETIC"/index/origin/synthetic-pcd-001M.idx
@@ -18,7 +13,7 @@ cd out/
 # ./index.out "$DIR_KITTI"/kitti-join005.ply 0.2 1.5 1.6 "$DIR_INDEX"/kitti-join005.idx -debug #-show_prog_bar
 
 # index on redwood datasets
-./index.out "$DIR_REDWOOD"/redwood-01-hotel.ply 12 60 60.3 "$DIR_INDEX"/redwood-01-test1.idx -debug #-show_prog_bar #-test
+./out/index.out "$DIR_DB"/redwood-01-livingroom.ply "$DIR_RSTREE"/redwood-01-livingroom.rstree.1 32 60 60.3 "$DIR_INDEX"/redwood-01-livingroom.idx -debug #-show_prog_bar #-test
 # ./index.out "$DIR_REDWOOD"/redwood-02-d507.ply 12 60 60.3 "$DIR_INDEX"/redwood-02.idx -show_prog_bar #-test
 
 
