@@ -391,11 +391,11 @@ struct Struct_DB {
 	Grid g_db;
 	double ann_min;
 	double ann_max;
-	unordered_map<int, Entry> entries_map;
+	unordered_map<int, Entry*> entries_map;
 	unordered_map<int, int> reverse_entries_map;
 	unordered_set<int> repre_id_set;
 
-	void insert_entry(int key, Entry e) {
+	void insert_entry(int key, Entry* e) {
 		entries_map[key] = e;
 	}
 
@@ -425,14 +425,14 @@ struct Struct_DB {
 	        this->repre_id_set.insert(repre_id);
 	        this->reverse_entries_map[repre_id] = key;
 
-	        Entry e;
-	        e.set(PtwID(repre_id, mesh_db),
+	        Entry *e = new Entry;
+	        e->set(PtwID(repre_id, mesh_db),
 	              PtwID(remai_0_id, mesh_db),
 	              PtwID(remai_1_id, mesh_db),
 	              PtwID(remai_2_id, mesh_db),
 	              vol, meas,
 	              PtwID(help_id, mesh_db));
-	        e.fail = fail;
+	        e->fail = fail;
 	        this->entries_map[key] = e;
 	    }
 
@@ -448,11 +448,11 @@ struct Struct_DB {
 	}
 
 	int get_remai_id(int repre_id, int i) const {
-		return this->entries_map.at(this->reverse_entries_map.at(repre_id)).remai[i]->id;
+		return this->entries_map.at(this->reverse_entries_map.at(repre_id))->remai[i]->id;
 	}
 
 	int get_help_id(int repre_id) const {
-		return this->entries_map.at(this->reverse_entries_map.at(repre_id)).help->id;
+		return this->entries_map.at(this->reverse_entries_map.at(repre_id))->help->id;
 	}
 
 	void set_ann(double min, double max) {
@@ -470,8 +470,10 @@ struct Struct_DB {
 
         for (auto &it: this->g_db.cells_map) {
         	ofs << it.first << " " << it.second.to_str() << endl;
-        	ofs << entries_map[it.first].to_str() << endl;
+        	ofs << entries_map[it.first]->to_str() << endl;
         }
+
+        ofs.close();
 	}
 };
 

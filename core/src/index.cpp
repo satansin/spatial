@@ -246,19 +246,14 @@ Entry cal_index_entry(const Cell* c, PtwID p, double ann_min, double ann_max, co
     return prem;
 }
 
-Entry* cal_index_entry_new(PtwID p, double min, const TriMesh* mesh_p, node_type *r_root, rtree_info* r_info, bool debug_mode) {
+void cal_index_entry_new(PtwID p, double min, const TriMesh* mesh_p, node_type *r_root, rtree_info* r_info, bool debug_mode, Entry* prem_entry) {
 
-	Entry* ret = new Entry();
+	PtwID a, b, c, h;
 
     if (debug_mode) cout << TAB << "Pt #" << p.id << endl;
 
     // start looking for the first subsidiary pt a
     if (debug_mode) timer_start();
-
-    // R_TYPE *query_a;
-    // convert_pt(&(p.pt), query_a);
-    // NN_type *nn_a;
-    // k_NN_search_sphere(r_root, query_a, 1, &nn_a, r_info, min * min);
 
     auto nn_a = nn_sphere(&(p.pt), r_root, r_info, min * min)[0];
 
@@ -267,86 +262,60 @@ Entry* cal_index_entry_new(PtwID p, double min, const TriMesh* mesh_p, node_type
     // start looking for the help pt h
     if (debug_mode) timer_start();
 
-    auto a = PtwID(nn_a->oid, mesh_p);
-    auto m = middle_pt(p.pt, a.pt);
+    if (nn_a->oid >= 0) {
+     	a = PtwID(nn_a->oid, mesh_p);
+    } else {
+    	return;
+    }
 
-    // R_TYPE *query_m;
-    // convert_pt(&m, query_m);
-    // NN_type *nn_m;
-    // k_NN_search_sphere(r_root, query_m, 3, &nn_m, r_info, d_pm * d_pm);
+    auto m = middle_pt(p.pt, a.pt);
 
     float d_pm = eucl_dist(p.pt, m);
     auto nn_h = nn_sphere(&m, r_root, r_info, d_pm * d_pm, { p.id, a.id })[0];
 
-    // for (; nn_m != NULL && (nn_m->oid == p.id || nn_m->oid == a.id); nn_m = nn_m->next) {}
-    // Pt3D h = pt(mesh_p->vertices[nn_m->oid]);
-
     if (debug_mode) cout << TABTAB << "Help pt #" << nn_h->oid << " dist=" << sqrt(nn_h->dist) << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
-    auto h = PtwID(nn_h->oid, mesh_p);
+    if (nn_h->oid >= 0) {
+     	h = PtwID(nn_h->oid, mesh_p);
+    } else {
+    	return;
+    }
 
     if (debug_mode) { cout << TABTAB; printf("hp=%f, ha=%f\n", eucl_dist(h.pt, p.pt), eucl_dist(h.pt, a.pt)); }
-
-    // // start looking for the second subsidiary pt b
-    // if (debug_mode) timer_start();
-
-    // double r = d_pm * 1.732050807569;
-    // auto ma = a.pt - m;
-    // auto mh = h.pt - m;
-    // auto u = m + ma * dot_prd(ma, mh) / (d_pm * d_pm); // d_ma = d_pm
-    // auto uh = h.pt - u;
-    // auto b_est = m + uh * (r / uh.mode());
-
-    // R_TYPE *query_b;
-    // convert_pt(&b_est, query_b);
-    // NN_type *nn_b;
-    // k_NN_search(r_root, query_b, 3, &nn_b, r_info);
-
-    // for (; nn_b != NULL && (nn_b->oid == p.id || nn_b->oid == a.id); nn_b = nn_b->next);
-    // PtwID b = PtwID(nn_b->oid, pt(mesh_p->vertices[nn_b->oid]));
-
-    // if (debug_mode) cout << TABTAB << "Second pt #" << nn_b->oid << " dist=" << sqrt(nn_b->dist) << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
-
-    // // start looking for the third subsidiary pt c
-    // if (debug_mode) timer_start();
-
-    // Pt3D std_coor[3] = { {0, 0, 0}, {r, 0, 0}, {0, 0, d_pm} }; // put m, b_est, a in a righthand coordinate system
-    // Pt3D real_coor[3] = { m, b_est, a.pt };
-    // auto xf = cal_trans(std_coor, real_coor, 3);
-    // Pt3D c_est = trans_pt(&xf, { r / 3.0, r * 0.94280904, 0 }); // rotate b_est arccos(1/3) towards y+ surrounding m
-
-    // R_TYPE *query_c;
-    // convert_pt(&c_est, query_c);
-    // NN_type *nn_c;
-    // k_NN_search(r_root, query_c, 4, &nn_c, r_info);
-
-    // for (; nn_c != NULL && (nn_c->oid == p.id || nn_c->oid == a.id || nn_c->oid == b.id); nn_c = nn_c->next);
-    // PtwID c = PtwID(nn_c->oid, pt(mesh_p->vertices[nn_c->oid]));
-
-    // if (debug_mode) cout << TABTAB << "Third pt #" << nn_c->oid << " dist=" << sqrt(nn_c->dist) << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
     // start looking for the rest two pts b and c
     if (debug_mode) timer_start();
 
     Pt3D b_est, c_est;
     auto got_b_c = get_est_b_c(&m, &(a.pt), &(h.pt), b_est, c_est);
-
     if (!got_b_c) {
-    	ret->fail = true;
-    	return ret;
+    	return;
     }
 
     auto nn_b = nn_sphere(&b_est, r_root, r_info, 0.0, { p.id, a.id })[0];
-    auto b = PtwID(nn_b->oid, mesh_p);
+    if (nn_b->oid >= 0) {
+     	b = PtwID(nn_b->oid, mesh_p);
+    } else {
+    	return;
+    }
 
     auto nn_c = nn_sphere(&c_est, r_root, r_info, 0.0, { p.id, a.id, b.id })[0];
-    auto c = PtwID(nn_c->oid, mesh_p);
+    if (nn_c->oid >= 0) {
+     	c = PtwID(nn_c->oid, mesh_p);
+    } else {
+    	return;
+    }
+
+    if (debug_mode) cout << TABTAB << "Second pt #" << nn_b->oid << " dist=" << sqrt(nn_b->dist)
+    	<< ", third pt #" << nn_c->oid << " dist=" << sqrt(nn_c->dist) << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
     // get the ratio set
     auto ratio_set = get_ratio_set_vol(p.pt, a.pt, b.pt, c.pt);
-    ret->set(p, a, b, c, ratio_set.volume, ratio_set.ratio);
 
-    return ret;
+    if (ratio_set.ratio - prem_entry->meas > 0) {
+    	prem_entry->set(p, a, b, c, ratio_set.volume, ratio_set.ratio, h);
+    	prem_entry->fail = false;
+    }
 
 }
 
@@ -437,40 +406,28 @@ int main(int argc, char **argv) {
 
     if (test_mode) gridify_test(w, mesh_p);
 
-    Grid g;
-    g.set_width(w);
+    Struct_DB s_db;
+    s_db.g_db.set_width(w);
     cout << "\nGridify the point cloud..." << endl;
 
     timer_start();
-    g.gridify(mesh_p);
+    s_db.g_db.gridify(mesh_p);
     cout << "Gridify finished in " << timer_end(SECOND) << "(s)" << endl;
 
     cout << "Grid size: " << w << endl;
-    cout << "Total # cells: " << g.cells_count << endl;
-    cout << "Avg # pts per cell: " << ((double) n) / ((double) g.cells_count) << endl;
+    cout << "Total # cells: " << s_db.g_db.cells_count << endl;
+    cout << "Avg # pts per cell: " << ((double) n) / ((double) s_db.g_db.cells_count) << endl;
 
     // exit(0);
 
-    Struct_DB s_db;
-    s_db.g_db = g;
     s_db.set_ann(ann_min, ann_max);
-
-    // string outgrid_filename = outidx_filename + ".grid";
-    // ofstream outgrid_ifs(outgrid_filename);
-
-    // // write grid headers
-    // if (!debug_mode) {
-    //     outgrid_ifs << w << " " << ann_min << " " << ann_max << " " << g.cells_count << endl;
-    //     outgrid_ifs << g.cells_box.min_id[0] << " " << g.cells_box.min_id[1] << " " << g.cells_box.min_id[2] << " "
-    //                 << g.cells_box.max_id[0] << " " << g.cells_box.max_id[1] << " " << g.cells_box.max_id[2] << endl;
-    // }
     
     RTree<int, double, 2> tree;
     int fail_count = 0;
 
-    ProgressBar bar(g.cells_count, 70);
+    ProgressBar bar(s_db.g_db.cells_count, 70);
 
-    for (auto it = g.cells_map.begin(); it != g.cells_map.end(); it++) {
+    for (auto it = s_db.g_db.cells_map.begin(); it != s_db.g_db.cells_map.end(); it++) {
         if (show_prog_bar) {
             ++bar;
             bar.display();
@@ -481,46 +438,30 @@ int main(int argc, char **argv) {
         if (debug_mode) {
             printf("Processing cell (%d, %d, %d) with %d pts\n", c.x, c.y, c.z, c.list.size());
         }
-        
-        // // output per-cell information
-        // if (!debug_mode) {
-        //     outgrid_ifs << key << " " << c.to_str() << endl;
-        // }
 
-        Entry* prem_entry;
-        // prem_entry.fail = true;
-        // prem_entry.meas = -1;
+        // TODO: prem_entry never be null
+        Entry* prem_entry = new Entry();
+        prem_entry->fail = true;
+        // if (distance(s_db.g_db.cells_map.begin(), it) < 50) { // uncomment it for testing
         for (PtwID &p: c.list) {
             // Entry e = cal_index_entry(&c, p, ann_min, ann_max, &g, kd_p, debug_mode);
-            Entry* e = cal_index_entry_new(p, ann_min, mesh_p, root, &db_rtree_info, debug_mode);
-            // find premium entry having the largest meas
-            if (e->meas > prem_entry->meas && e->fail == false) {
-                prem_entry = e;
-            } else {
-            	delete e;
-            }
+            cal_index_entry_new(p, ann_min, mesh_p, root, &db_rtree_info, debug_mode, prem_entry);
         }
-
-        if (debug_mode) {
-            cout << TAB << "Prem entry: " << prem_entry->to_str() << endl;
-        }
-
-        // // output per-cell premium entry
-        // if (!debug_mode && !test_mode) {
-        //     outgrid_ifs << prem_entry.to_str() << endl;
-        // }
+    	// } // uncomment it for testing
 
         if (prem_entry->fail) {
+        	if (debug_mode) cout << TAB << "Fail in finding prem entry" << endl;
             fail_count++;
         } else {
-            double box_min[2] = { prem_entry->vol, prem_entry->meas },
-                   box_max[2] = { prem_entry->vol, prem_entry->meas };
-            tree.Insert(box_min, box_max, key);
+        	if (debug_mode) cout << TAB << "Prem entry: " << prem_entry->to_str() << endl;
         }
 
-        if (debug_mode && distance(g.cells_map.begin(), it) >= 30) {
-            break;
-        }
+        double box_min[2] = { prem_entry->vol, prem_entry->meas },
+        	   box_max[2] = { prem_entry->vol, prem_entry->meas };
+        tree.Insert(box_min, box_max, key);
+
+        s_db.insert_entry(key, prem_entry);
+
     }
 
     if (show_prog_bar) {
@@ -529,10 +470,15 @@ int main(int argc, char **argv) {
 
     cout << "Total # of failed cells: " << fail_count << endl;
 
-    // outgrid_ifs.close();
-    // if (!debug_mode && !test_mode) {
-    //     tree.Save(outidx_filename.c_str());
-    // }
+    if (!debug_mode && !test_mode) {
+    	timer_start();
+        tree.Save(outidx_filename.c_str());
+        cout << "Tree saved in " << timer_end(SECOND) << "(s)" << endl;
+
+    	timer_start();
+        s_db.save(outidx_filename + ".grid");
+        cout << "Grid saved in " << timer_end(SECOND) << "(s)" << endl;
+    }
 
     cout << "Total time: " << timer_end(SECOND) << "(s)" << endl;
 }
