@@ -155,13 +155,14 @@ void get_nearest_farest(Pt3D o, Pt3D p, Pt3D q, Pt3D r, double drift, Pt3D& near
 
 void cal_range(Pt3D a, Pt3D b, Pt3D c, Pt3D d, double drift,
 	double& low_vol, double& high_vol, double& low_ratio, double& high_ratio) {
+
 	Pt3D a_n, b_n, c_n, d_n, a_f, b_f, c_f, d_f;
 	get_nearest_farest(a, b, c, d, drift, a_n, a_f);
 	get_nearest_farest(b, a, c, d, drift, b_n, b_f);
 	get_nearest_farest(c, a, b, d, drift, c_n, c_f);
 	get_nearest_farest(d, a, b, c, drift, d_n, d_f);
-	low_vol = volume_3d(a_n, b_n, c_n, d_n);
-	high_vol = volume_3d(a_f, b_f, c_f, d_f);
+	low_vol = volume_3d(a_n, b_n, c_n, d_n) - 0.05;
+	high_vol = volume_3d(a_f, b_f, c_f, d_f) + 0.05;
 
 	double b_r = bounding_radi_3d(a, b, c, d);
 	double low_b_r = b_r - drift;

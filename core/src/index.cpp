@@ -255,7 +255,7 @@ void cal_index_entry_new(PtwID p, double min, const TriMesh* mesh_p, node_type *
     // start looking for the first subsidiary pt a
     if (debug_mode) timer_start();
 
-    auto nn_a = nn_sphere(&(p.pt), r_root, r_info, min * min)[0];
+    auto nn_a = nn_sphere(&(p.pt), r_root, r_info, sq(min))[0];
 
     if (debug_mode) cout << TABTAB << "First pt #" << nn_a->oid << " dist=" << sqrt(nn_a->dist) << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
@@ -271,7 +271,7 @@ void cal_index_entry_new(PtwID p, double min, const TriMesh* mesh_p, node_type *
     auto m = middle_pt(p.pt, a.pt);
 
     float d_pm = eucl_dist(p.pt, m);
-    auto nn_h = nn_sphere(&m, r_root, r_info, d_pm * d_pm, { p.id, a.id })[0];
+    auto nn_h = nn_sphere(&m, r_root, r_info, sq(d_pm), { p.id, a.id })[0];
 
     if (debug_mode) cout << TABTAB << "Help pt #" << nn_h->oid << " dist=" << sqrt(nn_h->dist) << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
@@ -407,16 +407,16 @@ int main(int argc, char **argv) {
     if (test_mode) gridify_test(w, mesh_p);
 
     Struct_DB s_db;
-    s_db.g_db.set_width(w);
+    s_db.g_db->set_width(w);
     cout << "\nGridify the point cloud..." << endl;
 
     timer_start();
-    s_db.g_db.gridify(mesh_p);
+    s_db.g_db->gridify(mesh_p);
     cout << "Gridify finished in " << timer_end(SECOND) << "(s)" << endl;
 
     cout << "Grid size: " << w << endl;
-    cout << "Total # cells: " << s_db.g_db.cells_count << endl;
-    cout << "Avg # pts per cell: " << ((double) n) / ((double) s_db.g_db.cells_count) << endl;
+    cout << "Total # cells: " << s_db.g_db->cells_count << endl;
+    cout << "Avg # pts per cell: " << ((double) n) / ((double) s_db.g_db->cells_count) << endl;
 
     // exit(0);
 
@@ -425,25 +425,25 @@ int main(int argc, char **argv) {
     RTree<int, double, 2> tree;
     int fail_count = 0;
 
-    ProgressBar bar(s_db.g_db.cells_count, 70);
+    ProgressBar bar(s_db.g_db->cells_count, 70);
 
-    for (auto it = s_db.g_db.cells_map.begin(); it != s_db.g_db.cells_map.end(); it++) {
+    for (auto it = s_db.g_db->cells_map.begin(); it != s_db.g_db->cells_map.end(); it++) {
         if (show_prog_bar) {
             ++bar;
             bar.display();
         }
 
         int key = it->first;
-        Cell c = it->second;
+        auto c = it->second;
         if (debug_mode) {
-            printf("Processing cell (%d, %d, %d) with %d pts\n", c.x, c.y, c.z, c.list.size());
+            printf("Processing cell (%d, %d, %d) with %d pts\n", c->x, c->y, c->z, c->list.size());
         }
 
         // TODO: prem_entry never be null
         Entry* prem_entry = new Entry();
         prem_entry->fail = true;
         // if (distance(s_db.g_db.cells_map.begin(), it) < 50) { // uncomment it for testing
-        for (PtwID &p: c.list) {
+        for (PtwID &p: c->list) {
             // Entry e = cal_index_entry(&c, p, ann_min, ann_max, &g, kd_p, debug_mode);
             cal_index_entry_new(p, ann_min, mesh_p, root, &db_rtree_info, debug_mode, prem_entry);
         }

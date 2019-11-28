@@ -434,6 +434,18 @@ void gen_ABL_minmax(node_type *node, ABL branch[], R_TYPE *query, int total, rtr
 	return;
 }
 
+void gen_ABL_minmax_nosort(node_type *node, ABL branch[], R_TYPE *query, int total, rtree_info *aInfo)
+{
+	int i;
+	for (i=0;i<total;i++)
+	{
+		branch[i].node=node->ptr[i];
+		branch[i].min=MINDIST(query, node->ptr[i]->a, node->ptr[i]->b, aInfo);
+		branch[i].max=MAXDIST(query, node->ptr[i]->a, node->ptr[i]->b, aInfo);
+	}
+	return;
+}
+
 void k_NN_NodeSearch(node_type *curr_node, R_TYPE *query, NN_type **NN, int k, int level, rtree_info *aInfo)
 {
 	
@@ -659,6 +671,75 @@ void k_NN_search_sphere(node_type *root, R_TYPE *query, int k, NN_type **returnR
 	(*returnResult) = head;
 	
 	return;
+}
+
+void RangeReturn_update(RangeReturn_type **RR, double dist, node_type *node)
+{
+	RangeReturn_type* new_return = (RangeReturn_type *) malloc(sizeof(RangeReturn_type));
+	new_return->dist = dist;
+	new_return->oid = node->id;
+	new_return->pointer = node;
+	new_return->next = NULL;
+	new_return->prev = *RR;
+
+	if (*RR)
+		(*RR)->next = new_return;
+	
+	*RR = new_return;
+}
+
+void sphere_NodeSearch(node_type *curr_node, R_TYPE *query, float min, float max, RangeReturn_type **RR, rtree_info *aInfo)
+{
+	
+	int i, total;
+	double dist;
+	ABL       *branch;
+	
+	E_page_access_count++;
+
+	//*** new
+	if (curr_node->vacancy == aInfo->M)
+	{
+		return;
+	}
+	
+	if (curr_node->ptr[0]->attribute == LEAF) 
+	{
+		total = aInfo->M - curr_node->vacancy;
+		for (i=0;i<total;i++)
+		{
+			dist = cal_Euclidean(curr_node->ptr[i], query, aInfo);
+			// if (curr_node->ptr[i]->id == 71541 || curr_node->ptr[i]->id == 70273)
+			// 	printf("%d: %.10f, min=%.10f, max=%.10f\n", curr_node->ptr[i]->id, dist, min, max);
+			if (min - FLOAT_ZERO <= dist && dist <= max + FLOAT_ZERO)
+				RangeReturn_update(RR, dist, curr_node->ptr[i]);
+		}
+	}
+	else
+	{
+		/* Please refer SIGMOD record Sep. 1998 Vol. 27 No. 3 P.18 */
+		total=aInfo->M-curr_node->vacancy;
+		branch=(struct BranchArray *)malloc(total*sizeof(struct BranchArray)*total);
+		gen_ABL_minmax_nosort(curr_node, branch, query, total, aInfo);
+		for (i=0;i<total;i++)
+		{
+			if (branch[i].min > max + FLOAT_ZERO || branch[i].max < min - FLOAT_ZERO)
+				continue;
+			else
+				sphere_NodeSearch(branch[i].node, query, min, max, RR, aInfo);
+		}
+		free(branch);
+	}
+	return;
+}
+
+/**
+ * Gives me the squred distance
+ */
+void sphere_search(node_type *root, R_TYPE *query, float min, float max, RangeReturn_type **returnResult, rtree_info *r_info)
+{
+	*returnResult = NULL;
+	sphere_NodeSearch(root, query, min, max, returnResult, r_info);
 }
 
 

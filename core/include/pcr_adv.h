@@ -220,20 +220,23 @@ const int* get_cell_id(Pt3D pt, double w) {
     return cell_id;
 }
 
-int get_cell_key(const int* cell_id, Box3D_Int box) {
-    int span[3] = { box.max_id[0] - box.min_id[0] + 1, box.max_id[1] - box.min_id[1] + 1, box.max_id[2] - box.min_id[2] + 1 };
-    return ( (cell_id[0] - box.min_id[0]) * span[1] * span[2] +
-             (cell_id[1] - box.min_id[1]) * span[2] +
-             (cell_id[2] - box.min_id[2]) );
+int get_cell_key(const int* cell_id, Box3D_Int* box) {
+    int span[3] = { box->max_id[0] - box->min_id[0] + 1, box->max_id[1] - box->min_id[1] + 1, box->max_id[2] - box->min_id[2] + 1 };
+    return ( (cell_id[0] - box->min_id[0]) * span[1] * span[2] +
+             (cell_id[1] - box->min_id[1]) * span[2] +
+             (cell_id[2] - box->min_id[2]) );
 }
 
 struct Grid {
 	double w;
-	Box3D_Int cells_box;
-    unordered_map<int, Cell> cells_map;
+	Box3D_Int* cells_box;
+    unordered_map<int, Cell*> cells_map;
     int cells_count;
-    Grid() {}
+    Grid() {
+    	cells_box = new Box3D_Int();
+    }
     Grid(double w) {
+    	cells_box = new Box3D_Int();
     	this->w = w;
     }
     void set_width(double w) {
@@ -243,7 +246,7 @@ struct Grid {
     	int key = get_cell_key(cell_id, this->cells_box);
     	auto it = this->cells_map.find(key);
         if (it != this->cells_map.end()) {
-        	return &(it->second);
+        	return it->second;
         } else {
         	return nullptr;
         }
@@ -252,8 +255,8 @@ struct Grid {
     	int n = mesh->vertices.size();
     	mesh->need_bbox();
     	for (int i = 0; i < 3; i++) {
-            cells_box.min_id[i] = get_cell_id(mesh->bbox.min[i], w);
-            cells_box.max_id[i] = get_cell_id(mesh->bbox.max[i], w);
+            cells_box->min_id[i] = get_cell_id(mesh->bbox.min[i], w);
+            cells_box->max_id[i] = get_cell_id(mesh->bbox.max[i], w);
         }
     	cells_map.clear();
         for (int i = 0; i < n; i++) {
@@ -263,10 +266,10 @@ struct Grid {
             auto it = cells_map.find(key);
             if (it != cells_map.end()) {
                 // cell already exists
-                it->second.add_pt(i, pt3d);
+                it->second->add_pt(i, pt3d);
             } else {
-                Cell new_cell(cell_id[0], cell_id[1], cell_id[2]);
-                new_cell.add_pt(i, pt3d);
+                Cell* new_cell = new Cell(cell_id[0], cell_id[1], cell_id[2]);
+                new_cell->add_pt(i, pt3d);
                 cells_map[key] = new_cell;
             }
         }
@@ -314,6 +317,12 @@ struct Grid {
     //     	}
     //     } while (true);
     // }
+    virtual ~Grid() {
+    	delete cells_box;
+    	for (auto &it: cells_map) {
+    		delete it.second;
+    	}
+    }
 };
 
 struct Entry {
@@ -324,14 +333,14 @@ struct Entry {
 	bool fail;
 	PtwID* help;
 	Entry() {
-        repre = new PtwID;
+        this->repre = new PtwID;
         for (int i = 0; i < 3; i++) {
-        	remai[i] = new PtwID;
+        	this->remai[i] = new PtwID;
         }
         vol = -1;
     	meas = -1;
     	fail = false;
-    	help = new PtwID;
+    	this->help = new PtwID;
 	}
 	void set(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, double vol, double meas, PtwID help) {
 		*(this->repre) = repre;
@@ -342,6 +351,14 @@ struct Entry {
 		this->meas = meas;
 		*(this->help) = help;
 	}
+	Entry(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, double vol, double meas, PtwID help) {
+        this->repre = new PtwID;
+        for (int i = 0; i < 3; i++) {
+        	this->remai[i] = new PtwID;
+        }
+    	this->help = new PtwID;
+		set(repre, remai_0, remai_1, remai_2, vol, meas, help);
+	}
 	// make it compatible with old method
 	void set(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, double vol, double meas) {
 		*(this->repre) = repre;
@@ -351,7 +368,7 @@ struct Entry {
 		this->vol = vol;
 		this->meas = meas;
 	}
-	string to_str() {
+	string to_str() const {
 		return
 			to_string(repre->id) + " " +
 			to_string(remai[0]->id) + " " +
@@ -388,7 +405,7 @@ void sort_remai(Entry& e) {
 }
 
 struct Struct_DB {
-	Grid g_db;
+	Grid* g_db;
 	double ann_min;
 	double ann_max;
 	unordered_map<int, Entry*> entries_map;
@@ -402,20 +419,20 @@ struct Struct_DB {
 	void read(string filename, TriMesh* mesh_db) {
 	    ifstream ifs(filename);
 
-	    ifs >> this->g_db.w >> this->ann_min >> this->ann_max >> this->g_db.cells_count;
-	    ifs >> this->g_db.cells_box.min_id[0] >> this->g_db.cells_box.min_id[1] >> this->g_db.cells_box.min_id[2]
-	        >> this->g_db.cells_box.max_id[0] >> this->g_db.cells_box.max_id[1] >> this->g_db.cells_box.max_id[2];
+	    ifs >> this->g_db->w >> this->ann_min >> this->ann_max >> this->g_db->cells_count;
+	    ifs >> this->g_db->cells_box->min_id[0] >> this->g_db->cells_box->min_id[1] >> this->g_db->cells_box->min_id[2]
+	        >> this->g_db->cells_box->max_id[0] >> this->g_db->cells_box->max_id[1] >> this->g_db->cells_box->max_id[2];
 
-	    for (int i = 0; i < this->g_db.cells_count; i++) {
+	    for (int i = 0; i < this->g_db->cells_count; i++) {
 	        int key, x, y, z, list_size;
 	        ifs >> key >> x >> y >> z >> list_size;
 	        
-	        Cell c(x, y, z);
+	        Cell* c = new Cell(x, y, z);
 	        for (int j = 0; j < list_size; j++) {
 	            int pt_id; ifs >> pt_id;
-	            c.add_pt(pt_id, pt(mesh_db->vertices[pt_id]));
+	            c->add_pt(pt_id, pt(mesh_db->vertices[pt_id]));
 	        }
-	        this->g_db.cells_map[key] = c;
+	        this->g_db->cells_map[key] = c;
 
 	        int repre_id, remai_0_id, remai_1_id, remai_2_id, help_id;
 	        double vol, meas;
@@ -427,11 +444,11 @@ struct Struct_DB {
 
 	        Entry *e = new Entry;
 	        e->set(PtwID(repre_id, mesh_db),
-	              PtwID(remai_0_id, mesh_db),
-	              PtwID(remai_1_id, mesh_db),
-	              PtwID(remai_2_id, mesh_db),
-	              vol, meas,
-	              PtwID(help_id, mesh_db));
+	               PtwID(remai_0_id, mesh_db),
+	               PtwID(remai_1_id, mesh_db),
+	               PtwID(remai_2_id, mesh_db),
+	               vol, meas,
+	               PtwID(help_id, mesh_db));
 	        e->fail = fail;
 	        this->entries_map[key] = e;
 	    }
@@ -439,12 +456,16 @@ struct Struct_DB {
 	    ifs.close();
 	}
 
-	int look_up_repre_index(int repre_id) const {
+	Entry* get_entry(int key) const {
+		return entries_map.at(key);
+	}
+
+	bool look_up_repre_index(int repre_id) const {
 	    auto got = this->repre_id_set.find(repre_id);
 	    if (got != this->repre_id_set.end()) {
-	        return repre_id;
+	        return true;
 	    }
-	    return -1;
+	    return false;
 	}
 
 	int get_remai_id(int repre_id, int i) const {
@@ -460,46 +481,98 @@ struct Struct_DB {
 		this->ann_max = max;
 	}
 
-	void save(string filename) {
+	void save(string filename) const {
 		ofstream ofs(filename);
 
 		// write grid headers
-		ofs << this->g_db.w << " " << this->ann_min << " " << this->ann_max << " " << this->g_db.cells_count << endl;
-        ofs << this->g_db.cells_box.min_id[0] << " " << this->g_db.cells_box.min_id[1] << " " << this->g_db.cells_box.min_id[2] << " "
-            << this->g_db.cells_box.max_id[0] << " " << this->g_db.cells_box.max_id[1] << " " << this->g_db.cells_box.max_id[2] << endl;
+		ofs << this->g_db->w << " " << this->ann_min << " " << this->ann_max << " " << this->g_db->cells_count << endl;
+        ofs << this->g_db->cells_box->min_id[0] << " " << this->g_db->cells_box->min_id[1] << " " << this->g_db->cells_box->min_id[2] << " "
+            << this->g_db->cells_box->max_id[0] << " " << this->g_db->cells_box->max_id[1] << " " << this->g_db->cells_box->max_id[2] << endl;
 
-        for (auto &it: this->g_db.cells_map) {
-        	ofs << it.first << " " << it.second.to_str() << endl;
-        	ofs << entries_map[it.first]->to_str() << endl;
+        for (auto &it: this->g_db->cells_map) {
+        	ofs << it.first << " " << it.second->to_str() << endl;
+        	ofs << entries_map.at(it.first)->to_str() << endl;
         }
 
         ofs.close();
 	}
 };
 
+struct Struct_Q {
+	Grid* g_q;
+	int m;
+	double epsilon, eta;
+	vector<int> idmap;
+	unordered_set<int> idmap_set;
+
+	void read(string info_filename, string idmap_filename, TriMesh* mesh_q) {
+		this->idmap.clear();
+		this->idmap_set.clear();
+
+	    ifstream info_q_ifs(info_filename);
+	    ifstream idmap_ifs(idmap_filename);
+
+	    info_q_ifs >> this->m;
+	    vector<Pt3D> pts_q;
+	    for (int i = 0; i < m; i++) {
+	        pts_q.push_back(pt(mesh_q->vertices[i]));
+	        int db_mapping;
+	        idmap_ifs >> db_mapping;
+	        this->idmap.push_back(db_mapping);
+	        this->idmap_set.insert(db_mapping);
+	    }
+
+	    info_q_ifs >> this->epsilon >> this->eta;
+
+	    info_q_ifs.close();
+	    idmap_ifs.close();
+	}
+
+	int get_id_mapping(int id_q) const {
+		if (id_q < 0 || id_q >= this->m) {
+			return -1;
+		} else {
+			return idmap[id_q];
+		}
+	}
+
+	bool look_up_idmap(int idmap) const {
+		auto got = this->idmap_set.find(idmap);
+	    if (got != this->idmap_set.end()) {
+	        return true;
+	    }
+	    return false;
+	}
+
+	string id_q_to_str(int id_q) const {
+		return ("#" + to_string(id_q) + "(#" + to_string(get_id_mapping(id_q)) + ")");
+	}
+};
+
 struct Entry_Pair {
-	Entry e_query, e_database;
+	Entry* e_query;
+	Entry* e_database;
 	Trans xf;
 
-	Entry_Pair(Entry q, Entry p) {
+	Entry_Pair(Entry* q, Entry* p) {
 		e_query = q;
 		e_database = p;
 	}
 
-	string to_str() {
-		return e_query.to_str() + " & " + e_database.to_str();
+	string to_str() const {
+		return e_query->to_str() + " & " + e_database->to_str();
 	}
 
 	void cal_xf() {
 		Pt3D q_array[4], p_array[4];
-		q_array[0] = e_query.repre->pt;
-		q_array[1] = e_query.remai[0]->pt;
-		q_array[2] = e_query.remai[1]->pt;
-		q_array[3] = e_query.remai[2]->pt;
-		p_array[0] = e_database.repre->pt;
-		p_array[1] = e_database.remai[0]->pt;
-		p_array[2] = e_database.remai[1]->pt;
-		p_array[3] = e_database.remai[2]->pt;
+		q_array[0] = e_query->repre->pt;
+		q_array[1] = e_query->remai[0]->pt;
+		q_array[2] = e_query->remai[1]->pt;
+		q_array[3] = e_query->remai[2]->pt;
+		p_array[0] = e_database->repre->pt;
+		p_array[1] = e_database->remai[0]->pt;
+		p_array[2] = e_database->remai[1]->pt;
+		p_array[3] = e_database->remai[2]->pt;
 		xf = cal_trans(q_array, p_array, 4);
 	}
 };
@@ -508,9 +581,9 @@ inline double sq(double d) {
 	return (d * d);
 }
 
-inline double sq_max(double sq_min, double epsilon) {
-	return ((epsilon == 0) ? sq_min : sq(sqrt(sq_min) + epsilon * 2.0));
-}
+// inline double sq_max(double sq_min, double epsilon) {
+// 	return ((epsilon == 0) ? sq_min : sq(sqrt(sq_min) + epsilon * 2.0));
+// }
 
 inline void convert_pt(Pt3D* p, R_TYPE*& ret) {
     ret = (R_TYPE *) malloc(sizeof(R_TYPE) * 3);
@@ -519,7 +592,9 @@ inline void convert_pt(Pt3D* p, R_TYPE*& ret) {
     ret[2] = p->z;
 }
 
-inline NN_type** nn_sphere(Pt3D* p, node_type *r_root, rtree_info* r_info, double sq_dist, const unordered_set<int>& excl_id_set = {}, int k = 1) {
+inline NN_type** nn_sphere(Pt3D* p, node_type *r_root, rtree_info* r_info, double sq_dist,
+	const unordered_set<int>& excl_id_set = {}, int k = 1) {
+	
 	R_TYPE *query;
     convert_pt(p, query);
     NN_type *nn;
@@ -530,6 +605,8 @@ inline NN_type** nn_sphere(Pt3D* p, node_type *r_root, rtree_info* r_info, doubl
     } else {
     	k_NN_search_sphere(r_root, query, real_k, &nn, r_info, sq_dist);
     }
+
+    NN_type *nn_copy = nn;
 
     stack<NN_type*> s;
     for (int i = 0; i < real_k; i++) {
@@ -542,24 +619,62 @@ inline NN_type** nn_sphere(Pt3D* p, node_type *r_root, rtree_info* r_info, doubl
     while (i < k) {
     	auto top = s.top();
     	s.pop();
-    	if (excl_id_set.find(top->oid) == excl_id_set.end()) {
+    	if (excl_id_set.find(top->oid) == excl_id_set.end()) { // not in the exclusive list
     		ret[i] = (NN_type*) malloc(sizeof(NN_type));
     		memcpy(ret[i], top, sizeof(NN_type));
     		i++;
     	}
     }
 
+    NN_freeChain(nn_copy);
+
 	return ret;
 }
 
-inline RangeReturn_type* range_sphere(Pt3D* p, node_type *r_root, rtree_info* r_info, double sq_dist_min, double sq_dist_max) {
+inline void nn_sphere_free(NN_type** nn_ret, int k = 1) {
+	for (int i = 0; i < k; i++) {
+		free(nn_ret[i]);
+	}
+	delete[] nn_ret;
+}
+
+inline void range_sphere(Pt3D* p, node_type *r_root, rtree_info* r_info, double sq_dist_min, double sq_dist_max,
+	vector<RangeReturn_type*>& ret, const unordered_set<int>& excl_id_set = {}) {
+
 	R_TYPE *query;
     convert_pt(p, query);
-	RangeReturn_type* ret = NULL;
+	RangeReturn_type* rr = NULL;
 
-	sphere_search(r_root, query, sq_dist_min, sq_dist_max, &ret, r_info);
+	sphere_search(r_root, query, sq_dist_min, sq_dist_max, &rr, r_info);
 
-	return ret;
+	while (rr) {
+		if (excl_id_set.find(rr->oid) == excl_id_set.end()) { // not in the exclusive list
+			ret.push_back(rr);
+		}
+		rr = rr->prev;
+	}
+}
+
+inline void range_free(vector<RangeReturn_type*>& range_ret) {
+	for (auto &p: range_ret) {
+		free(p);
+	}
+	range_ret.clear();
+}
+
+// for 1-nn only
+inline NN_type** nn_sphere_range(Pt3D* p, node_type *r_root, rtree_info* r_info, double sq_dist, double err,
+	vector<RangeReturn_type*>& ret, const unordered_set<int>& excl_id_set = {}) {
+
+	auto nn_ret = nn_sphere(p, r_root, r_info, sq_dist, excl_id_set);
+
+	double dist = sqrt(nn_ret[0]->dist);
+	double min = sq(dist - err);
+	double max = sq(dist + err);
+
+	range_sphere(p, r_root, r_info, min, max, ret, excl_id_set);
+
+	return nn_ret;
 }
 
 inline bool get_est_b_c(Pt3D* m_ptr, Pt3D* a_ptr, Pt3D* h_ptr, Pt3D& b_est, Pt3D& c_est) {

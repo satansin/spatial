@@ -40,6 +40,8 @@
 // #define R_TYPE int
 #define R_TYPE float
 
+#define FLOAT_ZERO 0.001
+
 /* Global variable ******************
 m: min. number entries of each node;
 M: max. number entries of each node;
@@ -77,7 +79,11 @@ typedef struct BranchArray {
 } ABL;
 
 typedef struct RangeReturn {
-
+	double dist;
+	int oid;
+	struct node *pointer;
+	struct RangeReturn *prev;
+	struct RangeReturn *next;
 } RangeReturn_type;
 
 
