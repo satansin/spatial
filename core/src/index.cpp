@@ -22,6 +22,49 @@ extern "C" {
 using namespace std;
 using namespace trimesh;
 
+string get_foldername(string path) {
+    string ret;
+    if (path[path.length() - 1] != '/') {
+        ret = path + "/";
+    } else {
+        ret = path;
+    }
+    return ret;
+}
+
+int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes) {
+    string db_folder = get_foldername(db_path);
+
+    ifstream ifs(db_folder + "meta.txt");
+
+    int num;
+    ifs >> num;
+
+    int id;
+    string s_file;
+    for (int i = 0; i < num; i++) {
+        ifs >> id >> s_file;
+        db_meshes[id] = TriMesh::read(s_file);
+    }
+
+    ifs.close();
+
+    return num;
+}
+
+void read_db_rstree_batch(string rstree_path, const unordered_map<int, TriMesh*>& db_meshes, rtree_info* db_rtree_info, unordered_map<int, node_type*>& db_roots) {
+    string rstree_folder = get_foldername(rstree_path);
+
+    for (auto &p: db_meshes) {
+        node_type* a_root;
+        string s_file = rstree_folder + "id." + to_string(p.first) + ".rstree.1";
+
+        read_rtree(&a_root, s_file.c_str(), db_rtree_info);
+
+        db_roots[p.first] = a_root;
+    }
+}
+
 void add_ann_pts_in_cell(const Cell* c, PtwID p, double ann_min, double ann_max, vector<PtwID>& v) {
     for (auto &i: c->list) {
         double d = eucl_dist(i.pt, p.pt);
@@ -361,11 +404,11 @@ void gridify_test(double w, TriMesh* mesh) {
 
 int main(int argc, char **argv) {
     if (argc < 6) {
-        cerr << "Usage: " << argv[0] << " database_filename db_rstree_filename w ann_min ann_max output_index_filename [-test] [-show_prog_bar] [-debug]" << endl;
+        cerr << "Usage: " << argv[0] << " database_filename db_rstree_filename w ann_min ann_max output_index_filename [-batch] [-test] [-show_prog_bar] [-debug]" << endl;
         exit(1);
     }
 
-    bool test_mode = false, show_prog_bar = false, debug_mode = false;
+    bool test_mode = false, show_prog_bar = false, debug_mode = false, batch_mode = false;
     for (int i = 0; i < argc; i++) {
         if (string(argv[i]) == "-test") {
             test_mode = true;
@@ -373,6 +416,8 @@ int main(int argc, char **argv) {
             show_prog_bar = true;
         } else if (string(argv[i]) == "-debug") {
             debug_mode = true;
+        } else if (string(argv[i]) == "-batch") {
+            batch_mode = true;
         }
     }
 
@@ -386,17 +431,33 @@ int main(int argc, char **argv) {
 
     timer_start();
 
-    TriMesh *mesh_p = TriMesh::read(database_filename);
-    int n = mesh_p->vertices.size();
+    unordered_map<int, TriMesh*> db_meshes;
+
+    if (batch_mode) {
+        read_db_mesh_batch(database_filename, db_meshes);
+    } else {
+        db_meshes[0] = TriMesh::read(database_filename);
+    }
+
+    long long n = 0;
+    for (auto &p: db_meshes) {
+        n += p.second->vertices.size();
+    }
+
     // KDtree *kd_p = new KDtree(mesh_p->vertices);
     
     rtree_info db_rtree_info = { 5, 10, 3, 7 };
-    node_type *root;
+
+    unordered_map<int, node_type*> roots;
 
     // load R-tree
     cout << "Loading R-tree for DB points..." << endl;
     timer_start();
-    read_rtree(&root, db_rstree_filename.c_str(), &db_rtree_info);
+    if (batch_mode) {
+        read_db_rstree_batch(db_rstree_filename, db_meshes, &db_rtree_info, roots);
+    } else {
+        read_rtree(&roots[0], db_rstree_filename.c_str(), &db_rtree_info);
+    }
     cout << "Load R-tree of DB pts in " << timer_end(SECOND) << "(s)" << endl;
 
     cout << endl;
@@ -404,68 +465,98 @@ int main(int argc, char **argv) {
 
     // performance_test(mesh_p, n, kd_p, root, &db_rtree_info);
 
-    if (test_mode) gridify_test(w, mesh_p);
+    // gridify_test(w, db_meshes[0]);
 
     Struct_DB s_db;
-    s_db.g_db->set_width(w);
-    cout << "\nGridify the point cloud..." << endl;
 
+    cout << "\nGridify the point cloud..." << endl;
     timer_start();
-    s_db.g_db->gridify(mesh_p);
+
+    int num_cells = 0;
+    for (auto &p: db_meshes) {
+        int mesh_id = p.first;
+        TriMesh* mesh_p = p.second;
+
+        Grid* g = new Grid(w);
+        g->gridify(mesh_p);
+
+        num_cells += g->cells_count;
+
+        s_db.grids[mesh_id] = g;
+    }
+
     cout << "Gridify finished in " << timer_end(SECOND) << "(s)" << endl;
 
     cout << "Grid size: " << w << endl;
-    cout << "Total # cells: " << s_db.g_db->cells_count << endl;
-    cout << "Avg # pts per cell: " << ((double) n) / ((double) s_db.g_db->cells_count) << endl;
+    cout << "Total # cells: " << num_cells << endl;
+    cout << "Avg # pts per cell: " << ((long double) n) / ((double) num_cells) << endl << endl;
 
     // exit(0);
 
     s_db.set_ann(ann_min, ann_max);
     
-    RTree<int, double, 2> tree;
+    // RTree<int, double, 2> tree;
+    RTree<int, double, 6> tree; // edge index
     int fail_count = 0;
 
-    ProgressBar bar(s_db.g_db->cells_count, 70);
+    int global_cell_index = 0;
 
-    for (auto it = s_db.g_db->cells_map.begin(); it != s_db.g_db->cells_map.end(); it++) {
+    for (auto &v: s_db.grids) {
+        int mesh_id = v.first;
+        auto g = v.second;
+        auto mesh_p = db_meshes[mesh_id];
+        auto root = roots[mesh_id];
+
+        cout << "Processing mesh #" << mesh_id << endl << endl;
+
+        ProgressBar bar(g->cells_count, 70);
+
+        for (auto it = g->cells_map.begin(); it != g->cells_map.end(); it++) {
+            if (show_prog_bar) {
+                ++bar;
+                bar.display();
+            }
+
+            int global_id = (global_cell_index++);
+            auto c = it->second;
+            c->set_global_id(global_id);
+
+            if (debug_mode) {
+                printf("Processing cell #%d (%d, %d, %d) with %d pts\n", global_id, c->x, c->y, c->z, c->list.size());
+            }
+
+            auto prem_entry = new Entry();
+            prem_entry->fail = true;
+            // if (global_id < 50) { // uncomment it for testing
+            for (auto &p: c->list) {
+                // Entry e = cal_index_entry(&c, p, ann_min, ann_max, &g, kd_p, debug_mode);
+                cal_index_entry_new(p, ann_min, mesh_p, root, &db_rtree_info, debug_mode, prem_entry);
+            }
+            // } // uncomment it for testing
+
+            if (prem_entry->fail) {
+                if (debug_mode) cout << TAB << "Fail in finding prem entry" << endl;
+                fail_count++;
+            } else {
+                if (debug_mode) cout << TAB << "Prem entry: " << prem_entry->to_str() << endl;
+
+                // for edge index
+                prem_entry->fill_sides();
+                prem_entry->sort_sides();
+            }
+
+            // double box_min[2] = { prem_entry->vol, prem_entry->meas },
+            //     box_max[2] = { prem_entry->vol, prem_entry->meas };
+            // tree.Insert(box_min, box_max, key);
+            tree.Insert(prem_entry->sides, prem_entry->sides, global_id);
+
+            s_db.insert_entry(global_id, prem_entry);
+
+        }
+
         if (show_prog_bar) {
-            ++bar;
-            bar.display();
+            bar.done();
         }
-
-        int key = it->first;
-        auto c = it->second;
-        if (debug_mode) {
-            printf("Processing cell (%d, %d, %d) with %d pts\n", c->x, c->y, c->z, c->list.size());
-        }
-
-        // TODO: prem_entry never be null
-        Entry* prem_entry = new Entry();
-        prem_entry->fail = true;
-        // if (distance(s_db.g_db.cells_map.begin(), it) < 50) { // uncomment it for testing
-        for (PtwID &p: c->list) {
-            // Entry e = cal_index_entry(&c, p, ann_min, ann_max, &g, kd_p, debug_mode);
-            cal_index_entry_new(p, ann_min, mesh_p, root, &db_rtree_info, debug_mode, prem_entry);
-        }
-    	// } // uncomment it for testing
-
-        if (prem_entry->fail) {
-        	if (debug_mode) cout << TAB << "Fail in finding prem entry" << endl;
-            fail_count++;
-        } else {
-        	if (debug_mode) cout << TAB << "Prem entry: " << prem_entry->to_str() << endl;
-        }
-
-        double box_min[2] = { prem_entry->vol, prem_entry->meas },
-        	   box_max[2] = { prem_entry->vol, prem_entry->meas };
-        tree.Insert(box_min, box_max, key);
-
-        s_db.insert_entry(key, prem_entry);
-
-    }
-
-    if (show_prog_bar) {
-        bar.done();
     }
 
     cout << "Total # of failed cells: " << fail_count << endl;

@@ -8,6 +8,7 @@ extern "C" {
     #include "rtree.h"
 }
 #include <fstream>
+#include <sstream>
 #include <vector>
 #include <string>
 #include <cmath>
@@ -109,9 +110,18 @@ struct Box3D_Int {
 					  to_string(min_id[1]) + ", " + to_string(max_id[1]) + "], [" +
 					  to_string(min_id[2]) + ", " + to_string(max_id[2]) + "])";
 	}
+	void save(ostream& os) const {
+		os << this->min_id[0] << " " << this->min_id[1] << " " << this->min_id[2] << " "
+	       << this->max_id[0] << " " << this->max_id[1] << " " << this->max_id[2];
+	}
+	void read(istream& is) {
+		is >> this->min_id[0] >> this->min_id[1] >> this->min_id[2]
+	       >> this->max_id[0] >> this->max_id[1] >> this->max_id[2];
+	}
 };
 
 struct Cell {
+	int global_id;
 	int x, y, z;
 	vector<PtwID> list;
 	Cell() {}
@@ -119,6 +129,9 @@ struct Cell {
 		this->x = x;
 		this->y = y;
 		this->z = z;
+	}
+	void set_global_id(int global_id) {
+		this->global_id = global_id;
 	}
 	void add_pt(PtwID p) {
 		list.push_back(p);
@@ -140,6 +153,7 @@ struct Cell {
 	}
 	string to_str() const {
 		string s =
+			to_string(global_id) + " " +
 			to_string(x) + " " +
 			to_string(y) + " " +
 			to_string(z) + " " +
@@ -332,15 +346,19 @@ struct Entry {
 	double meas;
 	bool fail;
 	PtwID* help;
+	double sides[6];
 	Entry() {
         this->repre = new PtwID;
         for (int i = 0; i < 3; i++) {
         	this->remai[i] = new PtwID;
         }
-        vol = -1;
-    	meas = -1;
-    	fail = false;
+        this->vol = -1;
+    	this->meas = -1;
+    	this->fail = false;
     	this->help = new PtwID;
+    	for (int i = 0; i < 6; i++) {
+    		sides[i] = 0;
+    	}
 	}
 	void set(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, double vol, double meas, PtwID help) {
 		*(this->repre) = repre;
@@ -350,6 +368,7 @@ struct Entry {
 		this->vol = vol;
 		this->meas = meas;
 		*(this->help) = help;
+		// this->fill_sides();
 	}
 	Entry(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, double vol, double meas, PtwID help) {
         this->repre = new PtwID;
@@ -367,17 +386,83 @@ struct Entry {
 		*(this->remai[2]) = remai_2;
 		this->vol = vol;
 		this->meas = meas;
+		// this->fill_sides();
+	}
+	void read_from(istream& is, const TriMesh* mesh_db) {
+		int repre_id, help_id;
+		int remai_id[3];
+	    double vol, meas;
+	    bool fail;
+		is >> repre_id;
+		for (int i = 0; i < 3; i++) {
+			is >> remai_id[i];
+		}
+		is >> vol >> meas >> fail >> help_id;
+	    this->set(
+	    	PtwID(repre_id, mesh_db),
+	    	PtwID(remai_id[0], mesh_db),
+	    	PtwID(remai_id[1], mesh_db),
+	    	PtwID(remai_id[2], mesh_db),
+            vol, meas,
+            PtwID(help_id, mesh_db)
+        );
+	    this->fail = fail;
+
+		for (int i = 0; i < 6; i++) {
+			is >> this->sides[i];
+		}
+	}
+	void fill_sides() {
+		sides[0] = eucl_dist(this->repre->pt, this->remai[0]->pt);
+		sides[1] = eucl_dist(this->repre->pt, this->remai[1]->pt);
+		sides[2] = eucl_dist(this->repre->pt, this->remai[2]->pt);
+		sides[3] = eucl_dist(this->remai[0]->pt, this->remai[1]->pt);
+		sides[4] = eucl_dist(this->remai[0]->pt, this->remai[2]->pt);
+		sides[5] = eucl_dist(this->remai[1]->pt, this->remai[2]->pt);
+	}
+	int primary_remai() const {
+		if (this->sides[0] <= this->sides[1])
+			if (this->sides[0] <= this->sides[2])
+				return 0;
+			else
+				return 2;
+		else
+			if (this->sides[1] <= this->sides[2])
+				return 1;
+			else
+				return 2;
+	}
+	void sort_sides() {
+		int prim = this->primary_remai();
+		if (prim != 0) {
+			swap(this->remai[0], this->remai[prim]);
+			swap(this->sides[0], this->sides[prim]);
+			swap(this->sides[5], this->sides[5 - prim]);
+		}
+
+		double dec = dot_prd(this->remai[0]->pt - this->repre->pt, cross_prd(this->remai[1]->pt - this->repre->pt, this->remai[2]->pt - this->repre->pt));
+		if (dec > 0) {
+			swap(this->remai[1], this->remai[2]);
+			swap(this->sides[1], this->sides[2]);
+			swap(this->sides[3], this->sides[4]);
+		}
 	}
 	string to_str() const {
-		return
-			to_string(repre->id) + " " +
-			to_string(remai[0]->id) + " " +
-			to_string(remai[1]->id) + " " +
-			to_string(remai[2]->id) + " " +
-			to_string(vol) + " " +
-			to_string(meas) + " " +
-			to_string(fail) + " " +
-			to_string(help->id);
+		stringstream ss;
+		ss << repre->id << " "
+		   << remai[0]->id << " "
+		   << remai[1]->id << " "
+		   << remai[2]->id << " "
+		   << vol << " "
+		   << meas << " "
+		   << fail << " "
+		   << help->id << " ";
+		for (int i = 0; i < 6; i++) {
+			ss << sides[i];
+			if (i < 5)
+				ss << " ";
+		}
+		return ss.str();
 	}
 	virtual ~Entry() {
 		delete repre;
@@ -404,8 +489,13 @@ void sort_remai(Entry& e) {
     }
 }
 
+class DB {
+private:
+
+};
+
 struct Struct_DB {
-	Grid* g_db;
+	unordered_map<int, Grid*> grids;
 	double ann_min;
 	double ann_max;
 	unordered_map<int, Entry*> entries_map;
@@ -416,44 +506,33 @@ struct Struct_DB {
 		entries_map[key] = e;
 	}
 
-	void read(string filename, TriMesh* mesh_db) {
-	    ifstream ifs(filename);
+	void read(string filename, const TriMesh* mesh_db) {
+	    // ifstream ifs(filename);
 
-	    ifs >> this->g_db->w >> this->ann_min >> this->ann_max >> this->g_db->cells_count;
-	    ifs >> this->g_db->cells_box->min_id[0] >> this->g_db->cells_box->min_id[1] >> this->g_db->cells_box->min_id[2]
-	        >> this->g_db->cells_box->max_id[0] >> this->g_db->cells_box->max_id[1] >> this->g_db->cells_box->max_id[2];
+	    // ifs >> this->g_db->w >> this->ann_min >> this->ann_max >> this->g_db->cells_count;
+	    // ifs >> this->g_db->cells_box->min_id[0] >> this->g_db->cells_box->min_id[1] >> this->g_db->cells_box->min_id[2]
+	    //     >> this->g_db->cells_box->max_id[0] >> this->g_db->cells_box->max_id[1] >> this->g_db->cells_box->max_id[2];
 
-	    for (int i = 0; i < this->g_db->cells_count; i++) {
-	        int key, x, y, z, list_size;
-	        ifs >> key >> x >> y >> z >> list_size;
+	    // for (int i = 0; i < this->g_db->cells_count; i++) {
+	    //     int key, x, y, z, list_size;
+	    //     ifs >> key >> x >> y >> z >> list_size;
 	        
-	        Cell* c = new Cell(x, y, z);
-	        for (int j = 0; j < list_size; j++) {
-	            int pt_id; ifs >> pt_id;
-	            c->add_pt(pt_id, pt(mesh_db->vertices[pt_id]));
-	        }
-	        this->g_db->cells_map[key] = c;
+	    //     Cell* c = new Cell(x, y, z);
+	    //     for (int j = 0; j < list_size; j++) {
+	    //         int pt_id; ifs >> pt_id;
+	    //         c->add_pt(pt_id, pt(mesh_db->vertices[pt_id]));
+	    //     }
+	    //     this->g_db->cells_map[key] = c;
 
-	        int repre_id, remai_0_id, remai_1_id, remai_2_id, help_id;
-	        double vol, meas;
-	        bool fail;
-	        ifs >> repre_id >> remai_0_id >> remai_1_id >> remai_2_id >> vol >> meas >> fail >> help_id;
+	    //     Entry *e = new Entry;
+	    //     e->read_from(ifs, mesh_db);
 
-	        this->repre_id_set.insert(repre_id);
-	        this->reverse_entries_map[repre_id] = key;
+	    //     this->repre_id_set.insert(e->repre->id);
+	    //     this->reverse_entries_map[e->repre->id] = key;
+	    //     this->entries_map[key] = e;
+	    // }
 
-	        Entry *e = new Entry;
-	        e->set(PtwID(repre_id, mesh_db),
-	               PtwID(remai_0_id, mesh_db),
-	               PtwID(remai_1_id, mesh_db),
-	               PtwID(remai_2_id, mesh_db),
-	               vol, meas,
-	               PtwID(help_id, mesh_db));
-	        e->fail = fail;
-	        this->entries_map[key] = e;
-	    }
-
-	    ifs.close();
+	    // ifs.close();
 	}
 
 	Entry* get_entry(int key) const {
@@ -485,14 +564,25 @@ struct Struct_DB {
 		ofstream ofs(filename);
 
 		// write grid headers
-		ofs << this->g_db->w << " " << this->ann_min << " " << this->ann_max << " " << this->g_db->cells_count << endl;
-        ofs << this->g_db->cells_box->min_id[0] << " " << this->g_db->cells_box->min_id[1] << " " << this->g_db->cells_box->min_id[2] << " "
-            << this->g_db->cells_box->max_id[0] << " " << this->g_db->cells_box->max_id[1] << " " << this->g_db->cells_box->max_id[2] << endl;
+		ofs << this->grids.at(0)->w << " " << this->ann_min << " " << this->ann_max << " " << this->grids.size() << this->entries_map.size() << endl;
 
-        for (auto &it: this->g_db->cells_map) {
-        	ofs << it.first << " " << it.second->to_str() << endl;
-        	ofs << entries_map.at(it.first)->to_str() << endl;
-        }
+		for (auto &p: this->grids) {
+			ofs << p.first << " ";
+			p.second->cells_box->save(ofs);
+			ofs << endl;
+	    }
+
+	    for (auto &p: this->grids) {
+	    	for (auto &it: p.second->cells_map) {
+	    		ofs << p.first << " " << it.first << " " << it.second->to_str() << endl;
+	    		ofs << entries_map.at(it.second->global_id)->to_str() << endl;
+	    	}
+	    }
+
+        // for (auto &it: this->g_db->cells_map) {
+        // 	ofs << it.first << " " << it.second->to_str() << endl;
+        // 	ofs << entries_map.at(it.first)->to_str() << endl;
+        // }
 
         ofs.close();
 	}

@@ -68,8 +68,25 @@ void nn_sphere_range_and_show(const Struct_Q* s_q, Pt3D* q, node_type *r_root, r
     nn_sphere_free(nn);
 }
 
+bool insert_entry(vector<Entry*>& v_ret, Entry* new_entry) {
+    for (auto &v: v_ret) {
+        if (new_entry->repre->id == v->repre->id &&
+            new_entry->remai[0]->id == v->remai[0]->id &&
+            new_entry->remai[1]->id == v->remai[1]->id &&
+            new_entry->remai[2]->id == v->remai[2]->id) {
+
+            return false; // skip for repeating entry
+        }
+    }
+
+    v_ret.push_back(new_entry);
+    
+}
+
 int cal_entries_new(PtwID q, double min, const Struct_Q* s_q, const TriMesh* mesh_q, node_type *r_root_q, rtree_info* r_info,
     vector<Entry*>& v_ret, bool debug_mode) {
+
+    v_ret.clear();
 
     cout.precision(12);
 
@@ -79,25 +96,25 @@ int cal_entries_new(PtwID q, double min, const Struct_Q* s_q, const TriMesh* mes
     vector<RangeReturn_type*> range_a, range_h, range_b, range_c;
     PtwID ten_a, ten_h, ten_b, ten_c;
 
-    nn_sphere_range_and_show(s_q, &(q.pt), r_root_q, r_info, sq(min), epsilon * 2, range_a, true);
+    nn_sphere_range_and_show(s_q, &(q.pt), r_root_q, r_info, sq(min), epsilon * 2, range_a, debug_mode);
 
     for (auto &it_a: range_a) {
         if (it_a->oid < 0)
             continue;
 
-        cout << endl << "For a = " << s_q->id_q_to_str(it_a->oid) << endl;
+        if (debug_mode) cout << endl << "For a = " << s_q->id_q_to_str(it_a->oid) << endl;
         ten_a = PtwID(it_a->oid, mesh_q);
 
         auto m = middle_pt(q.pt, ten_a.pt);
         float d_pm = eucl_dist(q.pt, m);
 
-        nn_sphere_range_and_show(s_q, &m, r_root_q, r_info, sq(d_pm), epsilon * 2, range_h, true, "", { q.id, ten_a.id });
+        nn_sphere_range_and_show(s_q, &m, r_root_q, r_info, sq(d_pm), epsilon * 2, range_h, debug_mode, "", { q.id, ten_a.id });
 
         for (auto &it_h: range_h) {
             if (it_h->oid < 0)
                 continue;
 
-            cout << endl << TAB << "For h = " << s_q->id_q_to_str(it_h->oid) << endl;
+            if (debug_mode) cout << endl << TAB << "For h = " << s_q->id_q_to_str(it_h->oid) << endl;
             ten_h = PtwID(it_h->oid, mesh_q);
 
             Pt3D ten_b_est, ten_c_est;
@@ -106,30 +123,38 @@ int cal_entries_new(PtwID q, double min, const Struct_Q* s_q, const TriMesh* mes
                 continue;
             }
 
-            nn_sphere_range_and_show(s_q, &ten_b_est, r_root_q, r_info, 0.0, epsilon * 2, range_b, true, TAB, { q.id, ten_a.id });
+            nn_sphere_range_and_show(s_q, &ten_b_est, r_root_q, r_info, 0.0, epsilon * 2, range_b, debug_mode, TAB, { q.id, ten_a.id });
 
             for (auto &it_b: range_b) {
                 if (it_b->oid < 0)
                     continue;
 
-                cout << endl << TABTAB << "For b = " << s_q->id_q_to_str(it_b->oid) << endl;
+                if (debug_mode) cout << endl << TABTAB << "For b = " << s_q->id_q_to_str(it_b->oid) << endl;
                 ten_b = PtwID(it_b->oid, mesh_q);
 
-                nn_sphere_range_and_show(s_q, &ten_c_est, r_root_q, r_info, 0.0, epsilon * 2, range_c, true, TABTAB, { q.id, ten_a.id, ten_b.id });
+                nn_sphere_range_and_show(s_q, &ten_c_est, r_root_q, r_info, 0.0, epsilon * 2, range_c, debug_mode, TABTAB, { q.id, ten_a.id, ten_b.id });
 
                 for (auto &it_c: range_c) {
                     if (it_c->oid < 0)
                         continue;
 
-                    cout << endl << TABTABTAB << "For c = " << s_q->id_q_to_str(it_b->oid) << endl;
+                    if (debug_mode) cout << endl << TABTABTAB << "For c = " << s_q->id_q_to_str(it_c->oid) << endl;
                     ten_c = PtwID(it_c->oid, mesh_q);
 
                     // get the ratio set
                     auto ratio_set = get_ratio_set_vol(q.pt, ten_a.pt, ten_b.pt, ten_c.pt);
 
-                    v_ret.push_back(new Entry(q, ten_a, ten_b, ten_c, ratio_set.volume, ratio_set.ratio, ten_h));
+                    // if (ten_a.id == 135212 && ten_b.id == 132053 && ten_c.id == 134604) { // for test only
 
-                    ret++;
+                    Entry* q_entry = new Entry(q, ten_a, ten_b, ten_c, ratio_set.volume, ratio_set.ratio, ten_h);
+
+                    if (insert_entry(v_ret, q_entry)) {
+
+                        if (debug_mode) cout << TABTABTAB << "Include query entry: " << q_entry->to_str() << endl;
+                        ret++;
+                    }
+
+                	// } // for test only
                 }
 
                 range_free(range_c);
@@ -177,37 +202,66 @@ bool tree_search_callback(int key) {
     return true;
 }
 
-void retrieve_congr_entry(Entry* e, double epsilon, RTree<int, double, 2>* tree,
+// void retrieve_congr_entry(Entry* e, double epsilon, RTree<int, double, 2>* tree,
+//     const Struct_DB* s_db, vector<Entry_Pair*>& ret) {
+
+//     double low[2], high[2];
+//     cal_range(e->repre->pt, e->remai[0]->pt, e->remai[1]->pt, e->remai[2]->pt, epsilon,
+//         low[0], high[0], low[1], high[1]);
+
+//     // print_pt(&(e->repre->pt));
+//     // cout << endl;
+//     // print_pt(&(e->remai[0]->pt));
+//     // cout << endl;
+//     // print_pt(&(e->remai[1]->pt));
+//     // cout << endl;
+//     // print_pt(&(e->remai[2]->pt));
+//     // cout << endl;
+
+//     cout << low[0] << endl;
+//     cout << high[0] << endl;
+//     cout << low[1] << endl;
+//     cout << high[1] << endl;
+
+//     int nhits = tree->Search(low, high, tree_search_callback);
+
+//     for (int &hit_key: tree_search_return) {
+//         Entry* f = s_db->get_entry(hit_key);
+//         // cout << "tree search result: " << f->to_str() << endl;
+//         if (check_congr(e, f, epsilon)) {
+//             Entry_Pair* new_pair = new Entry_Pair(e, f);
+//             // cout << "Found pair: " << new_pair->to_str() << endl;
+//             ret.push_back(new_pair);
+//         }
+//     }
+//     tree_search_return.clear();
+// }
+
+void retrieve_congr_entry(Entry* e, double epsilon, RTree<int, double, 6>* tree,
     const Struct_DB* s_db, vector<Entry_Pair*>& ret) {
 
-    double low[2], high[2];
-    cal_range(e->repre->pt, e->remai[0]->pt, e->remai[1]->pt, e->remai[2]->pt, epsilon,
-        low[0], high[0], low[1], high[1]);
+	e->fill_sides();
+	e->sort_sides();
 
-    // print_pt(&(e->repre->pt));
-    // cout << endl;
-    // print_pt(&(e->remai[0]->pt));
-    // cout << endl;
-    // print_pt(&(e->remai[1]->pt));
-    // cout << endl;
-    // print_pt(&(e->remai[2]->pt));
-    // cout << endl;
+	double low[6], high[6];
+	double corr_epsilon = max(0.001, epsilon);
+	for (int i = 0; i < 6; i++) {
+		low[i] = e->sides[i] - 2 * epsilon;
+		high[i] = e->sides[i] + 2 * epsilon;
 
-    // cout << low[0] << endl;
-    // cout << high[0] << endl;
-    // cout << low[1] << endl;
-    // cout << high[1] << endl;
+		// cout << "[" << low[i] << ", " << high[i] << "]" << endl;
+	}
 
-    int nhits = tree->Search(low, high, tree_search_callback);
+	int nhits = tree->Search(low, high, tree_search_callback);
 
-    for (int &hit_key: tree_search_return) {
+	for (int &hit_key: tree_search_return) {
         Entry* f = s_db->get_entry(hit_key);
-        // cout << "tree search result: " << f->to_str() << endl;
-        if (check_congr(e, f, epsilon)) {
-            Entry_Pair* new_pair = new Entry_Pair(e, f);
-            cout << "Found pair: " << new_pair->to_str() << endl;
-            ret.push_back(new_pair);
-        }
+        // if (!(f->repre->id == 942286 || f->repre->id == 942288 || f->repre->id == 942438 || f->repre->id == 942440 || f->repre->id == 942441)) {
+        //     continue;
+        // }
+        Entry_Pair* new_pair = new Entry_Pair(e, f);
+        // cout << "Found pair: " << new_pair->to_str() << endl;
+        ret.push_back(new_pair);
     }
     tree_search_return.clear();
 }
@@ -274,7 +328,8 @@ void test_verification(const Struct_Q* s_q, const Struct_DB* s_db, bool debug_mo
 }
 
 Cell* get_random_q_cell(const Grid* g_q, int& selected_cell_id) {
-    selected_cell_id = 1582;//rand() % g_q->cells_count;
+    selected_cell_id = rand() % g_q->cells_count;
+    selected_cell_id = 2136;
     auto ptr = g_q->cells_map.begin();
     for (int i = 0; i < selected_cell_id; i++, ptr++);
     return ptr->second;
@@ -282,7 +337,7 @@ Cell* get_random_q_cell(const Grid* g_q, int& selected_cell_id) {
 
 int main(int argc, char **argv) {
     if (argc < 5) {
-        cerr << "Usage: " << argv[0] << " database_filename db_rstree_filename index_filename query_filename q_rstree_filename [-test] [-debug]" << endl;
+        cerr << "Usage: " << argv[0] << " database_filename db_rstree_filename index_filename query_filename q_rstree_filename delta [-test] [-debug]" << endl;
         exit(1);
     }
 
@@ -302,6 +357,8 @@ int main(int argc, char **argv) {
     string query_filename = argv[(++argi)];
     string query_rstree_filename = argv[(++argi)];
 
+    double delta = atof(argv[(++argi)]);
+
     srand(time(NULL));
 
     timer_start();
@@ -309,7 +366,7 @@ int main(int argc, char **argv) {
     cout << "Reading dababase file..." << endl;
     TriMesh *mesh_p = TriMesh::read(database_filename);
 
-    // KDtree *kdtree_p = new KDtree(mesh_p->vertices);
+    KDtree *kdtree_p = new KDtree(mesh_p->vertices);
     
     // rtree_info db_rtree_info = { 5, 10, 3, 7 };
     // node_type *root_p;
@@ -320,7 +377,8 @@ int main(int argc, char **argv) {
 
     // load the index entries tree
     cout << "Loading index entries..." << endl;
-    RTree<int, double, 2> tree;
+    // RTree<int, double, 2> tree;
+    RTree<int, double, 6> tree;
     tree.Load(idx_filename.c_str());
 
     // load the DB structure
@@ -385,7 +443,7 @@ int main(int argc, char **argv) {
         cout << "Selecting cell #" << selected_cell_id
              << " with " << selected_cell->list.size() << " pts" << endl;
 
-        if (debug_mode) {
+        if (test_mode) {
             if(!test_verification_cell(selected_cell, &s_q, &s_db, true)) {
                 continue;
             }
@@ -394,42 +452,52 @@ int main(int argc, char **argv) {
         vector<Entry_Pair*> v_pairs;
 
         for (auto &q: selected_cell->list) {
-            if (!(q.id == 67776 || q.id == 69652)) {
+            if (!(q.id == 26607/* || q.id == 26609 || q.id == 26747 || q.id == 26749 || q.id == 26750 || q.id == 1358438*/)) {
                 continue;
             }
             // if (debug_mode)
-            cout << "\nCalculating entry list for query pt #" << q.id << endl;
+                cout << endl << "Calculating entry list for query pt #" << q.id << endl;
+
             vector<Entry*> v_entries;
             int num_entries = cal_entries_new(q, s_db.ann_min, &s_q, mesh_q, root_q, &query_rtree_info, v_entries, debug_mode);
-            cout << endl << "Size of the entry list: " << num_entries << endl;
+
+            // if (debug_mode)
+                cout << endl << "Size of the entry list: " << num_entries << endl;
 
             for (auto &e: v_entries) {
                 retrieve_congr_entry(e, s_q.epsilon, &tree, &s_db, v_pairs);
             }
         }
+
+        cout << endl << "Returned hit size is " << v_pairs.size() << endl << endl;
+        if (debug_mode) {
+        	for (auto &p: v_pairs) {
+        		cout << p->to_str() << endl;
+        	}
+        }
+
+        total_num_verification += v_pairs.size();
+
+        timer_start();
+        verified_size = 0;
+        for (auto &h: v_pairs) {
+            // cout << h->to_str() << endl;
+            h->cal_xf();
+
+            double result = cal_corr_err(mesh_q, kdtree_p, &h->xf, delta);
+            if (result > 0) {
+                cout << "Accept: " << h->to_str() << endl
+                     << result << endl;
+                verified_size++;
+            }
+        }
+        verification_time += timer_end(SECOND);
+
+        if (verified_size > 0) {
+            break;
+        }
+
         break;
-
-        cout << endl << "Returned hit size is " << v_pairs.size() << endl;
-        total_num_verification += hit_list.size();
-
-        // timer_start();
-        // verified_size = 0;
-        // for (auto &h: hit_list) {
-        //     // cout << h.to_str() << endl;
-        //     h.cal_xf();
-
-        //     // double result = cal_corr_err(mesh_q, kdtree_p, &h.xf, 50000);
-        //     // if (result > 0) {
-        //     //     // cout << h.to_str() << endl
-        //     //     //      << err << endl;
-        //     //     verified_size++;
-        //     // }
-        // }
-        // verification_time += timer_end(SECOND);
-
-        // if (verified_size > 0) {
-        //     break;
-        // }
 
     }
 
