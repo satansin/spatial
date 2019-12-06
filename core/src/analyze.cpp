@@ -6,6 +6,36 @@
 using namespace std;
 using namespace trimesh;
 
+string get_foldername(string path) {
+    string ret;
+    if (path[path.length() - 1] != '/') {
+        ret = path + "/";
+    } else {
+        ret = path;
+    }
+    return ret;
+}
+
+int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes) {
+    string db_folder = get_foldername(db_path);
+
+    ifstream ifs(db_folder + "meta.txt");
+
+    int num;
+    ifs >> num;
+
+    int id;
+    string s_file;
+    for (int i = 0; i < num; i++) {
+        ifs >> id >> s_file;
+        db_meshes[id] = TriMesh::read(s_file);
+    }
+
+    ifs.close();
+
+    return num;
+}
+
 inline unsigned int get_bin(double min, double intv, int bin_size, double val) {
 	int bin = (unsigned int) ((val - min) / intv);
 	return (bin > (bin_size - 1) ? (bin_size - 1) : bin);
@@ -13,8 +43,13 @@ inline unsigned int get_bin(double min, double intv, int bin_size, double val) {
 
 int main(int argc, char **argv) {
     if (argc < 5) {
-        cerr << "Usage: " << argv[0] << " database_filename db_rstree_filename index_filename bin_size" << endl;
+        cerr << "Usage: " << argv[0] << " database_filename db_rstree_filename index_filename bin_size [-batch]" << endl;
         exit(1);
+    }
+
+    bool batch_mode = false;
+    if (argc > 5 && string(argv[5]) == "-batch") {
+        batch_mode = true;
     }
 
     int argi = 0;
@@ -23,24 +58,28 @@ int main(int argc, char **argv) {
     string idx_filename = argv[(++argi)];
     const int bin_size = atoi(argv[(++argi)]);
 
-    cout << "Reading dababase file..." << endl;
-    TriMesh *mesh_p = TriMesh::read(database_filename);
+    cout << "Reading database file..." << endl;
+    unordered_map<int, TriMesh*> db_meshes;
+    if (batch_mode) {
+        read_db_mesh_batch(database_filename, db_meshes);
+    } else {
+        db_meshes[0] = TriMesh::read(database_filename);
+    }
 
     // load the DB structure
     cout << "Loading DB structure..." << endl;
     Struct_DB s_db;
-    s_db.g_db = new Grid();
-    s_db.read(idx_filename + ".grid", mesh_p);
+    s_db.read(idx_filename + ".grid", db_meshes);
 
     cout << "Start analyzing..." << endl << endl;
 
-    cout << "Size of entries: " << s_db.entries_map.size() << endl;
+    cout << "Size of entries: " << s_db.get_entries_map().size() << endl;
 
     // get min & max vols
     double min_vol = std::numeric_limits<double>::max(), max_vol = -1;
     double min_meas = 0, max_meas = 1;
     double min_side[6] = { std::numeric_limits<double>::max() }, max_side[6] = { -1 };
-    for (auto &v: s_db.entries_map) {
+    for (auto &v: s_db.get_entries_map()) {
     	if (v.second->fail)
     		continue;
 
@@ -81,7 +120,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    for (auto &v: s_db.entries_map) {
+    for (auto &v: s_db.get_entries_map()) {
     	if (v.second->fail)
     		continue;
 

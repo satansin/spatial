@@ -22,7 +22,7 @@ OUT=out
 #     add $(USE_TM)
 #     add the following (!!in the end!!): -ltrimesh -lgluit -fopenmp
 
-all: clean 4pcs index pre_index #analyze calc query
+all: clean 4pcs index pre_index analyze calc query
 
 4pcs: trans.o point.o
 	$(CXX) $(INC) $(USE_TM) $(SRC)/4pcs.cpp $(OBJ)/* -o $(OUT)/4pcs.out -ltrimesh -lgluit -fopenmp

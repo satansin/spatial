@@ -16,6 +16,7 @@ extern "C" {
 #include <unordered_map>
 #include <unordered_set>
 #include <stack>
+#include <iostream>
 
 using namespace std;
 using namespace trimesh;
@@ -245,7 +246,7 @@ struct Grid {
 	double w;
 	Box3D_Int* cells_box;
     unordered_map<int, Cell*> cells_map;
-    int cells_count;
+    // int cells_count;
     Grid() {
     	cells_box = new Box3D_Int();
     }
@@ -287,7 +288,7 @@ struct Grid {
                 cells_map[key] = new_cell;
             }
         }
-        cells_count = cells_map.size();
+        // cells_count = cells_map.size();
     }
 	Box3D_Int get_outer_box(double min_x, double min_y, double min_z, double max_x, double max_y, double max_z) const {
 		return Box3D_Int{
@@ -495,76 +496,127 @@ private:
 };
 
 struct Struct_DB {
+private:
 	unordered_map<int, Grid*> grids;
+	double w;
 	double ann_min;
 	double ann_max;
 	unordered_map<int, Entry*> entries_map;
-	unordered_map<int, int> reverse_entries_map;
-	unordered_set<int> repre_id_set;
+	unordered_map<int, unordered_map<int, int>> reverse_entries_maps;
+	unordered_map<int, unordered_set<int>> repre_id_sets;
 
-	void insert_entry(int key, Entry* e) {
-		entries_map[key] = e;
+	int total_cells_count; // accumulative
+
+public:
+	Struct_DB() {
+		total_cells_count = 0;
 	}
 
-	void read(string filename, const TriMesh* mesh_db) {
-	    // ifstream ifs(filename);
-
-	    // ifs >> this->g_db->w >> this->ann_min >> this->ann_max >> this->g_db->cells_count;
-	    // ifs >> this->g_db->cells_box->min_id[0] >> this->g_db->cells_box->min_id[1] >> this->g_db->cells_box->min_id[2]
-	    //     >> this->g_db->cells_box->max_id[0] >> this->g_db->cells_box->max_id[1] >> this->g_db->cells_box->max_id[2];
-
-	    // for (int i = 0; i < this->g_db->cells_count; i++) {
-	    //     int key, x, y, z, list_size;
-	    //     ifs >> key >> x >> y >> z >> list_size;
-	        
-	    //     Cell* c = new Cell(x, y, z);
-	    //     for (int j = 0; j < list_size; j++) {
-	    //         int pt_id; ifs >> pt_id;
-	    //         c->add_pt(pt_id, pt(mesh_db->vertices[pt_id]));
-	    //     }
-	    //     this->g_db->cells_map[key] = c;
-
-	    //     Entry *e = new Entry;
-	    //     e->read_from(ifs, mesh_db);
-
-	    //     this->repre_id_set.insert(e->repre->id);
-	    //     this->reverse_entries_map[e->repre->id] = key;
-	    //     this->entries_map[key] = e;
-	    // }
-
-	    // ifs.close();
+	void set_w(double w) {
+		this->w = w;
 	}
-
-	Entry* get_entry(int key) const {
-		return entries_map.at(key);
-	}
-
-	bool look_up_repre_index(int repre_id) const {
-	    auto got = this->repre_id_set.find(repre_id);
-	    if (got != this->repre_id_set.end()) {
-	        return true;
-	    }
-	    return false;
-	}
-
-	int get_remai_id(int repre_id, int i) const {
-		return this->entries_map.at(this->reverse_entries_map.at(repre_id))->remai[i]->id;
-	}
-
-	int get_help_id(int repre_id) const {
-		return this->entries_map.at(this->reverse_entries_map.at(repre_id))->help->id;
+	double get_w() const {
+		return this->w;
 	}
 
 	void set_ann(double min, double max) {
 		this->ann_min = min;
 		this->ann_max = max;
 	}
+	double get_ann_min() const {
+		return this->ann_min;
+	}
+	double get_ann_max() const {
+		return this->ann_max;
+	}
+
+	int get_total_cells_count() const {
+		return this->total_cells_count;
+	}
+
+	void insert_grid(int key, Grid* g) {
+		grids[key] = g;
+		this->total_cells_count += g->cells_map.size();
+	}
+	const unordered_map<int, Grid*>& get_grids_map() const {
+		return this->grids;
+	}
+
+	void insert_entry(int key, Entry* e) {
+		entries_map[key] = e;
+	}
+	const unordered_map<int, Entry*>& get_entries_map() const {
+		return entries_map;
+	}
+
+	void read(string filename, const unordered_map<int, TriMesh*>& db_meshes) {
+	    ifstream ifs(filename);
+
+	    int num_grids;
+	    ifs >> this->w >> this->ann_min >> this->ann_max >> num_grids >> this->total_cells_count;
+
+	    for (int i = 0; i < num_grids; i++) {
+	    	int id;
+	    	ifs >> id;
+
+	    	Grid* g = new Grid(this->w);
+		    ifs >> g->cells_box->min_id[0] >> g->cells_box->min_id[1] >> g->cells_box->min_id[2]
+		        >> g->cells_box->max_id[0] >> g->cells_box->max_id[1] >> g->cells_box->max_id[2];
+
+		    this->grids[id] = g;
+	    }
+
+	    for (int i = 0; i < this->total_cells_count; i++) {
+	        int grid_id, key, cell_id, x, y, z, list_size;
+	        ifs >> grid_id;
+	        ifs >> key;
+	        ifs >> cell_id;
+	        ifs >> x >> y >> z >> list_size;
+	        
+	        Cell* c = new Cell(x, y, z);
+	        c->set_global_id(cell_id);
+	        for (int j = 0; j < list_size; j++) {
+	            int pt_id; ifs >> pt_id;
+	            c->add_pt(pt_id, pt(db_meshes.at(grid_id)->vertices[pt_id]));
+	        }
+	        this->grids[grid_id]->cells_map[key] = c;
+
+	        Entry *e = new Entry;
+	        e->read_from(ifs, db_meshes.at(grid_id));
+
+	        this->repre_id_sets[grid_id].insert(e->repre->id);
+	        this->reverse_entries_maps[grid_id][e->repre->id] = cell_id;
+	        this->entries_map[cell_id] = e;
+	    }
+
+	    ifs.close();
+	}
+
+	Entry* get_entry(int key) const {
+		return entries_map.at(key);
+	}
+
+	bool look_up_repre_index(int repre_id, int mesh_id) const {
+	    auto got = this->repre_id_sets.at(mesh_id).find(repre_id);
+	    if (got != this->repre_id_sets.at(mesh_id).end()) {
+	        return true;
+	    }
+	    return false;
+	}
+
+	int get_remai_id(int repre_id, int i, int mesh_id) const {
+		return this->entries_map.at(this->reverse_entries_maps.at(mesh_id).at(repre_id))->remai[i]->id;
+	}
+
+	int get_help_id(int repre_id, int mesh_id) const {
+		return this->entries_map.at(this->reverse_entries_maps.at(mesh_id).at(repre_id))->help->id;
+	}
 
 	void save(string filename) const {
 		ofstream ofs(filename);
 
 		// write grid headers
-		ofs << this->grids.at(0)->w << " " << this->ann_min << " " << this->ann_max << " " << this->grids.size() << this->entries_map.size() << endl;
+		ofs << this->w << " " << this->ann_min << " " << this->ann_max << " " << this->grids.size() << " " << this->total_cells_count << endl;
 
 		for (auto &p: this->grids) {
 			ofs << p.first << " ";
@@ -579,11 +631,6 @@ struct Struct_DB {
 	    	}
 	    }
 
-        // for (auto &it: this->g_db->cells_map) {
-        // 	ofs << it.first << " " << it.second->to_str() << endl;
-        // 	ofs << entries_map.at(it.first)->to_str() << endl;
-        // }
-
         ofs.close();
 	}
 };
@@ -592,43 +639,49 @@ struct Struct_Q {
 	Grid* g_q;
 	int m;
 	double epsilon, eta;
-	vector<int> idmap;
-	unordered_set<int> idmap_set;
 
-	void read(string info_filename, string idmap_filename, TriMesh* mesh_q) {
-		this->idmap.clear();
-		this->idmap_set.clear();
+private:
+	int db_mesh_id;
+	double gt_err_linear, gt_err_quad;
+	unordered_map<int, int> q_db_id_map;
+	unordered_set<int> id_db_set;
+
+public:
+	void read(string info_filename) {
+		this->q_db_id_map.clear();
+		this->id_db_set.clear();
 
 	    ifstream info_q_ifs(info_filename);
-	    ifstream idmap_ifs(idmap_filename);
 
-	    info_q_ifs >> this->m;
-	    vector<Pt3D> pts_q;
-	    for (int i = 0; i < m; i++) {
-	        pts_q.push_back(pt(mesh_q->vertices[i]));
-	        int db_mapping;
-	        idmap_ifs >> db_mapping;
-	        this->idmap.push_back(db_mapping);
-	        this->idmap_set.insert(db_mapping);
+	    info_q_ifs >> this->m >> this->epsilon >> this->eta >> this->db_mesh_id;
+	    info_q_ifs >> this->gt_err_linear >> this->gt_err_quad;
+
+	    int q_id, db_id;
+	    for (int i = 0; i < this->m; i++) {
+	        info_q_ifs >> q_id >> db_id; // in almost every case, q_id range from 0 to (m - 1)
+	        this->q_db_id_map[q_id] = db_id;
+	        if (db_id >= 0)
+	        	this->id_db_set.insert(db_id);
 	    }
 
-	    info_q_ifs >> this->epsilon >> this->eta;
-
 	    info_q_ifs.close();
-	    idmap_ifs.close();
+	}
+
+	int get_db_mesh_id() const {
+		return this->db_mesh_id;
 	}
 
 	int get_id_mapping(int id_q) const {
 		if (id_q < 0 || id_q >= this->m) {
 			return -1;
 		} else {
-			return idmap[id_q];
+			return q_db_id_map.at(id_q);
 		}
 	}
 
-	bool look_up_idmap(int idmap) const {
-		auto got = this->idmap_set.find(idmap);
-	    if (got != this->idmap_set.end()) {
+	bool look_up_id_db(int id_db) const {
+		auto got = this->id_db_set.find(id_db);
+	    if (got != this->id_db_set.end()) {
 	        return true;
 	    }
 	    return false;
@@ -759,8 +812,26 @@ inline NN_type** nn_sphere_range(Pt3D* p, node_type *r_root, rtree_info* r_info,
 	auto nn_ret = nn_sphere(p, r_root, r_info, sq_dist, excl_id_set);
 
 	double dist = sqrt(nn_ret[0]->dist);
-	double min = sq(dist - err);
-	double max = sq(dist + err);
+	double min = nn_ret[0]->dist;
+	double max = sq(dist + err * 2);
+
+	range_sphere(p, r_root, r_info, min, max, ret, excl_id_set);
+
+	return nn_ret;
+}
+
+// for 1-nn only
+inline NN_type** nn_sphere_range_verbose(Pt3D* p, node_type *r_root, rtree_info* r_info, double sq_dist, double err,
+	vector<RangeReturn_type*>& ret, const unordered_set<int>& excl_id_set = {}) {
+
+	auto nn_ret = nn_sphere(p, r_root, r_info, sq_dist, excl_id_set);
+
+	double dist = sqrt(nn_ret[0]->dist);
+	double min = nn_ret[0]->dist;
+	double max = sq(dist + err * 2);
+
+	cout << "min=" << min << endl;
+	cout << "max=" << max << endl;
 
 	range_sphere(p, r_root, r_info, min, max, ret, excl_id_set);
 

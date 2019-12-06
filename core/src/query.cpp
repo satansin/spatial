@@ -16,6 +16,36 @@
 using namespace std;
 using namespace trimesh;
 
+string get_foldername(string path) {
+    string ret;
+    if (path[path.length() - 1] != '/') {
+        ret = path + "/";
+    } else {
+        ret = path;
+    }
+    return ret;
+}
+
+int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes) {
+    string db_folder = get_foldername(db_path);
+
+    ifstream ifs(db_folder + "meta.txt");
+
+    int num;
+    ifs >> num;
+
+    int id;
+    string s_file;
+    for (int i = 0; i < num; i++) {
+        ifs >> id >> s_file;
+        db_meshes[id] = TriMesh::read(s_file);
+    }
+
+    ifs.close();
+
+    return num;
+}
+
 vector<Entry> cal_entries(PtwID q, Pt3D pts_q[], int m, double min, double max) {
     vector<Entry> ret;
 
@@ -56,12 +86,17 @@ vector<Entry> cal_entries(PtwID q, Pt3D pts_q[], int m, double min, double max) 
 void nn_sphere_range_and_show(const Struct_Q* s_q, Pt3D* q, node_type *r_root, rtree_info* r_info, double sq_dist, double err,
     vector<RangeReturn_type*>& ret, bool verbose = false, string nav = "", const unordered_set<int>& excl_id_set = {}) {
 
-    auto nn = nn_sphere_range(q, r_root, r_info, sq_dist, err, ret, excl_id_set);
+    NN_type** nn;
     if (verbose) {
-        cout << nav << "nn_sphere_range-------NN: " << s_q->id_q_to_str(nn[0]->oid) << endl;
+        nn = nn_sphere_range_verbose(q, r_root, r_info, sq_dist, err, ret, excl_id_set);
+    } else {
+        nn = nn_sphere_range(q, r_root, r_info, sq_dist, err, ret, excl_id_set);
+    }
+    if (verbose) {
+        cout << nav << "nn_sphere_range-------NN: " << s_q->id_q_to_str(nn[0]->oid) << "=" << sqrt(nn[0]->dist) << endl;
         cout << nav << "nn_sphere_range-------RR:";
         for (auto &it: ret) {
-            cout << " " << s_q->id_q_to_str(it->oid);
+            cout << " " << s_q->id_q_to_str(it->oid) << "=" << sqrt(it->dist);
         }
         cout << endl;
     }
@@ -96,13 +131,13 @@ int cal_entries_new(PtwID q, double min, const Struct_Q* s_q, const TriMesh* mes
     vector<RangeReturn_type*> range_a, range_h, range_b, range_c;
     PtwID ten_a, ten_h, ten_b, ten_c;
 
-    nn_sphere_range_and_show(s_q, &(q.pt), r_root_q, r_info, sq(min), epsilon * 2, range_a, debug_mode);
+    nn_sphere_range_and_show(s_q, &(q.pt), r_root_q, r_info, sq(min), epsilon * 2, range_a, true);
 
     for (auto &it_a: range_a) {
         if (it_a->oid < 0)
             continue;
 
-        if (debug_mode) cout << endl << "For a = " << s_q->id_q_to_str(it_a->oid) << endl;
+        // cout << endl << "For a = " << s_q->id_q_to_str(it_a->oid) << endl;
         ten_a = PtwID(it_a->oid, mesh_q);
 
         auto m = middle_pt(q.pt, ten_a.pt);
@@ -266,30 +301,31 @@ void retrieve_congr_entry(Entry* e, double epsilon, RTree<int, double, 6>* tree,
     tree_search_return.clear();
 }
 
-bool test_verification_cell(const Cell* c, const Struct_Q* s_q, const Struct_DB* s_db, bool debug_mode) {
+bool test_verification_cell(const Cell* c, const Struct_Q* s_q, const Struct_DB* s_db, bool verbose) {
     int matching_repre_point_count = 0, matching_all_point_count = 0;
+    const int db_mesh_id = s_q->get_db_mesh_id();
 
     // loop through all points inside the cell
     for (auto &p: c->list) {
         // get point ID mapped in DB
-        int mapping = s_q->get_id_mapping(p.id);
+        const int mapping = s_q->get_id_mapping(p.id);
         if (mapping >= 0) {
-            if (s_db->look_up_repre_index(mapping)) { // if mapping is a repre point in DB
-                if (debug_mode) cout << "Query pt #" << p.id << " matched with a repre. pt #" << mapping << endl;
+            if (s_db->look_up_repre_index(mapping, db_mesh_id)) { // if mapping is a repre point in DB
+                if (verbose) cout << "Query pt #" << p.id << " matched with a repre. pt #" << mapping << endl;
                 matching_repre_point_count++;
 
                 // check whether the remaining and help points appear in query
                 bool all_appearing = true;
                 for (int i = 0; i < 3; i++) {
-                    int remai_id = s_db->get_remai_id(mapping, i);
-                    if (!s_q->look_up_idmap(remai_id)) {
-                        if (debug_mode) cout << "But remai[" << i << "] (db#" << remai_id << ") not appearing in the query" << endl;
+                    const int remai_id = s_db->get_remai_id(mapping, i, db_mesh_id);
+                    if (!s_q->look_up_id_db(remai_id)) {
+                        if (verbose) cout << "But remai[" << i << "] (db#" << remai_id << ") not appearing in the query" << endl;
                         all_appearing = false;
                     }
                 }
-                int help_id = s_db->get_help_id(mapping);
-                if (!s_q->look_up_idmap(help_id)) {
-                    if (debug_mode) cout << "But help pt (db#" << help_id << ") not appearing in the query" << endl;
+                int help_id = s_db->get_help_id(mapping, db_mesh_id);
+                if (!s_q->look_up_id_db(help_id)) {
+                    if (verbose) cout << "But help pt (db#" << help_id << ") not appearing in the query" << endl;
                     all_appearing = false;
                 }
 
@@ -299,8 +335,8 @@ bool test_verification_cell(const Cell* c, const Struct_Q* s_q, const Struct_DB*
             }
         }
     }
-    if (debug_mode) cout << "Matching repre: " << matching_repre_point_count << endl;
-    if (debug_mode) cout << "Matching all: " << matching_all_point_count << endl;
+    if (verbose) cout << "Matching repre: " << matching_repre_point_count << endl;
+    if (verbose) cout << "Matching all: " << matching_all_point_count << endl;
 
     if (matching_all_point_count > 0) { // if at least 1 all_matching point found
         return true;
@@ -309,27 +345,30 @@ bool test_verification_cell(const Cell* c, const Struct_Q* s_q, const Struct_DB*
     }
 }
 
-void test_verification(const Struct_Q* s_q, const Struct_DB* s_db, bool debug_mode) {
+void test_verification(const Struct_Q* s_q, const Struct_DB* s_db, bool verbose) {
     cout << "Test verification..." << endl;
 
     int counter = 0, matched_cells_count = 0;
 
     // loop through all query cells
     for (auto it = s_q->g_q->cells_map.begin(); it != s_q->g_q->cells_map.end(); it++) {
-        if (debug_mode) cout << "For query cell #" << counter << endl;
+        if (verbose) cout << "For query cell #" << counter << endl;
 
-        if (test_verification_cell(it->second, s_q, s_db, debug_mode)) {
+        if (test_verification_cell(it->second, s_q, s_db, verbose)) {
             matched_cells_count++;
         }
         counter++;
     }
-    cout << "Summary: " << matched_cells_count << "/" << s_q->g_q->cells_count << " cells are matched" << endl;
+    cout << "Summary: " << matched_cells_count << "/" << s_q->g_q->cells_map.size() << " cells are matched" << endl;
 
 }
 
-Cell* get_random_q_cell(const Grid* g_q, int& selected_cell_id) {
-    selected_cell_id = rand() % g_q->cells_count;
-    selected_cell_id = 2136;
+Cell* get_random_q_cell(const Grid* g_q, int& selected_cell_id, int cheating = -1) {
+    if (cheating < 0) {
+        selected_cell_id = rand() % g_q->cells_map.size();
+    } else {
+        selected_cell_id = cheating;
+    }
     auto ptr = g_q->cells_map.begin();
     for (int i = 0; i < selected_cell_id; i++, ptr++);
     return ptr->second;
@@ -337,16 +376,18 @@ Cell* get_random_q_cell(const Grid* g_q, int& selected_cell_id) {
 
 int main(int argc, char **argv) {
     if (argc < 5) {
-        cerr << "Usage: " << argv[0] << " database_filename db_rstree_filename index_filename query_filename q_rstree_filename delta [-test] [-debug]" << endl;
+        cerr << "Usage: " << argv[0] << " database_filename db_rstree_filename index_filename query_filename q_rstree_filename delta [-batch] [-test] [-debug]" << endl;
         exit(1);
     }
 
-    bool test_mode = false, debug_mode = false;
+    bool test_mode = false, debug_mode = false, batch_mode = false;
     for (int i = 0; i < argc; i++) {
         if (string(argv[i]) == "-test") {
             test_mode = true;
         } else if (string(argv[i]) == "-debug") {
             debug_mode = true;
+        } else if (string(argv[i]) == "-batch") {
+            batch_mode = true;
         }
     }
 
@@ -363,10 +404,20 @@ int main(int argc, char **argv) {
 
     timer_start();
 
-    cout << "Reading dababase file..." << endl;
-    TriMesh *mesh_p = TriMesh::read(database_filename);
+    cout << "Reading database file..." << endl;
+    unordered_map<int, TriMesh*> db_meshes;
+    if (batch_mode) {
+        read_db_mesh_batch(database_filename, db_meshes);
+    } else {
+        db_meshes[0] = TriMesh::read(database_filename);
+    }
+    // TriMesh *mesh_p = TriMesh::read(database_filename);
 
-    KDtree *kdtree_p = new KDtree(mesh_p->vertices);
+    unordered_map<int, KDtree*> db_kds;
+    for (auto &p: db_meshes) {
+        db_kds[p.first] = new KDtree(p.second->vertices);
+
+    }
     
     // rtree_info db_rtree_info = { 5, 10, 3, 7 };
     // node_type *root_p;
@@ -384,8 +435,8 @@ int main(int argc, char **argv) {
     // load the DB structure
     cout << "Loading DB structure..." << endl;
     Struct_DB s_db;
-    s_db.g_db = new Grid();
-    s_db.read(idx_filename + ".grid", mesh_p);
+    // s_db.g_db = new Grid();
+    s_db.read(idx_filename + ".grid", db_meshes);
 
     cout << "Reading query file..." << endl;
     TriMesh *mesh_q = TriMesh::read(query_filename);
@@ -399,7 +450,7 @@ int main(int argc, char **argv) {
 
     // load the query structure
     Struct_Q s_q;
-    s_q.read(query_filename + ".info", query_filename + ".map", mesh_q);
+    s_q.read(query_filename + ".info");
 
     cout << "Total I/O time: " << timer_end(SECOND) << "(s)" << endl;
 
@@ -409,24 +460,22 @@ int main(int argc, char **argv) {
     double total_time = 0.0, proposal_time = 0.0, verification_time = 0.0;
     timer_start();
 
-    double w_q = 3.464102 * s_db.g_db->w;
+    double w_q = 3.464102 * s_db.get_w();
     cout << "Query voxelized of grid size " << w_q << endl;
 
     s_q.g_q = new Grid(w_q);
     s_q.g_q->gridify(mesh_q);
 
-    cout << "Total number of query cells: " << s_q.g_q->cells_count << endl;
+    cout << "Total number of query cells: " << s_q.g_q->cells_map.size() << endl;
 
-    if (debug_mode) {
-        cout << "Displaying info of each query cell:" << endl;
-        for (auto it = s_q.g_q->cells_map.begin(); it != s_q.g_q->cells_map.end(); it++) {
-            cout << it->second->x << " "
-                 << it->second->y << " "
-                 << it->second->z << " "
-                 << it->second->list.size() << endl;
-        }
-        cout << endl;
-    }
+    // cout << "Displaying info of each query cell:" << endl;
+    // for (auto it = s_q.g_q->cells_map.begin(); it != s_q.g_q->cells_map.end(); it++) {
+    //     cout << it->second->x << " "
+    //          << it->second->y << " "
+    //          << it->second->z << " "
+    //          << it->second->list.size() << endl;
+    // }
+    // cout << endl;
 
     // test verification
     if (test_mode) {
@@ -439,7 +488,7 @@ int main(int argc, char **argv) {
     int verified_size = 0;
     for (int t = 0; t < k_m; t++) {
         int selected_cell_id;
-        Cell* selected_cell = get_random_q_cell(s_q.g_q, selected_cell_id);
+        Cell* selected_cell = get_random_q_cell(s_q.g_q, selected_cell_id, 9103);
         cout << "Selecting cell #" << selected_cell_id
              << " with " << selected_cell->list.size() << " pts" << endl;
 
@@ -452,17 +501,16 @@ int main(int argc, char **argv) {
         vector<Entry_Pair*> v_pairs;
 
         for (auto &q: selected_cell->list) {
-            if (!(q.id == 26607/* || q.id == 26609 || q.id == 26747 || q.id == 26749 || q.id == 26750 || q.id == 1358438*/)) {
+            if (!(q.id == 258119 || q.id == 259183 || q.id == 259185 || q.id == 259190 || q.id == 259765 || q.id == 262949)) {
                 continue;
             }
-            // if (debug_mode)
-                cout << endl << "Calculating entry list for query pt #" << q.id << endl;
+            
+            cout << endl << "Calculating entry list for query pt #" << q.id << endl;
 
             vector<Entry*> v_entries;
-            int num_entries = cal_entries_new(q, s_db.ann_min, &s_q, mesh_q, root_q, &query_rtree_info, v_entries, debug_mode);
+            int num_entries = cal_entries_new(q, s_db.get_ann_min(), &s_q, mesh_q, root_q, &query_rtree_info, v_entries, debug_mode);
 
-            // if (debug_mode)
-                cout << endl << "Size of the entry list: " << num_entries << endl;
+            cout << endl << "Size of the entry list: " << num_entries << endl;
 
             for (auto &e: v_entries) {
                 retrieve_congr_entry(e, s_q.epsilon, &tree, &s_db, v_pairs);
@@ -484,7 +532,7 @@ int main(int argc, char **argv) {
             // cout << h->to_str() << endl;
             h->cal_xf();
 
-            double result = cal_corr_err(mesh_q, kdtree_p, &h->xf, delta);
+            double result = cal_corr_err(mesh_q, db_kds[0], &h->xf, delta);
             if (result > 0) {
                 cout << "Accept: " << h->to_str() << endl
                      << result << endl;

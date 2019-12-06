@@ -396,8 +396,8 @@ void gridify_test(double w, TriMesh* mesh) {
         g.gridify(mesh);
 
         cout << "\tGrid size: " << trial_w << endl;
-        cout << "\tTotal # cells: " << g.cells_count << endl;
-        cout << "\tAvg # pts per cell: " << ((double) mesh->vertices.size()) / ((double) g.cells_count) << endl;
+        cout << "\tTotal # cells: " << g.cells_map.size() << endl;
+        cout << "\tAvg # pts per cell: " << ((double) mesh->vertices.size()) / ((double) g.cells_map.size()) << endl;
     }
 
 }
@@ -468,11 +468,12 @@ int main(int argc, char **argv) {
     // gridify_test(w, db_meshes[0]);
 
     Struct_DB s_db;
+    s_db.set_w(w);
+    s_db.set_ann(ann_min, ann_max);
 
     cout << "\nGridify the point cloud..." << endl;
     timer_start();
 
-    int num_cells = 0;
     for (auto &p: db_meshes) {
         int mesh_id = p.first;
         TriMesh* mesh_p = p.second;
@@ -480,12 +481,12 @@ int main(int argc, char **argv) {
         Grid* g = new Grid(w);
         g->gridify(mesh_p);
 
-        num_cells += g->cells_count;
-
-        s_db.grids[mesh_id] = g;
+        s_db.insert_grid(mesh_id, g);
     }
 
     cout << "Gridify finished in " << timer_end(SECOND) << "(s)" << endl;
+
+    int num_cells = s_db.get_total_cells_count();
 
     cout << "Grid size: " << w << endl;
     cout << "Total # cells: " << num_cells << endl;
@@ -493,7 +494,6 @@ int main(int argc, char **argv) {
 
     // exit(0);
 
-    s_db.set_ann(ann_min, ann_max);
     
     // RTree<int, double, 2> tree;
     RTree<int, double, 6> tree; // edge index
@@ -501,7 +501,7 @@ int main(int argc, char **argv) {
 
     int global_cell_index = 0;
 
-    for (auto &v: s_db.grids) {
+    for (auto &v: s_db.get_grids_map()) {
         int mesh_id = v.first;
         auto g = v.second;
         auto mesh_p = db_meshes[mesh_id];
@@ -509,7 +509,7 @@ int main(int argc, char **argv) {
 
         cout << "Processing mesh #" << mesh_id << endl << endl;
 
-        ProgressBar bar(g->cells_count, 70);
+        ProgressBar bar(g->cells_map.size(), 70);
 
         for (auto it = g->cells_map.begin(); it != g->cells_map.end(); it++) {
             if (show_prog_bar) {

@@ -12,7 +12,7 @@ SRC=src
 OBJ=obj
 OUT=out
 
-all: clean pcg kitti_join filter extract_query_manual extract_query_auto
+all: clean pcg kitti_join filter extract_query_manual extract_query_auto extract_query_batch
 
 pcg:
 	$(CXX) $(INC) $(SRC)/pcg.cpp -o $(OUT)/pcg.out
@@ -28,6 +28,9 @@ extract_query_manual:
 
 extract_query_auto:
 	$(CXX) $(INC) $(USE_TM) $(SRC)/extract_query_auto.cpp -o $(OUT)/extract_query_auto.out -ltrimesh -lgluit -fopenmp
+
+extract_query_batch:
+	$(CXX) $(INC) $(USE_TM) $(SRC)/extract_query_batch.cpp -o $(OUT)/extract_query_batch.out -ltrimesh -lgluit -fopenmp
 
 clean:
 	$(RMDIR) obj/
