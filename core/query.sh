@@ -12,8 +12,9 @@ source ../common/config/dir_loc.sh
 
 # ./out/query.out "$DIR_DB"/redwood-01-livingroom.ply "$DIR_RSTREE"/redwood-01-livingroom.rstree.1 "$DIR_INDEX"/redwood-01-livingroom.idx "$DIR_QUERY"/redwood-01-q1.ply "$DIR_RSTREE"/redwood-01-q1.rstree.1 #-debug
 
-./out/query.out "$DIR_DB"/obj_scans/ "$DIR_RSTREE"/obj_scans/ "$DIR_INDEX"/obj_scans.idx "$DIR_QUERY"/obj_scans/q1.ply "$DIR_QUERY"/obj_scans/q1.ply.rstree.1 1000 -test -batch
+# ./out/query.out "$DIR_DB"/obj_scans/ "$DIR_INDEX"/obj_scans.idx "$DIR_QUERY"/obj_scans/q1.ply "$DIR_QUERY"/obj_scans/q1.ply.rstree.1 10000 -batch -verbose=0 #-test
 
+./out/query.out "$DIR_DB"/obj_scans/ "$DIR_INDEX"/obj_scans.idx "$DIR_QUERY"/obj_scans/q2.ply "$DIR_QUERY"/obj_scans/q2.ply.rstree.1 100000 -batch -verbose=0 #-test
 
 
 

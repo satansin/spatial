@@ -6,65 +6,33 @@
 using namespace std;
 using namespace trimesh;
 
-string get_foldername(string path) {
-    string ret;
-    if (path[path.length() - 1] != '/') {
-        ret = path + "/";
-    } else {
-        ret = path;
-    }
-    return ret;
-}
-
-int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes) {
-    string db_folder = get_foldername(db_path);
-
-    ifstream ifs(db_folder + "meta.txt");
-
-    int num;
-    ifs >> num;
-
-    int id;
-    string s_file;
-    for (int i = 0; i < num; i++) {
-        ifs >> id >> s_file;
-        db_meshes[id] = TriMesh::read(s_file);
-    }
-
-    ifs.close();
-
-    return num;
-}
-
 inline unsigned int get_bin(double min, double intv, int bin_size, double val) {
 	int bin = (unsigned int) ((val - min) / intv);
 	return (bin > (bin_size - 1) ? (bin_size - 1) : bin);
 }
 
 int main(int argc, char **argv) {
-    if (argc < 5) {
-        cerr << "Usage: " << argv[0] << " database_filename db_rstree_filename index_filename bin_size [-batch]" << endl;
+    if (argc < 4) {
+        cerr << "Usage: " << argv[0] << " database_filename index_filename bin_size [-batch]" << endl;
         exit(1);
     }
 
     bool batch_mode = false;
-    if (argc > 5 && string(argv[5]) == "-batch") {
+    if (argc > 4 && string(argv[4]) == "-batch")
         batch_mode = true;
-    }
 
     int argi = 0;
     string database_filename = argv[(++argi)];
-    string db_rstree_filename = argv[(++argi)];
     string idx_filename = argv[(++argi)];
     const int bin_size = atoi(argv[(++argi)]);
 
     cout << "Reading database file..." << endl;
+
     unordered_map<int, TriMesh*> db_meshes;
-    if (batch_mode) {
+    if (batch_mode)
         read_db_mesh_batch(database_filename, db_meshes);
-    } else {
+    else
         db_meshes[0] = TriMesh::read(database_filename);
-    }
 
     // load the DB structure
     cout << "Loading DB structure..." << endl;

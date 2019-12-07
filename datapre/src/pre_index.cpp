@@ -6,7 +6,6 @@
 extern "C" {
     #include "rtree.h"
 }
-#include "share.h"
 using namespace std;
 using namespace trimesh;
 
@@ -20,7 +19,7 @@ string get_foldername(string path) {
     return ret;
 }
 
-int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes) {
+int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes, unordered_map<int, string>& db_filenames) {
     string db_folder = get_foldername(db_path);
     string meta_filename = db_folder + "meta.txt";
 
@@ -38,6 +37,7 @@ int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes) 
     for (int i = 0; i < num; i++) {
         ifs >> id >> s_file;
         db_meshes[id] = TriMesh::read(s_file);
+        db_filenames[id] = s_file;
     }
 
     ifs.close();
@@ -47,8 +47,8 @@ int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes) 
 
 int main(int argc, char* argv[]) {
 
-	if (argc < 3) {
-		cerr << "Usage: " << argv[0] << " input_filename output_filename [-batch]" << endl;
+	if (argc < 2) {
+		cerr << "Usage: " << argv[0] << " input_filename output_filename (required if not batch) [-batch]" << endl;
 		exit(1);
 	}
 
@@ -60,12 +60,17 @@ int main(int argc, char* argv[]) {
     }
 
 	string input_filename = argv[1];
-	string output_filename = argv[2];
+	string output_filename;
+	if (batch_mode)
+		output_filename = input_filename;
+	else
+		output_filename = argv[2];
 
     unordered_map<int, TriMesh*> db_meshes;
+    unordered_map<int, string> db_filenames;
 
     if (batch_mode) {
-        cout << "Num of meshes for batch: " << read_db_mesh_batch(input_filename, db_meshes) << endl;
+        cout << "Num of meshes for batch: " << read_db_mesh_batch(input_filename, db_meshes, db_filenames) << endl;
     } else {
         db_meshes[0] = TriMesh::read(input_filename);
     }
@@ -78,11 +83,11 @@ int main(int argc, char* argv[]) {
 		// , { 25, 50, 3, 37 }
 	};
 
-	string output_foldername;
-	if (batch_mode) {
-		output_foldername = get_foldername(output_filename);
-		system(string("mkdir -p " + output_filename).c_str());
-	}
+	// string output_foldername;
+	// if (batch_mode) {
+	// 	output_foldername = get_foldername(output_filename);
+	// 	system(string("mkdir -p " + output_filename).c_str());
+	// }
 	
 	int id, n;
 	TriMesh* mesh;
@@ -104,7 +109,8 @@ int main(int argc, char* argv[]) {
 	    }
 
 	    if (batch_mode) {
-	    	realname = output_foldername + "id." + to_string(id) + ".rstree";
+	    	// realname = output_foldername + "id." + to_string(id) + ".rstree";
+	    	realname = db_filenames[id] + ".rstree";
 	    } else {
 	    	realname = output_filename;
 	    }
@@ -112,16 +118,16 @@ int main(int argc, char* argv[]) {
 		for (int i = 0; i < info.size(); i++) {
 			// build R-tree for mesh points
 		    cout << "Start building R-tree for mesh #" << id << " of info #" << (i + 1) << "..." << endl;
-		    timer_start();
+		    // timer_start();
 		    build_tree(&root, data, n, &info[i]);
-		    cout << "Build R-tree in " << timer_end(SECOND) << "(s)" << endl;
+		    // cout << "Build R-tree in " << timer_end(SECOND) << "(s)" << endl;
 
 		    realname += string("." + to_string(i + 1));
 
 		    // save R-tree
-		    timer_start();
+		    // timer_start();
 		    save_rtree(root, realname.c_str(), &info[i]);
-		    cout << "Save R-tree to " << realname << " in " << timer_end(SECOND) << "(s)" << endl;
+		    cout << "Save R-tree to " << realname /*<< " in " << timer_end(SECOND) << "(s)"*/ << endl;
 
 		    free_tree(root, &info[i]);
 		    cout << "R-tree freed" << endl;

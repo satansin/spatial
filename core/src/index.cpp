@@ -22,49 +22,6 @@ extern "C" {
 using namespace std;
 using namespace trimesh;
 
-string get_foldername(string path) {
-    string ret;
-    if (path[path.length() - 1] != '/') {
-        ret = path + "/";
-    } else {
-        ret = path;
-    }
-    return ret;
-}
-
-int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes) {
-    string db_folder = get_foldername(db_path);
-
-    ifstream ifs(db_folder + "meta.txt");
-
-    int num;
-    ifs >> num;
-
-    int id;
-    string s_file;
-    for (int i = 0; i < num; i++) {
-        ifs >> id >> s_file;
-        db_meshes[id] = TriMesh::read(s_file);
-    }
-
-    ifs.close();
-
-    return num;
-}
-
-void read_db_rstree_batch(string rstree_path, const unordered_map<int, TriMesh*>& db_meshes, rtree_info* db_rtree_info, unordered_map<int, node_type*>& db_roots) {
-    string rstree_folder = get_foldername(rstree_path);
-
-    for (auto &p: db_meshes) {
-        node_type* a_root;
-        string s_file = rstree_folder + "id." + to_string(p.first) + ".rstree.1";
-
-        read_rtree(&a_root, s_file.c_str(), db_rtree_info);
-
-        db_roots[p.first] = a_root;
-    }
-}
-
 void add_ann_pts_in_cell(const Cell* c, PtwID p, double ann_min, double ann_max, vector<PtwID>& v) {
     for (auto &i: c->list) {
         double d = eucl_dist(i.pt, p.pt);
@@ -403,27 +360,25 @@ void gridify_test(double w, TriMesh* mesh) {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 6) {
-        cerr << "Usage: " << argv[0] << " database_filename db_rstree_filename w ann_min ann_max output_index_filename [-batch] [-test] [-show_prog_bar] [-debug]" << endl;
+    if (argc < 5) {
+        cerr << "Usage: " << argv[0] << " database_filename w ann_min ann_max output_index_filename [-batch] [-test] [-show_prog_bar] [-debug]" << endl;
         exit(1);
     }
 
     bool test_mode = false, show_prog_bar = false, debug_mode = false, batch_mode = false;
     for (int i = 0; i < argc; i++) {
-        if (string(argv[i]) == "-test") {
+        if (string(argv[i]) == "-test")
             test_mode = true;
-        } else if (string(argv[i]) == "-show_prog_bar") {
+        else if (string(argv[i]) == "-show_prog_bar")
             show_prog_bar = true;
-        } else if (string(argv[i]) == "-debug") {
+        else if (string(argv[i]) == "-debug")
             debug_mode = true;
-        } else if (string(argv[i]) == "-batch") {
+        else if (string(argv[i]) == "-batch")
             batch_mode = true;
-        }
     }
 
     int argi = 0;
     string database_filename = argv[++argi];
-    string db_rstree_filename = argv[++argi];
     double w = atof(argv[++argi]);
     double ann_min = atof(argv[++argi]);
     double ann_max = atof(argv[++argi]);
@@ -432,33 +387,20 @@ int main(int argc, char **argv) {
     timer_start();
 
     unordered_map<int, TriMesh*> db_meshes;
+    
+    rtree_info db_rtree_info = { 5, 10, 3, 7 };
+    unordered_map<int, node_type*> roots;
 
     if (batch_mode) {
-        read_db_mesh_batch(database_filename, db_meshes);
+        read_db_batch(database_filename, db_meshes, &db_rtree_info, roots);
     } else {
         db_meshes[0] = TriMesh::read(database_filename);
+        read_rtree(&roots[0], string(database_filename + ".rstree.1").c_str(), &db_rtree_info);
     }
 
     long long n = 0;
-    for (auto &p: db_meshes) {
+    for (auto &p: db_meshes)
         n += p.second->vertices.size();
-    }
-
-    // KDtree *kd_p = new KDtree(mesh_p->vertices);
-    
-    rtree_info db_rtree_info = { 5, 10, 3, 7 };
-
-    unordered_map<int, node_type*> roots;
-
-    // load R-tree
-    cout << "Loading R-tree for DB points..." << endl;
-    timer_start();
-    if (batch_mode) {
-        read_db_rstree_batch(db_rstree_filename, db_meshes, &db_rtree_info, roots);
-    } else {
-        read_rtree(&roots[0], db_rstree_filename.c_str(), &db_rtree_info);
-    }
-    cout << "Load R-tree of DB pts in " << timer_end(SECOND) << "(s)" << endl;
 
     cout << endl;
     cout << "Total I/O time: " << timer_end(SECOND) << "(s)" << endl;

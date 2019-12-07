@@ -20,4 +20,4 @@ source ../common/config/dir_loc.sh
 
 # ./out/index.out "$DIR_DB"/redwood-02-office.ply "$DIR_RSTREE"/redwood-02-office.rstree.1 20 150 60.3 "$DIR_INDEX"/redwood-02-office.side.idx -show_prog_bar
 
-./out/index.out "$DIR_DB"/obj_scans/ "$DIR_RSTREE"/obj_scans/ 2 20 25 "$DIR_INDEX"/obj_scans.idx -show_prog_bar -batch
+./out/index.out "$DIR_DB"/obj_scans/ 20 200 250 "$DIR_INDEX"/obj_scans.idx -show_prog_bar -batch

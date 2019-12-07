@@ -59,6 +59,8 @@ double cal_corr_err(trimesh::TriMesh* mesh_q, trimesh::KDtree* kdtree_p, Trans* 
         Pt3D xf_q = trans_pt(xf, pt(v));
         float pt_arr[3] = { (float) xf_q.x, (float) xf_q.y, (float) xf_q.z };
         auto nn = kdtree_p->closest_to_pt(pt_arr);
+        // std::cout << nn << std::endl;
+        // TODO: nn != 0!!!
         double nn_err = eucl_dist(nn, pt_arr);
         err += nn_err;
         if (err - stop_at > 0) {

@@ -448,8 +448,9 @@ struct Entry {
 			swap(this->sides[3], this->sides[4]);
 		}
 	}
-	string to_str() const {
+	string to_str(int precision = 6) const {
 		stringstream ss;
+		ss << setprecision(precision);
 		ss << repre->id << " "
 		   << remai[0]->id << " "
 		   << remai[1]->id << " "
@@ -504,6 +505,8 @@ private:
 	unordered_map<int, Entry*> entries_map;
 	unordered_map<int, unordered_map<int, int>> reverse_entries_maps;
 	unordered_map<int, unordered_set<int>> repre_id_sets;
+
+	unordered_map<int, int> global_id_map;
 
 	int total_cells_count; // accumulative
 
@@ -581,12 +584,15 @@ public:
 	        }
 	        this->grids[grid_id]->cells_map[key] = c;
 
+	        ifs >> grid_id; // another grid_id has been saved
 	        Entry *e = new Entry;
 	        e->read_from(ifs, db_meshes.at(grid_id));
 
 	        this->repre_id_sets[grid_id].insert(e->repre->id);
 	        this->reverse_entries_maps[grid_id][e->repre->id] = cell_id;
 	        this->entries_map[cell_id] = e;
+
+	        this->global_id_map[cell_id] = grid_id;
 	    }
 
 	    ifs.close();
@@ -594,6 +600,10 @@ public:
 
 	Entry* get_entry(int key) const {
 		return entries_map.at(key);
+	}
+
+	int get_grid_id_by_global_cell_id(int global_cell_id) const {
+		return global_id_map.at(global_cell_id);
 	}
 
 	bool look_up_repre_index(int repre_id, int mesh_id) const {
@@ -627,7 +637,7 @@ public:
 	    for (auto &p: this->grids) {
 	    	for (auto &it: p.second->cells_map) {
 	    		ofs << p.first << " " << it.first << " " << it.second->to_str() << endl;
-	    		ofs << entries_map.at(it.second->global_id)->to_str() << endl;
+	    		ofs << p.first << " " << entries_map.at(it.second->global_id)->to_str(12) << endl;
 	    	}
 	    }
 
@@ -695,15 +705,17 @@ public:
 struct Entry_Pair {
 	Entry* e_query;
 	Entry* e_database;
+	int id_db;
 	Trans xf;
 
-	Entry_Pair(Entry* q, Entry* p) {
-		e_query = q;
-		e_database = p;
+	Entry_Pair(Entry* q, Entry* p, int id_db) {
+		this->e_query = q;
+		this->e_database = p;
+		this->id_db = id_db;
 	}
 
-	string to_str() const {
-		return e_query->to_str() + " & " + e_database->to_str();
+	string to_str(int precision = 6) const {
+		return this->e_query->to_str(precision) + " <\n" + this->e_database->to_str(precision) + " >\nin DB #" + to_string(this->id_db);
 	}
 
 	void cal_xf() {
@@ -821,7 +833,7 @@ inline NN_type** nn_sphere_range(Pt3D* p, node_type *r_root, rtree_info* r_info,
 }
 
 // for 1-nn only
-inline NN_type** nn_sphere_range_verbose(Pt3D* p, node_type *r_root, rtree_info* r_info, double sq_dist, double err,
+inline NN_type** nn_sphere_range_verbose(Pt3D* p, node_type *r_root, rtree_info* r_info, double sq_dist, double err, string nav,
 	vector<RangeReturn_type*>& ret, const unordered_set<int>& excl_id_set = {}) {
 
 	auto nn_ret = nn_sphere(p, r_root, r_info, sq_dist, excl_id_set);
@@ -830,8 +842,8 @@ inline NN_type** nn_sphere_range_verbose(Pt3D* p, node_type *r_root, rtree_info*
 	double min = nn_ret[0]->dist;
 	double max = sq(dist + err * 2);
 
-	cout << "min=" << min << endl;
-	cout << "max=" << max << endl;
+	cout << nav << "min=" << min << endl;
+	cout << nav << "max=" << max << endl;
 
 	range_sphere(p, r_root, r_info, min, max, ret, excl_id_set);
 
@@ -865,6 +877,61 @@ inline bool get_est_b_c(Pt3D* m_ptr, Pt3D* a_ptr, Pt3D* h_ptr, Pt3D& b_est, Pt3D
     
     return true;
 
+}
+
+inline string get_foldername(string path) {
+    string ret;
+    if (path[path.length() - 1] != '/') {
+        ret = path + "/";
+    } else {
+        ret = path;
+    }
+    return ret;
+}
+
+inline int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes) {
+    string db_folder = get_foldername(db_path);
+
+    ifstream ifs(db_folder + "meta.txt");
+
+    int num;
+    ifs >> num;
+
+    int id;
+    string s_file;
+    for (int i = 0; i < num; i++) {
+        ifs >> id >> s_file;
+        db_meshes[id] = TriMesh::read(s_file);
+    }
+
+    ifs.close();
+
+    return num;
+}
+
+inline int read_db_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes, rtree_info* db_rtree_info, unordered_map<int, node_type*>& db_roots) {
+    string db_folder = get_foldername(db_path);
+
+    ifstream ifs(db_folder + "meta.txt");
+
+    int num;
+    ifs >> num;
+
+    int id;
+    string s_file;
+    for (int i = 0; i < num; i++) {
+        ifs >> id >> s_file;
+        db_meshes[id] = TriMesh::read(s_file);
+
+        node_type* a_root;
+        read_rtree(&a_root, string(s_file + ".rstree.1").c_str(), db_rtree_info);
+
+        db_roots[id] = a_root;
+    }
+
+    ifs.close();
+
+    return num;
 }
 
 #endif
