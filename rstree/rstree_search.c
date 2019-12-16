@@ -75,12 +75,12 @@ int read_query(char *queryfile, R_TYPE ***query, int no_query, rtree_info *aInfo
 } /* read_query */
 
 /* Distance Computation */
-double MINDIST(R_TYPE *P, R_TYPE *a, R_TYPE *b, rtree_info *aInfo)
+R_LONG_TYPE MINDIST(R_TYPE *P, R_TYPE *a, R_TYPE *b, rtree_info *aInfo)
 {
 	int i;
-	double diff;
-	double sum = 0.0;
-	
+
+	R_LONG_TYPE diff;
+	R_LONG_TYPE sum = 0.0;
 	
 	for(i=0 ;i<aInfo->dim ;i++)
 	{
@@ -101,15 +101,20 @@ double MINDIST(R_TYPE *P, R_TYPE *a, R_TYPE *b, rtree_info *aInfo)
 	return sum;     
 }
 
-double MAXDIST(R_TYPE *P, R_TYPE *a, R_TYPE *b, rtree_info *aInfo)
+R_LONG_TYPE MAXDIST(R_TYPE *P, R_TYPE *a, R_TYPE *b, rtree_info *aInfo)
 {
 	int i;
-	float mid;
-	double diff;
-	double sum = 0.0;
+	R_TYPE mid;
+
+	R_LONG_TYPE diff;
+	R_LONG_TYPE sum = 0.0;
 
 	for (i = 0; i < aInfo->dim; i++) {
-		mid = (a[i] + b[i]) * 0.5;
+#ifdef R_FLOAT
+		mid = (a[i] + b[i]) * 0.5; // TODO: overflow?
+#else
+		mid = (a[i] + b[i] + 1) / 2;
+#endif
 		diff = (P[i] < mid) ? (b[i] - P[i]) : (P[i] - a[i]);
 		sum += diff * diff;
 	}
@@ -117,12 +122,12 @@ double MAXDIST(R_TYPE *P, R_TYPE *a, R_TYPE *b, rtree_info *aInfo)
 	return sum;
 }
 
-double cal_Euclidean(node_type *node, R_TYPE *query, rtree_info *aInfo)
+R_LONG_TYPE cal_Euclidean(node_type *node, R_TYPE *query, rtree_info *aInfo)
 {
 	int i;
-	double distance;
-	double diff;
-	distance = 0.0;
+
+	R_LONG_TYPE distance = 0.0;
+	R_LONG_TYPE diff;
 	
 	for(i=0; i< aInfo->dim ;i++)
 	{
@@ -135,42 +140,54 @@ double cal_Euclidean(node_type *node, R_TYPE *query, rtree_info *aInfo)
 	return distance;
 }
 
+void RangeReturn_update(RangeReturn_type **RR, R_LONG_TYPE dist, node_type *node)
+{
+	RangeReturn_type* new_return = (RangeReturn_type *) malloc(sizeof(RangeReturn_type));
+	new_return->dist = dist;
+	new_return->oid = node->id;
+	new_return->pointer = node;
+	new_return->next = NULL;
+	new_return->prev = *RR;
+
+	if (*RR)
+		(*RR)->next = new_return;
+	
+	*RR = new_return;
+}
+
 
 /***********************************/
-/* rectangle_search():             */
+/* rectangle_search_node():        */
 /* search query points on the tree */
-/*************************** *******/
+/***********************************/
 
-int rectangle_search(node_type *curr_node, R_TYPE *query, float error, rtree_info *aInfo)
+void rectangle_search_node(node_type *curr_node, R_TYPE *query_min, R_TYPE *query_max, rtree_info *aInfo, RangeReturn_type **RR, int *page_accessed)
 {
-	int find_flag;
 	int i, j, stop, flag;
 	int query_dim;              
 	
 	query_dim = aInfo->dim;
+
+	(*page_accessed)++;
 	
 	/* Search leaf node */
-	if(curr_node->attribute == LEAF) { 
-		
-		for(j=0; j<query_dim; j++)   
-			printf("%f ", curr_node->a[j]);
-        
-		printf("  at %d\n", curr_node->id);
-		
-        return(FOUND);
-		
+	if (curr_node->attribute == LEAF)
+	{	
+		RangeReturn_update(RR, 0, curr_node);	
 	}
 	
 	stop = aInfo->M - curr_node->vacancy;
-	for(i=0; i < stop; i++) {
-		
+	for (i = 0; i < stop; i++)
+	{
         flag = TRUE;
 		
         /* search subtree */
-        for(j=0; j < query_dim; j++) {
-			
-			if(curr_node->ptr[i]->a[j] > (query[j] + error) ||
-				curr_node->ptr[i]->b[j] < (query[j] - error))
+        for (j = 0; j < query_dim; j++)
+        {
+			// if for any dimension, the current node box is not intersecting the query range,
+			// prune this node
+			if (curr_node->ptr[i]->a[j] > query_max[j] ||
+				curr_node->ptr[i]->b[j] < query_min[j])
 			{
 				flag = FALSE;
 				break;
@@ -178,61 +195,164 @@ int rectangle_search(node_type *curr_node, R_TYPE *query, float error, rtree_inf
         }
 		
         /* search the node which contains the query */
-        if(flag==TRUE) {
-			find_flag = rectangle_search(curr_node->ptr[i], query, error, aInfo);
+        if (flag == TRUE)
+        {
+			rectangle_search_node(curr_node->ptr[i], query_min, query_max, aInfo, RR, page_accessed);
         }
 	}
-	
-	return(find_flag);
-	
 }
-/* rectangle_search */
+/* rectangle_search_node */
 
 
 
 /**********************************/
-/* rectangle_search_tree():       */
+/* rectangle_search():            */
 /* prepare to search query points */
 /**********************************/
 
-void rectangle_search_tree(node_type *root, int no_query, R_TYPE **query, float error, rtree_info *aInfo) 
+int rectangle_search(node_type *root, int no_query, R_TYPE **query_min, R_TYPE **query_max, RangeReturn_type **returnResult, rtree_info *aInfo)
 {
 	int query_index;
-	int j, find_flag = NOT_FOUND;
-	int query_dim;
+	int page_accessed = 0;
 	
-	query_dim = aInfo->dim;  
+	/* start search data points by invoking rectangle_search_node() */
+	for (query_index = 0; query_index < no_query; query_index++)
+	{
+        rectangle_search_node(root, query_min[query_index], query_max[query_index], aInfo, returnResult, &page_accessed);
+	}
+
+	return page_accessed;
+} /* rectangle_search */
+
+
+void BundleReturn_update(BundleReturn_type **BR, node_type *node, int qid)
+{
+	BundleReturn_type* new_return = (BundleReturn_type *) malloc(sizeof(BundleReturn_type));
+	new_return->oid = node->id;
+	new_return->qid = qid;
+	new_return->pointer = node;
+	new_return->next = NULL;
+	new_return->prev = *BR;
+
+	if (*BR)
+		(*BR)->next = new_return;
 	
-	/* start search data points by invoking rectangle_search() */
-	for(query_index=0; query_index < no_query; query_index++) {
-        
-		
-        printf("Query ");
-        for(j=0; j < query_dim; j++)
-			printf("%f ", query[query_index][j]);
-        printf("is found satisfied with\n");
-		
-		
-        find_flag = NOT_FOUND;
-        find_flag = rectangle_search(root, query[query_index], error, aInfo);
-		
+	*BR = new_return;
+}
+
+
+void rectangle_search_node_bundle(node_type *curr_node, int no_query, R_TYPE **query, float error, float *min, float *max, rtree_info *aInfo, BundleReturn_type **BR, int *page_accessed)
+{
+	int i, j, k, stop, flag, flag_pr;
+	R_TYPE *ind_query;
+	int query_dim;            
+	
+	query_dim = aInfo->dim;
+
+	(*page_accessed)++;
+	
+	/* Search leaf node */
+	if (curr_node->attribute == LEAF)
+	{
+		for (i = 0; i < no_query; i++)
+		{
+			ind_query = query[i];
+			flag = TRUE;
+			for (j = 0; j < query_dim; j++)
+			{
+				if (curr_node->a[j] > (ind_query[j] + error) ||
+					curr_node->a[j] < (ind_query[j] - error))
+				{
+					flag = FALSE;
+					break;
+				}
+			}
+
+			if (flag == TRUE)
+			{
+				BundleReturn_update(BR, curr_node, i);
+			}
+		}
 	}
 	
+	stop = aInfo->M - curr_node->vacancy;
+	for (i = 0; i < stop; i++)
+	{
+        flag = TRUE;
+		
+        /* search subtree */
+        for (j = 0; j < query_dim; j++)
+        {
+			// if for any dimension, the current node box is not intersecting the ``big'' query range,
+			// prune this node directly
+			if (curr_node->ptr[i]->a[j] > max[j] ||
+				curr_node->ptr[i]->b[j] < min[j])
+			{
+				flag = FALSE;
+				break;
+			}
+        }
+
+        if (flag == FALSE)
+        	continue;
+
+        flag = FALSE;
+
+		for (j = 0; j < no_query; j++)
+		{
+			ind_query = query[j];
+			flag_pr = TRUE;
+			for (k = 0; k < query_dim; k++)
+			{
+				if (!(curr_node->a[k] > (ind_query[k] + error) ||
+					  curr_node->b[k] < (ind_query[k] - error)))
+				{
+					flag_pr = FALSE;
+					break;
+				}
+			}
+
+			if (flag_pr == FALSE)
+			{
+				flag = TRUE;
+				break;
+			}
+		}
+		
+        /* search the node which contains the query */
+        if (flag == TRUE)
+        {
+        	rectangle_search_node_bundle(curr_node->ptr[i], no_query, query, error, min, max, aInfo, BR, page_accessed);
+        }
+	}
 	
-} /* rectangle_search_tree */
+}
 
 
+int rectangle_search_bundle(node_type *root, int no_query, R_TYPE **query, float error, float *min, float *max, BundleReturn_type **returnResult, rtree_info *aInfo)
+{
+	int page_accessed = 0;
+	rectangle_search_node_bundle(root, no_query, query, error, min, max, aInfo, returnResult, &page_accessed);
+
+	return page_accessed;
+}
 
 
 void read_inter_node(node_type *node, FILE *fp, rtree_info *aInfo)
 {
 	int i, count;
 	
+#ifdef R_FLOAT
 	for (i = 0; i<aInfo->dim; i++)
         fscanf(fp, "%f\n", &((node->a)[i]));
-	
 	for (i = 0; i<aInfo->dim; i++)
         fscanf(fp, "%f\n", &((node->b)[i]));
+#else
+	for (i = 0; i<aInfo->dim; i++)
+        fscanf(fp, "%d\n", &((node->a)[i]));
+	for (i = 0; i<aInfo->dim; i++)
+        fscanf(fp, "%d\n", &((node->b)[i]));
+#endif
 	
 	fscanf(fp, "%d\n", &(node->attribute));
 	if (node->attribute == LEAF) {
@@ -299,7 +419,7 @@ void NN_freeChain(NN_type *NN)
 	free(NN);
 }
 
-void NN_update(NN_type **NN, double dist, node_type *node, int level, int k)
+void NN_update(NN_type **NN, R_LONG_TYPE dist, node_type *node, int level, int k)
 {
 	int i=0;
 	int l;
@@ -450,8 +570,8 @@ void k_NN_NodeSearch(node_type *curr_node, R_TYPE *query, NN_type **NN, int k, i
 {
 	
 	int i, total;
-	double dist;
-	ABL       *branch;
+	R_LONG_TYPE dist;
+	ABL *branch;
 	
 	E_page_access_count++;
 
@@ -490,12 +610,13 @@ void k_NN_NodeSearch(node_type *curr_node, R_TYPE *query, NN_type **NN, int k, i
 	return;
 }
 
-void k_NN_NodeSearch_sphere(node_type *curr_node, R_TYPE *query, NN_type **NN, int k, int level, rtree_info *aInfo, float rad)
+
+void k_NN_NodeSearch_sphere(node_type *curr_node, R_TYPE *query, NN_type **NN, int k, int level, rtree_info *aInfo, R_LONG_TYPE rad)
 {
 	
 	int i, total;
-	double dist;
-	ABL       *branch;
+	R_LONG_TYPE dist;
+	ABL *branch;
 	
 	E_page_access_count++;
 
@@ -634,7 +755,7 @@ void k_NN_search(node_type *root, R_TYPE *query, int k, NN_type **returnResult, 
 /**
  * Gives me the squred radius
  */
-void k_NN_search_sphere(node_type *root, R_TYPE *query, int k, NN_type **returnResult, rtree_info *aInfo, float rad)
+void k_NN_search_sphere(node_type *root, R_TYPE *query, int k, NN_type **returnResult, rtree_info *aInfo, R_LONG_TYPE rad)
 {
 	int i;
 	
@@ -673,27 +794,12 @@ void k_NN_search_sphere(node_type *root, R_TYPE *query, int k, NN_type **returnR
 	return;
 }
 
-void RangeReturn_update(RangeReturn_type **RR, double dist, node_type *node)
-{
-	RangeReturn_type* new_return = (RangeReturn_type *) malloc(sizeof(RangeReturn_type));
-	new_return->dist = dist;
-	new_return->oid = node->id;
-	new_return->pointer = node;
-	new_return->next = NULL;
-	new_return->prev = *RR;
-
-	if (*RR)
-		(*RR)->next = new_return;
-	
-	*RR = new_return;
-}
-
-void sphere_NodeSearch(node_type *curr_node, R_TYPE *query, float min, float max, RangeReturn_type **RR, rtree_info *aInfo)
+void sphere_NodeSearch(node_type *curr_node, R_TYPE *query, R_LONG_TYPE min, R_LONG_TYPE max, RangeReturn_type **RR, rtree_info *aInfo)
 {
 	
 	int i, total;
-	double dist;
-	ABL       *branch;
+	R_LONG_TYPE dist;
+	ABL *branch;
 	
 	E_page_access_count++;
 
@@ -711,7 +817,11 @@ void sphere_NodeSearch(node_type *curr_node, R_TYPE *query, float min, float max
 			dist = cal_Euclidean(curr_node->ptr[i], query, aInfo);
 			// if (curr_node->ptr[i]->id == 71541 || curr_node->ptr[i]->id == 70273)
 			// 	printf("%d: %.10f, min=%.10f, max=%.10f\n", curr_node->ptr[i]->id, dist, min, max);
+#ifdef R_FLOAT
 			if (min - FLOAT_ZERO <= dist && dist <= max + FLOAT_ZERO)
+#else
+			if (min - INT_ZERO <= dist && dist <= max + INT_ZERO)
+#endif
 				RangeReturn_update(RR, dist, curr_node->ptr[i]);
 		}
 	}
@@ -723,7 +833,11 @@ void sphere_NodeSearch(node_type *curr_node, R_TYPE *query, float min, float max
 		gen_ABL_minmax_nosort(curr_node, branch, query, total, aInfo);
 		for (i=0;i<total;i++)
 		{
+#ifdef R_FLOAT
 			if (branch[i].min > max + FLOAT_ZERO || branch[i].max < min - FLOAT_ZERO)
+#else
+			if (branch[i].min > max + INT_ZERO || branch[i].max < min - INT_ZERO)
+#endif
 				continue;
 			else
 				sphere_NodeSearch(branch[i].node, query, min, max, RR, aInfo);
@@ -736,7 +850,7 @@ void sphere_NodeSearch(node_type *curr_node, R_TYPE *query, float min, float max
 /**
  * Gives me the squred distance
  */
-void sphere_search(node_type *root, R_TYPE *query, float min, float max, RangeReturn_type **returnResult, rtree_info *r_info)
+void sphere_search(node_type *root, R_TYPE *query, R_LONG_TYPE min, R_LONG_TYPE max, RangeReturn_type **returnResult, rtree_info *r_info)
 {
 	*returnResult = NULL;
 	sphere_NodeSearch(root, query, min, max, returnResult, r_info);

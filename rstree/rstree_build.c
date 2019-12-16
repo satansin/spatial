@@ -1689,14 +1689,14 @@ void write_leaf_node(node_type *node, FILE *fp, rtree_info *aInfo)
 #ifdef R_FLOAT
         fprintf(fp, "%f\n", (node->a)[i]);
 #else
-		fprintf(fp, "%d.0\n", (node->a)[i]);
+		fprintf(fp, "%d\n", (node->a)[i]); // originally write as %d.0, why??
 #endif
 	
 	for (i = 0; i<aInfo->dim; i++)
 #ifdef R_FLOAT
         fprintf(fp, "%f\n", (node->b)[i]);
 #else
-		fprintf(fp, "%d.0\n", (node->b)[i]);
+		fprintf(fp, "%d\n", (node->b)[i]); // originally write as %d.0, why??
 #endif
 	
 	fprintf(fp, "%d\n", node->attribute);
@@ -1716,14 +1716,14 @@ void write_inter_node(node_type *node, FILE *fp, rtree_info *aInfo)
 #ifdef R_FLOAT
 		fprintf(fp, "%f\n", (node->a)[i]);
 #else
-		fprintf(fp, "%d.0\n", (node->a)[i]);
+		fprintf(fp, "%d\n", (node->a)[i]); // originally write as %d.0, why??
 #endif
 	
 	for (i = 0; i<aInfo->dim; i++)  
 #ifdef R_FLOAT
         fprintf(fp, "%f\n", (node->b)[i]);
 #else
-		fprintf(fp, "%d.0\n", (node->b)[i]);
+		fprintf(fp, "%d\n", (node->b)[i]); // originally write as %d.0, why??
 #endif
 	
 	fprintf(fp, "%d\n", node->attribute);

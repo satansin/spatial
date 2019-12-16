@@ -1,6 +1,9 @@
 #include "TriMesh.h"
 #include "TriMesh_algo.h"
 #include "KDtree.h"
+#include <gsl/gsl_cdf.h>
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
 #include <cstdio>
 #include <iostream>
 #include <fstream>
@@ -65,7 +68,7 @@ int main(int argc, char** argv) {
 	const string db_path = argv[(++argi)];
 
 	// int m = atoi(argv[(++argi)]);
-	const double epsilon_m = atof(argv[(++argi)]);
+	const double epsilon = atof(argv[(++argi)]);
 	const double eta = atof(argv[(++argi)]);
 
 	const string output_filename = argv[(++argi)];
@@ -128,90 +131,75 @@ int main(int argc, char** argv) {
 		// 	v[1] - r_y1 >= 0 && v[1] - r_y2 <= 0 &&
 		// 	v[2] - r_z1 >= 0 && v[2] - r_z2 <= 0) {
 			query_mesh->vertices.push_back(v);
-			idmap.push_back(i);
 		// }
 	}
 
-	int in_range_count = query_mesh->vertices.size();
-	printf("Found %d pts in range\n", in_range_count);
+	int m = query_mesh->vertices.size();
+	printf("Found %d pts in range\n", m);
 
-	// int target_inlier_count = m * eta;
-	int target_inlier_count = in_range_count;
-	printf("Target inlier count is %d, thus %d pts to be removed\n",
-		target_inlier_count, max(in_range_count - target_inlier_count, 0));
+    // rounding eta and epsilon
+    double real_eta = min(eta, 0.99999);
+    double real_epsilon = max(epsilon, 0.00001);
 
-	while (target_inlier_count < in_range_count) {
-		// remove an in-range point randomly
-		int ran = rand() % in_range_count;
-		query_mesh->vertices.erase(query_mesh->vertices.begin() + ran);
-		idmap.erase(idmap.begin() + ran);
+    double sigma = real_epsilon / gsl_cdf_ugaussian_Qinv((1.0 - real_eta) / 2.0);
 
-		in_range_count--;
-	}
+    const gsl_rng_type* RNG_TYPE;
+    gsl_rng* rng;
 
+	gsl_rng_env_setup();
+
+	RNG_TYPE = gsl_rng_default;
+	rng = gsl_rng_alloc(RNG_TYPE);
+
+	// // for test
+	// for (int i = 0; i < 100; i++) {
+	// 	cout << gsl_ran_gaussian(rng, sigma) << endl;
+	// }
+
+	int real_inlier_count = 0;
 	double ground_truth_err_linear = 0.0;
 	double ground_truth_err_quadratic = 0.0;
-	if (epsilon_m > 0) {
-		for (int i = 0; i < query_mesh->vertices.size(); i++) {
-			double target_drifting_dist = rand_double_in_range(0.0, epsilon_m);
-			ground_truth_err_linear += target_drifting_dist;
-			ground_truth_err_quadratic += target_drifting_dist * target_drifting_dist;
 
-			double a = rand_double_in_range(0.0, 1.0) - 0.5,
-				   b = rand_double_in_range(0.0, 1.0) - 0.5,
-				   c = rand_double_in_range(0.0, 1.0) - 0.5;
-			double norm = sqrt(a * a + b * b + c * c);
-			double ran_scale = target_drifting_dist / norm;
-			a *= ran_scale; b *= ran_scale; c *= ran_scale;
-
-			query_mesh->vertices[i][0] += a;
-			query_mesh->vertices[i][1] += b;
-			query_mesh->vertices[i][2] += c;
+	for (int i = 0; i < query_mesh->vertices.size(); i++) {
+		// double target_drifting_dist = rand_double_in_range(0.0, epsilon);
+		double target_drifting_dist = abs(gsl_ran_gaussian(rng, sigma));
+		if (target_drifting_dist <= real_epsilon) {
+			idmap.push_back(i);
+			real_inlier_count++;
+		} else {
+			idmap.push_back(-1);
 		}
-	}
 
-	int m = target_inlier_count / eta;
-	int outlier_to_add = max(m - target_inlier_count, 0);
-	if (outlier_to_add > 0)	{
-		printf("Adding %d outliers\n", outlier_to_add);
-	}
-	while (outlier_to_add > 0) {
-		// add a random noise point
-		point n;
-		double dist = -1.0;
-		do {
-			n = rand_pt(r_x1, r_x2, r_y1, r_y2, r_z1, r_z2);
-			dist = nn_dist(n, db_kd);
-		} while (dist <= epsilon_m);
+		double a = rand_double_in_range(0.0, 1.0) - 0.5,
+			   b = rand_double_in_range(0.0, 1.0) - 0.5,
+			   c = rand_double_in_range(0.0, 1.0) - 0.5;
+		double norm = sqrt(a * a + b * b + c * c);
+		double ran_scale = target_drifting_dist / norm;
+		a *= ran_scale; b *= ran_scale; c *= ran_scale;
 
-		query_mesh->vertices.push_back(n);
-		idmap.push_back(-1);
+		query_mesh->vertices[i][0] += a;
+		query_mesh->vertices[i][1] += b;
+		query_mesh->vertices[i][2] += c;
+
+		double dist = nn_dist(query_mesh->vertices[i], db_kd);
 		ground_truth_err_linear += dist;
 		ground_truth_err_quadratic += dist * dist;
-
-		outlier_to_add--;
 	}
 
 	rot(query_mesh, rand_double_in_range(0, 2 * PI),
 		vec(rand_double_in_range(-1, 1), rand_double_in_range(-1, 1), rand_double_in_range(-1, 1)));
 	trans(query_mesh, -mesh_center_of_mass(query_mesh));
 
+	cout << "Real inlier rate: " << ((double) real_inlier_count / m) << endl; 
+
 	cout << "Writing query point cloud to " << output_filename << endl;
 	query_mesh->write(output_filename);
-
-	// string map_filename = output_filename + ".map";
-	// cout << "Writing map file to " << map_filename << endl;
-	// ofstream map_ofs(map_filename);
-	// for (int i = 0; i < idmap.size(); i++) {
-	// 	map_ofs << i << " " << idmap[i] << endl;
-	// }
-	// map_ofs.close();
 
 	string info_filename = output_filename + ".info";
 	cout << "Writing info file to " << info_filename << endl;
 	ofstream info_ofs(info_filename);
-	info_ofs << m << " " << epsilon_m << " " << eta << " " << db_mesh_id << endl;
-	info_ofs << ground_truth_err_linear << " " << ground_truth_err_quadratic << endl;
+	info_ofs << m << " " << epsilon << " " << eta << " " << db_mesh_id << endl;
+	info_ofs << real_inlier_count << " " << ground_truth_err_linear << " " << ground_truth_err_quadratic << endl;
 	for (int i = 0; i < idmap.size(); i++) {
 		info_ofs << i << " " << idmap[i] << endl;
 	}

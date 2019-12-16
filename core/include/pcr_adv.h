@@ -25,6 +25,8 @@ const char* TAB = "  ";
 const char* TABTAB = "    ";
 const char* TABTABTAB = "      ";
 
+const int RSTREE_SCALE = 1e5;
+
 struct PtwID {
 	int id;
 	Pt3D pt;
@@ -348,18 +350,14 @@ struct Entry {
 	bool fail;
 	PtwID* help;
 	double sides[6];
-	Entry() {
-        this->repre = new PtwID;
-        for (int i = 0; i < 3; i++) {
-        	this->remai[i] = new PtwID;
-        }
-        this->vol = -1;
-    	this->meas = -1;
-    	this->fail = false;
-    	this->help = new PtwID;
-    	for (int i = 0; i < 6; i++) {
-    		sides[i] = 0;
-    	}
+	// make it compatible with old method
+	void set(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, double vol, double meas) {
+		*(this->repre) = repre;
+		*(this->remai[0]) = remai_0;
+		*(this->remai[1]) = remai_1;
+		*(this->remai[2]) = remai_2;
+		this->vol = vol;
+		this->meas = meas;
 	}
 	void set(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, double vol, double meas, PtwID help) {
 		*(this->repre) = repre;
@@ -369,25 +367,25 @@ struct Entry {
 		this->vol = vol;
 		this->meas = meas;
 		*(this->help) = help;
-		// this->fill_sides();
+	}
+	Entry() {
+        this->mem_alloc();
+        this->vol = -1;
+    	this->meas = -1;
+    	this->fail = false;
+    	for (int i = 0; i < 6; i++) {
+    		sides[i] = 0;
+    	}
 	}
 	Entry(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, double vol, double meas, PtwID help) {
-        this->repre = new PtwID;
-        for (int i = 0; i < 3; i++) {
-        	this->remai[i] = new PtwID;
-        }
-    	this->help = new PtwID;
-		set(repre, remai_0, remai_1, remai_2, vol, meas, help);
+        this->mem_alloc();
+		this->set(repre, remai_0, remai_1, remai_2, vol, meas, help);
+		this->fail = false;
 	}
-	// make it compatible with old method
-	void set(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, double vol, double meas) {
-		*(this->repre) = repre;
-		*(this->remai[0]) = remai_0;
-		*(this->remai[1]) = remai_1;
-		*(this->remai[2]) = remai_2;
-		this->vol = vol;
-		this->meas = meas;
-		// this->fill_sides();
+	Entry(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, PtwID help) {
+        this->mem_alloc();
+		this->set(repre, remai_0, remai_1, remai_2, -1, -1, help);
+		this->fail = false;
 	}
 	void read_from(istream& is, const TriMesh* mesh_db) {
 		int repre_id, help_id;
@@ -420,18 +418,6 @@ struct Entry {
 		sides[3] = eucl_dist(this->remai[0]->pt, this->remai[1]->pt);
 		sides[4] = eucl_dist(this->remai[0]->pt, this->remai[2]->pt);
 		sides[5] = eucl_dist(this->remai[1]->pt, this->remai[2]->pt);
-	}
-	int primary_remai() const {
-		if (this->sides[0] <= this->sides[1])
-			if (this->sides[0] <= this->sides[2])
-				return 0;
-			else
-				return 2;
-		else
-			if (this->sides[1] <= this->sides[2])
-				return 1;
-			else
-				return 2;
 	}
 	void sort_sides() {
 		int prim = this->primary_remai();
@@ -473,6 +459,27 @@ struct Entry {
         }
 		delete help;
 	}
+
+private:
+	int primary_remai() const {
+		if (this->sides[0] <= this->sides[1])
+			if (this->sides[0] <= this->sides[2])
+				return 0;
+			else
+				return 2;
+		else
+			if (this->sides[1] <= this->sides[2])
+				return 1;
+			else
+				return 2;
+	}
+	void mem_alloc() {
+        this->repre = new PtwID;
+        for (int i = 0; i < 3; i++) {
+        	this->remai[i] = new PtwID;
+        }
+    	this->help = new PtwID;
+	}
 };
 
 void sort_remai(Entry& e) {
@@ -498,15 +505,18 @@ private:
 
 struct Struct_DB {
 private:
-	unordered_map<int, Grid*> grids;
+	vector<Grid*> grids;
+
 	double w;
 	double ann_min;
 	double ann_max;
-	unordered_map<int, Entry*> entries_map;
-	unordered_map<int, unordered_map<int, int>> reverse_entries_maps;
-	unordered_map<int, unordered_set<int>> repre_id_sets;
 
-	unordered_map<int, int> global_id_map;
+	vector<Entry*> entries;
+
+	vector<unordered_map<int, int>> reverse_entries_maps;
+	vector<unordered_set<int>> repre_id_sets;
+
+	vector<int> global_id_map;
 
 	int total_cells_count; // accumulative
 
@@ -537,27 +547,28 @@ public:
 		return this->total_cells_count;
 	}
 
-	void insert_grid(int key, Grid* g) {
-		grids[key] = g;
+	void append_grid(Grid* g) {
+		grids.push_back(g);
 		this->total_cells_count += g->cells_map.size();
 	}
-	const unordered_map<int, Grid*>& get_grids_map() const {
+	const vector<Grid*>& get_grids() const {
 		return this->grids;
 	}
 
-	void insert_entry(int key, Entry* e) {
-		entries_map[key] = e;
+	void append_entry(Entry* e) {
+		entries.push_back(e);
 	}
-	const unordered_map<int, Entry*>& get_entries_map() const {
-		return entries_map;
+	const vector<Entry*>& get_entries() const {
+		return entries;
 	}
 
-	void read(string filename, const unordered_map<int, TriMesh*>& db_meshes) {
+	void read(string filename, const vector<TriMesh*>& db_meshes) {
 	    ifstream ifs(filename);
 
 	    int num_grids;
 	    ifs >> this->w >> this->ann_min >> this->ann_max >> num_grids >> this->total_cells_count;
 
+	    this->grids.reserve(num_grids);
 	    for (int i = 0; i < num_grids; i++) {
 	    	int id;
 	    	ifs >> id;
@@ -566,8 +577,12 @@ public:
 		    ifs >> g->cells_box->min_id[0] >> g->cells_box->min_id[1] >> g->cells_box->min_id[2]
 		        >> g->cells_box->max_id[0] >> g->cells_box->max_id[1] >> g->cells_box->max_id[2];
 
-		    this->grids[id] = g;
+		    this->grids.push_back(g);
 	    }
+	    this->grids.shrink_to_fit();
+
+	    reverse_entries_maps.resize(num_grids);
+	    repre_id_sets.resize(num_grids);
 
 	    for (int i = 0; i < this->total_cells_count; i++) {
 	        int grid_id, key, cell_id, x, y, z, list_size;
@@ -579,7 +594,8 @@ public:
 	        Cell* c = new Cell(x, y, z);
 	        c->set_global_id(cell_id);
 	        for (int j = 0; j < list_size; j++) {
-	            int pt_id; ifs >> pt_id;
+	            int pt_id;
+	            ifs >> pt_id;
 	            c->add_pt(pt_id, pt(db_meshes.at(grid_id)->vertices[pt_id]));
 	        }
 	        this->grids[grid_id]->cells_map[key] = c;
@@ -588,38 +604,39 @@ public:
 	        Entry *e = new Entry;
 	        e->read_from(ifs, db_meshes.at(grid_id));
 
+	        this->entries.push_back(e);
+
 	        this->repre_id_sets[grid_id].insert(e->repre->id);
 	        this->reverse_entries_maps[grid_id][e->repre->id] = cell_id;
-	        this->entries_map[cell_id] = e;
 
-	        this->global_id_map[cell_id] = grid_id;
+	        this->global_id_map.push_back(grid_id);
 	    }
 
 	    ifs.close();
 	}
 
 	Entry* get_entry(int key) const {
-		return entries_map.at(key);
+		return entries[key];
 	}
 
 	int get_grid_id_by_global_cell_id(int global_cell_id) const {
-		return global_id_map.at(global_cell_id);
+		return global_id_map[global_cell_id];
 	}
 
 	bool look_up_repre_index(int repre_id, int mesh_id) const {
-	    auto got = this->repre_id_sets.at(mesh_id).find(repre_id);
-	    if (got != this->repre_id_sets.at(mesh_id).end()) {
+	    auto got = this->repre_id_sets[mesh_id].find(repre_id);
+	    if (got != this->repre_id_sets[mesh_id].end()) {
 	        return true;
 	    }
 	    return false;
 	}
 
 	int get_remai_id(int repre_id, int i, int mesh_id) const {
-		return this->entries_map.at(this->reverse_entries_maps.at(mesh_id).at(repre_id))->remai[i]->id;
+		return this->entries[this->reverse_entries_maps[mesh_id].at(repre_id)]->remai[i]->id;
 	}
 
 	int get_help_id(int repre_id, int mesh_id) const {
-		return this->entries_map.at(this->reverse_entries_maps.at(mesh_id).at(repre_id))->help->id;
+		return this->entries[this->reverse_entries_maps[mesh_id].at(repre_id)]->help->id;
 	}
 
 	void save(string filename) const {
@@ -628,16 +645,16 @@ public:
 		// write grid headers
 		ofs << this->w << " " << this->ann_min << " " << this->ann_max << " " << this->grids.size() << " " << this->total_cells_count << endl;
 
-		for (auto &p: this->grids) {
-			ofs << p.first << " ";
-			p.second->cells_box->save(ofs);
+		for (int i = 0; i < this->grids.size(); i++) {
+			ofs << i << " ";
+			this->grids[i]->cells_box->save(ofs);
 			ofs << endl;
 	    }
 
-	    for (auto &p: this->grids) {
-	    	for (auto &it: p.second->cells_map) {
-	    		ofs << p.first << " " << it.first << " " << it.second->to_str() << endl;
-	    		ofs << p.first << " " << entries_map.at(it.second->global_id)->to_str(12) << endl;
+		for (int i = 0; i < this->grids.size(); i++) {
+	    	for (auto &it: this->grids[i]->cells_map) {
+	    		ofs << i << " " << it.first << " " << it.second->to_str() << endl;
+	    		ofs << i << " " << entries[it.second->global_id]->to_str(12) << endl;
 	    	}
 	    }
 
@@ -663,8 +680,10 @@ public:
 
 	    ifstream info_q_ifs(info_filename);
 
+	    int real_inlier_count;
+
 	    info_q_ifs >> this->m >> this->epsilon >> this->eta >> this->db_mesh_id;
-	    info_q_ifs >> this->gt_err_linear >> this->gt_err_quad;
+	    info_q_ifs >> real_inlier_count >> this->gt_err_linear >> this->gt_err_quad;
 
 	    int q_id, db_id;
 	    for (int i = 0; i < this->m; i++) {
@@ -736,15 +755,11 @@ inline double sq(double d) {
 	return (d * d);
 }
 
-// inline double sq_max(double sq_min, double epsilon) {
-// 	return ((epsilon == 0) ? sq_min : sq(sqrt(sq_min) + epsilon * 2.0));
-// }
-
 inline void convert_pt(Pt3D* p, R_TYPE*& ret) {
     ret = (R_TYPE *) malloc(sizeof(R_TYPE) * 3);
-    ret[0] = p->x;
-    ret[1] = p->y;
-    ret[2] = p->z;
+    ret[0] = (int) (p->x * RSTREE_SCALE);
+    ret[1] = (int) (p->y * RSTREE_SCALE);
+    ret[2] = (int) (p->z * RSTREE_SCALE);
 }
 
 inline NN_type** nn_sphere(Pt3D* p, node_type *r_root, rtree_info* r_info, double sq_dist,
@@ -758,7 +773,8 @@ inline NN_type** nn_sphere(Pt3D* p, node_type *r_root, rtree_info* r_info, doubl
     if (sq_dist == 0.0) {
     	k_NN_search(r_root, query, real_k, &nn, r_info);
     } else {
-    	k_NN_search_sphere(r_root, query, real_k, &nn, r_info, sq_dist);
+    	long long sq_dist_long = (long long) (sq_dist * RSTREE_SCALE * RSTREE_SCALE);
+    	k_NN_search_sphere(r_root, query, real_k, &nn, r_info, sq_dist_long);
     }
 
     NN_type *nn_copy = nn;
@@ -800,7 +816,26 @@ inline void range_sphere(Pt3D* p, node_type *r_root, rtree_info* r_info, double 
     convert_pt(p, query);
 	RangeReturn_type* rr = NULL;
 
-	sphere_search(r_root, query, sq_dist_min, sq_dist_max, &rr, r_info);
+	long long sq_dist_min_long = (long long) (sq_dist_min * RSTREE_SCALE * RSTREE_SCALE);
+	long long sq_dist_max_long = (long long) (sq_dist_max * RSTREE_SCALE * RSTREE_SCALE);
+	sphere_search(r_root, query, sq_dist_min_long, sq_dist_max_long, &rr, r_info);
+
+	while (rr) {
+		if (excl_id_set.find(rr->oid) == excl_id_set.end()) { // not in the exclusive list
+			ret.push_back(rr);
+		}
+		rr = rr->prev;
+	}
+}
+
+inline void range_sphere(Pt3D* p, node_type *r_root, rtree_info* r_info, long long sq_dist_min_long, long long sq_dist_max_long,
+	vector<RangeReturn_type*>& ret, const unordered_set<int>& excl_id_set = {}) {
+
+	R_TYPE *query;
+    convert_pt(p, query);
+	RangeReturn_type* rr = NULL;
+
+	sphere_search(r_root, query, sq_dist_min_long, sq_dist_max_long, &rr, r_info);
 
 	while (rr) {
 		if (excl_id_set.find(rr->oid) == excl_id_set.end()) { // not in the exclusive list
@@ -823,11 +858,11 @@ inline NN_type** nn_sphere_range(Pt3D* p, node_type *r_root, rtree_info* r_info,
 
 	auto nn_ret = nn_sphere(p, r_root, r_info, sq_dist, excl_id_set);
 
-	double dist = sqrt(nn_ret[0]->dist);
-	double min = nn_ret[0]->dist;
-	double max = sq(dist + err * 2);
+	long long min_long = nn_ret[0]->dist;
+	double dist = sqrt((double) min_long);
+	long long max_long = sq(dist + err * 2 * RSTREE_SCALE);
 
-	range_sphere(p, r_root, r_info, min, max, ret, excl_id_set);
+	range_sphere(p, r_root, r_info, min_long, max_long, ret, excl_id_set);
 
 	return nn_ret;
 }
@@ -838,16 +873,87 @@ inline NN_type** nn_sphere_range_verbose(Pt3D* p, node_type *r_root, rtree_info*
 
 	auto nn_ret = nn_sphere(p, r_root, r_info, sq_dist, excl_id_set);
 
-	double dist = sqrt(nn_ret[0]->dist);
-	double min = nn_ret[0]->dist;
-	double max = sq(dist + err * 2);
+	long long min_long = nn_ret[0]->dist;
+	double dist = sqrt((double) min_long);
+	long long max_long = sq(dist + err * 2 * RSTREE_SCALE);
 
-	cout << nav << "min=" << min << endl;
-	cout << nav << "max=" << max << endl;
+	cout << nav << "min=" << min_long << endl;
+	cout << nav << "max=" << max_long << endl;
 
-	range_sphere(p, r_root, r_info, min, max, ret, excl_id_set);
+	range_sphere(p, r_root, r_info, min_long, max_long, ret, excl_id_set);
 
 	return nn_ret;
+}
+
+inline int window_query(node_type *r_root, rtree_info* r_info, double sides[], double err,
+	vector<RangeReturn_type*>& ret, int& page_accessed) {
+
+	R_TYPE* query_min = (R_TYPE *) malloc(sizeof(R_TYPE) * 6);
+	R_TYPE* query_max = (R_TYPE *) malloc(sizeof(R_TYPE) * 6);
+	for (int i = 0; i < 6; i++) {
+		query_min[i] = (int) ((sides[i] - err) * RSTREE_SCALE);
+		query_max[i] = (int) ((sides[i] + err) * RSTREE_SCALE);
+		// cout << "[" << query_min[i] << ", " << query_max[i] << "]" << endl;
+	}
+	RangeReturn_type* rr = NULL;
+
+	page_accessed = rectangle_search(r_root, 1, &query_min, &query_max, &rr, r_info);
+
+	free(query_min);
+	free(query_max);
+
+	int num = 0;
+
+	while (rr) {
+		num++;
+		ret.push_back(rr);
+		rr = rr->prev;
+	}
+
+	return num;
+}
+
+inline int window_query_bundle(node_type *r_root, rtree_info* r_info, const vector<Entry*>& e_list, double err, double bbox_min[], double bbox_max[],
+	vector<BundleReturn_type*>& ret, int& page_accessed) {
+
+	int e_count = e_list.size();
+
+	R_TYPE** query = (R_TYPE **) malloc(sizeof(R_TYPE *) * e_count);
+	for (int i = 0; i < e_count; i++) {
+		R_TYPE* ind_query = (R_TYPE *) malloc(sizeof(R_TYPE) * 6);
+		for (int j = 0; j < 6; j++) {
+			ind_query[j] = e_list[i]->sides[j];
+		}
+		query[i] = ind_query;
+	}
+
+	BundleReturn_type* br = NULL;
+
+	float* min = (float *) malloc(sizeof(float) * 6);
+	float* max = (float *) malloc(sizeof(float) * 6);
+	for (int i = 0; i < 6; i++) {
+		min[i] = bbox_min[i];
+		max[i] = bbox_max[i];
+	}
+
+	page_accessed = rectangle_search_bundle(r_root, e_count, query, err, min, max, &br, r_info);
+
+	for (int i = 0; i < e_count; i++) {
+		free(query[i]);
+	}
+	free(query);
+	free(min);
+	free(max);
+
+	int num = 0;
+
+	while (br) {
+		num++;
+		ret.push_back(br);
+		br = br->prev;
+	}
+
+	return num;
 }
 
 inline bool get_est_b_c(Pt3D* m_ptr, Pt3D* a_ptr, Pt3D* h_ptr, Pt3D& b_est, Pt3D& c_est) {
@@ -879,6 +985,14 @@ inline bool get_est_b_c(Pt3D* m_ptr, Pt3D* a_ptr, Pt3D* h_ptr, Pt3D& b_est, Pt3D
 
 }
 
+inline rtree_info read_rstree_info(string filename) {
+	ifstream ifs(filename);
+	rtree_info ret;
+	ifs >> ret.m >> ret.M >> ret.dim >> ret.reinsert_p;
+	ifs.close();
+	return ret;
+}
+
 inline string get_foldername(string path) {
     string ret;
     if (path[path.length() - 1] != '/') {
@@ -889,7 +1003,7 @@ inline string get_foldername(string path) {
     return ret;
 }
 
-inline int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes) {
+inline int read_db_mesh_batch(string db_path, vector<TriMesh*>& db_meshes) {
     string db_folder = get_foldername(db_path);
 
     ifstream ifs(db_folder + "meta.txt");
@@ -901,7 +1015,7 @@ inline int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_m
     string s_file;
     for (int i = 0; i < num; i++) {
         ifs >> id >> s_file;
-        db_meshes[id] = TriMesh::read(s_file);
+        db_meshes.push_back(TriMesh::read(s_file));
     }
 
     ifs.close();
@@ -909,7 +1023,7 @@ inline int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_m
     return num;
 }
 
-inline int read_db_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes, rtree_info* db_rtree_info, unordered_map<int, node_type*>& db_roots) {
+inline int read_db_batch(string db_path, vector<TriMesh*>& db_meshes, rtree_info* db_rtree_info, vector<node_type*>& db_roots) {
     string db_folder = get_foldername(db_path);
 
     ifstream ifs(db_folder + "meta.txt");
@@ -921,12 +1035,12 @@ inline int read_db_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes
     string s_file;
     for (int i = 0; i < num; i++) {
         ifs >> id >> s_file;
-        db_meshes[id] = TriMesh::read(s_file);
+        db_meshes.push_back(TriMesh::read(s_file));
 
         node_type* a_root;
         read_rtree(&a_root, string(s_file + ".rstree.1").c_str(), db_rtree_info);
 
-        db_roots[id] = a_root;
+        db_roots.push_back(a_root);
     }
 
     ifs.close();

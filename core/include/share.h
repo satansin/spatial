@@ -61,6 +61,8 @@ double cal_corr_err(trimesh::TriMesh* mesh_q, trimesh::KDtree* kdtree_p, Trans* 
         auto nn = kdtree_p->closest_to_pt(pt_arr);
         // std::cout << nn << std::endl;
         // TODO: nn != 0!!!
+        if (!nn)
+            continue;
         double nn_err = eucl_dist(nn, pt_arr);
         err += nn_err;
         if (err - stop_at > 0) {

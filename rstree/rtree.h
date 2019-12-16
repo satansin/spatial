@@ -36,11 +36,14 @@
 #endif
 #define UNDEFINED -3  // for id of entries in PR
 
-#define R_FLOAT
-// #define R_TYPE int
-#define R_TYPE float
+// #define R_FLOAT
+#define R_TYPE int
+#define R_LONG_TYPE long long
+// #define R_TYPE float
+// #define R_LONG_TYPE double
 
 #define FLOAT_ZERO 0.001
+#define INT_ZERO 100
 
 /* Global variable ******************
 m: min. number entries of each node;
@@ -65,26 +68,40 @@ typedef struct node {
 }   node_type;
 	
 typedef struct NN {	
-	double dist;
+	R_LONG_TYPE dist;
 	int oid;
 	struct node *pointer; 
 	int level;
 	struct NN *next; 
 } NN_type;
 		
-typedef struct BranchArray {	
-	double min;
-	double max;
+typedef struct BranchArray {
+	R_LONG_TYPE min;
+	R_LONG_TYPE max;
 	node_type *node;
 } ABL;
 
 typedef struct RangeReturn {
-	double dist;
+	R_LONG_TYPE dist;
 	int oid;
 	struct node *pointer;
 	struct RangeReturn *prev;
 	struct RangeReturn *next;
 } RangeReturn_type;
+
+typedef struct BundleReturn {
+	int oid;
+	int qid;
+	struct node *pointer;
+	struct BundleReturn *prev;
+	struct BundleReturn *next;
+} BundleReturn_type;
+
+typedef struct NodeReturn {
+	struct node *pointer;
+	struct NodeReturn *prev;
+	struct NodeReturn *next;
+} NodeReturn_type;
 
 
 typedef struct config { 
@@ -121,8 +138,17 @@ void NN_freeChain(NN_type *aNN);
 
 void build_tree(node_type **root, R_TYPE **data, int no_data, rtree_info *aInfo);
 void k_NN_search(node_type *root, R_TYPE *query, int k, NN_type **returnResult, rtree_info *aInfo);
-void k_NN_search_sphere(node_type *root, R_TYPE *query, int k, NN_type **returnResult, rtree_info *aInfo, float rad);
-void sphere_search(node_type *root, R_TYPE *query, float min, float max, RangeReturn_type **returnResult, rtree_info *r_info);
+
+// rad, min, max are all squared
+void k_NN_search_sphere(node_type *root, R_TYPE *query, int k, NN_type **returnResult, rtree_info *aInfo, R_LONG_TYPE rad);
+void sphere_search(node_type *root, R_TYPE *query, R_LONG_TYPE min, R_LONG_TYPE max, RangeReturn_type **returnResult, rtree_info *r_info);
+
+// return total no. nodes accessed:
+int rectangle_search(node_type *root, int no_query, R_TYPE **query_min, R_TYPE **query_max, RangeReturn_type **returnResult, rtree_info *aInfo);
+// return total no. nodes accessed:
+int rectangle_search_bundle(node_type *root, int no_query, R_TYPE **query, float error, float *min, float *max, BundleReturn_type **returnResult, rtree_info *aInfo);
+// not used:
+// int rectangle_search_bundle(node_type *root, float *min, float *max, node_type **returnResult, rtree_info *aInfo);
 
 void save_rtree(node_type *root, const char save_tree_file[], rtree_info *aInfo);
 void read_rtree(node_type **root, const char save_tree_file[], rtree_info *aInfo);

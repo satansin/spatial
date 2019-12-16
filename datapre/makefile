@@ -7,6 +7,7 @@ RMDIR=rm -rf
 # USE_EIGEN=-IEigen/
 USE_TM=-I../trimesh2/include/ -L../trimesh2/lib.Linux64/
 USE_RS=-I../rstree/ ../rstree/*.o
+USE_GSL=-I/usr/local/GNU/gsl/include/ -L/usr/local/GNU/gsl/lib/
 
 SRC=src
 OBJ=obj
@@ -30,7 +31,7 @@ extract_query_auto:
 	$(CXX) $(INC) $(USE_TM) $(SRC)/extract_query_auto.cpp -o $(OUT)/extract_query_auto.out -ltrimesh -lgluit -fopenmp
 
 extract_query_batch:
-	$(CXX) $(INC) $(USE_TM) $(SRC)/extract_query_batch.cpp -o $(OUT)/extract_query_batch.out -ltrimesh -lgluit -fopenmp
+	$(CXX) $(INC) $(USE_TM) $(USE_GSL) $(SRC)/extract_query_batch.cpp -o $(OUT)/extract_query_batch.out -ltrimesh -lgluit -fopenmp -lgsl -lgslcblas -lm
 
 pre_index:
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/pre_index.cpp -o $(OUT)/pre_index.out -ltrimesh -lgluit -fopenmp

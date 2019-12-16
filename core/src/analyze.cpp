@@ -13,54 +13,50 @@ inline unsigned int get_bin(double min, double intv, int bin_size, double val) {
 
 int main(int argc, char **argv) {
     if (argc < 4) {
-        cerr << "Usage: " << argv[0] << " database_filename index_filename bin_size [-batch]" << endl;
+        cerr << "Usage: " << argv[0] << " database_path index_filename bin_size" << endl;
         exit(1);
     }
 
-    bool batch_mode = false;
-    if (argc > 4 && string(argv[4]) == "-batch")
-        batch_mode = true;
-
     int argi = 0;
-    string database_filename = argv[(++argi)];
+    string db_path = argv[(++argi)];
     string idx_filename = argv[(++argi)];
     const int bin_size = atoi(argv[(++argi)]);
 
     cout << "Reading database file..." << endl;
 
-    unordered_map<int, TriMesh*> db_meshes;
-    if (batch_mode)
-        read_db_mesh_batch(database_filename, db_meshes);
-    else
-        db_meshes[0] = TriMesh::read(database_filename);
+    vector<TriMesh*> db_meshes;
+
+    int num_meshes = read_db_mesh_batch(db_path, db_meshes);
 
     // load the DB structure
     cout << "Loading DB structure..." << endl;
     Struct_DB s_db;
-    s_db.read(idx_filename + ".grid", db_meshes);
+    s_db.read(idx_filename, db_meshes);
+
+    auto db_entries = s_db.get_entries();
 
     cout << "Start analyzing..." << endl << endl;
 
-    cout << "Size of entries: " << s_db.get_entries_map().size() << endl;
+    cout << "Size of entries: " << db_entries.size() << endl;
 
     // get min & max vols
     double min_vol = std::numeric_limits<double>::max(), max_vol = -1;
     double min_meas = 0, max_meas = 1;
     double min_side[6] = { std::numeric_limits<double>::max() }, max_side[6] = { -1 };
-    for (auto &v: s_db.get_entries_map()) {
-    	if (v.second->fail)
+    for (auto &v: db_entries) {
+    	if (v->fail)
     		continue;
 
-    	if (v.second->vol < min_vol)
-    		min_vol = v.second->vol;
-    	if (v.second->vol > max_vol)
-    		max_vol = v.second->vol;
+    	if (v->vol < min_vol)
+    		min_vol = v->vol;
+    	if (v->vol > max_vol)
+    		max_vol = v->vol;
 
         for (int i = 0; i < 6; i++) {
-            if (v.second->sides[i] < min_side[i])
-                min_side[i] = v.second->sides[i];
-            if (v.second->sides[i] > max_side[i])
-                max_side[i] = v.second->sides[i];
+            if (v->sides[i] < min_side[i])
+                min_side[i] = v->sides[i];
+            if (v->sides[i] > max_side[i])
+                max_side[i] = v->sides[i];
         }
     }
     cout << "Max vol: " << max_vol << endl;
@@ -88,15 +84,15 @@ int main(int argc, char **argv) {
         }
     }
 
-    for (auto &v: s_db.get_entries_map()) {
-    	if (v.second->fail)
+    for (auto &v: db_entries) {
+    	if (v->fail)
     		continue;
 
-    	histo_vol[get_bin(min_vol, intv_vol, bin_size, v.second->vol)]++;
-    	histo_meas[get_bin(min_meas, intv_meas, bin_size, v.second->meas)]++;
+    	histo_vol[get_bin(min_vol, intv_vol, bin_size, v->vol)]++;
+    	histo_meas[get_bin(min_meas, intv_meas, bin_size, v->meas)]++;
 
         for (int i = 0; i < 6; i++) {
-            histo_side[i][get_bin(min_side[i], intv_side[i], bin_size, v.second->sides[i])]++;
+            histo_side[i][get_bin(min_side[i], intv_side[i], bin_size, v->sides[i])]++;
         }
     }
 

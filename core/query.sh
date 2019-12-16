@@ -12,14 +12,34 @@ source ../common/config/dir_loc.sh
 
 # ./out/query.out "$DIR_DB"/redwood-01-livingroom.ply "$DIR_RSTREE"/redwood-01-livingroom.rstree.1 "$DIR_INDEX"/redwood-01-livingroom.idx "$DIR_QUERY"/redwood-01-q1.ply "$DIR_RSTREE"/redwood-01-q1.rstree.1 #-debug
 
-# ./out/query.out "$DIR_DB"/obj_scans/ "$DIR_INDEX"/obj_scans.idx "$DIR_QUERY"/obj_scans/q1.ply "$DIR_QUERY"/obj_scans/q1.ply.rstree.1 10000 -batch -verbose=0 #-test
 
-./out/query.out "$DIR_DB"/obj_scans/ "$DIR_INDEX"/obj_scans.idx "$DIR_QUERY"/obj_scans/q2.ply "$DIR_QUERY"/obj_scans/q2.ply.rstree.1 100000 -batch -verbose=0 #-test
+## query for object scans 2
+
+# ./out/query.out "$DIR_DB"/obj_scans_2/ "$DIR_INDEX"/obj_scans_2/obj_scans_2.100.grid "$DIR_INDEX"/obj_scans_2/obj_scans_2.100.int.idx.4 "$DIR_QUERY"/obj_scans_2/q1.ply 1000 -verbose=0 #-test -force_cell=2716 #-force_pt=161891
+# ./out/query.out "$DIR_DB"/obj_scans_2/ "$DIR_INDEX"/obj_scans_2/obj_scans_2.100.grid "$DIR_INDEX"/obj_scans_2/obj_scans_2.100.int.idx.4 "$DIR_QUERY"/obj_scans_2/q2.ply 300000 -verbose=0 #-test -force_cell=2270 #-force_pt=46371
+# gdb -ex 'file ./out/query.out' -ex 'run /project/kdd/hliubs/data/spatial/3dor/db/obj_scans_2/ /project/kdd/hliubs/data/spatial/3dor/index/obj_scans_2/obj_scans_2.new.100.0.idx /project/kdd/hliubs/data/spatial/3dor/query/obj_scans_2/q2.ply 300000 -verbose=1 -test -force_cell=2270 -force_pt=46371'
+
+# ./out/query.out "$DIR_DB"/obj_scans_2/ "$DIR_INDEX"/obj_scans_2/obj_scans_2.200.grid "$DIR_INDEX"/obj_scans_2/obj_scans_2.200.int.idx.4 "$DIR_QUERY"/obj_scans_2/q1.ply 1000 -verbose=0 #-test
+# ./out/query.out "$DIR_DB"/obj_scans_2/ "$DIR_INDEX"/obj_scans_2/obj_scans_2.200.grid "$DIR_INDEX"/obj_scans_2/obj_scans_2.200.int.idx.4 "$DIR_QUERY"/obj_scans_2/q2.ply 300000 -verbose=0 #-test
+
+# ./out/query.out "$DIR_DB"/obj_scans_2/ "$DIR_INDEX"/obj_scans_2/obj_scans_2.100.grid "$DIR_INDEX"/obj_scans_2/obj_scans_2.100.int.idx.4 "$DIR_QUERY"/obj_scans_2_test/q.000.090.ply 1000 #-test
 
 
+## query for object scans 17
+
+# ./out/query.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.grid "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.int.idx.4 "$DIR_QUERY"/obj_scans_17/q1.ply 1000 -verbose=0 #-test
+# ./out/query.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.grid "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.int.idx.4 "$DIR_QUERY"/obj_scans_17/q2.ply 200000 -verbose=0 #-test
+
+# ./out/query.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17/obj_scans_17.200.grid "$DIR_INDEX"/obj_scans_17/obj_scans_17.200.int.idx.4 "$DIR_QUERY"/obj_scans_17/q1.ply 1000 -verbose=0 #-test
+# ./out/query.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17/obj_scans_17.200.grid "$DIR_INDEX"/obj_scans_17/obj_scans_17.200.int.idx.4 "$DIR_QUERY"/obj_scans_17/q2.ply 200000 -verbose=0 #-test
+
+./out/query.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.grid "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.int.idx.4 "$DIR_QUERY"/obj_scans_17_test/q.010.090.ply 200000 #-test
 
 
+## query for object scans 100
 
+# ./out/query.out "$DIR_DB"/obj_scans_100/ "$DIR_INDEX"/obj_scans_100/obj_scans_100.100.grid "$DIR_INDEX"/obj_scans_100/obj_scans_100.100.int.idx.4 "$DIR_QUERY"/obj_scans_100/q1.ply 1000 -verbose=0 #-test
+# ./out/query.out "$DIR_DB"/obj_scans_100/ "$DIR_INDEX"/obj_scans_100/obj_scans_100.100.grid "$DIR_INDEX"/obj_scans_100/obj_scans_100.100.int.idx.4 "$DIR_QUERY"/obj_scans_100/q2.ply 1000 -verbose=0 #-test
 
 
 

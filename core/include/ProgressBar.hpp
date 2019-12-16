@@ -3,6 +3,51 @@
 
 #include <chrono>
 #include <iostream>
+#include <ostream>
+
+void output_time(std::ostream& os, float time_in_sec) {
+    if (time_in_sec < 60.0) {
+        os << time_in_sec << "s";
+    } else if (time_in_sec < 3600.0) {
+        float remaining_time_in_sec = time_in_sec;
+
+        int time_in_min = 0;
+        while (remaining_time_in_sec >= 60.0) {
+            remaining_time_in_sec -= 60;
+            time_in_min++;
+        }
+
+        os << time_in_min << "m";
+
+        if (remaining_time_in_sec > 0.0) {
+            os << " " << remaining_time_in_sec << "s";
+        }
+    } else {
+        float remaining_time_in_sec = time_in_sec;
+
+        int time_in_hr = 0;
+        while (remaining_time_in_sec >= 3600) {
+            remaining_time_in_sec -= 3600;
+            time_in_hr++;
+        }
+
+        os << time_in_hr << "h";
+
+        int time_in_min = 0;
+        while (remaining_time_in_sec >= 60) {
+            remaining_time_in_sec -= 60;
+            time_in_min++;
+        }
+
+        if (time_in_min > 0) {
+            os << " " << time_in_min << "m";
+        }
+
+        if (remaining_time_in_sec > 0.0) {
+            os << " " << remaining_time_in_sec << "s";
+        }
+    }
+}
 
 class ProgressBar {
 private:
@@ -37,8 +82,10 @@ public:
             else if (i == pos) std::cout << ">";
             else std::cout << incomplete_char;
         }
-        std::cout << "] " << int(progress * 100.0) << "% "
-                  << float(time_elapsed) / 1000.0 << "s\r";
+        std::cout << "] " << int(progress * 100.0) << "% ";
+        output_time(std::cout, float(time_elapsed) / 1000.0);
+        std::cout << "\r";
+                  // << float(time_elapsed) / 1000.0 << "s\r";
         std::cout.flush();
     }
 

@@ -9,6 +9,14 @@ extern "C" {
 using namespace std;
 using namespace trimesh;
 
+rtree_info read_rstree_info(string filename) {
+	ifstream ifs(filename);
+	rtree_info ret;
+	ifs >> ret.m >> ret.M >> ret.dim >> ret.reinsert_p;
+	ifs.close();
+	return ret;
+}
+
 string get_foldername(string path) {
     string ret;
     if (path[path.length() - 1] != '/') {
@@ -48,7 +56,7 @@ int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes, 
 int main(int argc, char* argv[]) {
 
 	if (argc < 2) {
-		cerr << "Usage: " << argv[0] << " input_filename output_filename (required if not batch) [-batch]" << endl;
+		cerr << "Usage: " << argv[0] << " input_filename [-batch]" << endl;
 		exit(1);
 	}
 
@@ -60,11 +68,6 @@ int main(int argc, char* argv[]) {
     }
 
 	string input_filename = argv[1];
-	string output_filename;
-	if (batch_mode)
-		output_filename = input_filename;
-	else
-		output_filename = argv[2];
 
     unordered_map<int, TriMesh*> db_meshes;
     unordered_map<int, string> db_filenames;
@@ -75,19 +78,8 @@ int main(int argc, char* argv[]) {
         db_meshes[0] = TriMesh::read(input_filename);
     }
 
-	vector<rtree_info> info = {
-		{ 5, 10, 3, 7 }
-		// , { 10, 20, 3, 15 }
-		// , { 15, 30, 3, 22 }
-		// , { 20, 40, 3, 30 }
-		// , { 25, 50, 3, 37 }
-	};
-
-	// string output_foldername;
-	// if (batch_mode) {
-	// 	output_foldername = get_foldername(output_filename);
-	// 	system(string("mkdir -p " + output_filename).c_str());
-	// }
+	vector<rtree_info> info;
+	info.push_back(read_rstree_info("../common/config/rstree.pcd.config"));
 	
 	int id, n;
 	TriMesh* mesh;
@@ -104,25 +96,24 @@ int main(int argc, char* argv[]) {
 	    for (int i = 0; i < n; i++) {
 	        data[i] = (R_TYPE *) malloc(sizeof(R_TYPE) * 3);
 	        for (int j = 0; j < 3; j++) {
-	            data[i][j] = mesh->vertices[i][j];
+	            data[i][j] = (int) (mesh->vertices[i][j] * 1e5);
 	        }
 	    }
 
 	    if (batch_mode) {
-	    	// realname = output_foldername + "id." + to_string(id) + ".rstree";
-	    	realname = db_filenames[id] + ".rstree";
+	    	realname = db_filenames[id] + ".rstree.int";
 	    } else {
-	    	realname = output_filename;
+	    	realname = input_filename + ".rstree.int";
 	    }
 
 		for (int i = 0; i < info.size(); i++) {
 			// build R-tree for mesh points
-		    cout << "Start building R-tree for mesh #" << id << " of info #" << (i + 1) << "..." << endl;
+		    cout << "Start building R-tree for mesh #" << id << " of info #" << i << "..." << endl;
 		    // timer_start();
 		    build_tree(&root, data, n, &info[i]);
 		    // cout << "Build R-tree in " << timer_end(SECOND) << "(s)" << endl;
 
-		    realname += string("." + to_string(i + 1));
+		    realname += string("." + to_string(i));
 
 		    // save R-tree
 		    // timer_start();
