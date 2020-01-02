@@ -3,7 +3,6 @@
 #include "point.h"
 #include "tetra_meas.h"
 #include "pcr_adv.h"
-// #include "RTree.h"
 extern "C" {
     #include "rtree.h"
 }
@@ -116,7 +115,7 @@ void performance_test(TriMesh *mesh, int n, KDtree *kd, node_type *r_root, rtree
     }
 }
 
-void gridify_test(double w, TriMesh* mesh) {
+void gridify_test(double w, vector<TriMesh*> meshes) {
     double delta = 0.3 * w;
     int num_trials = 11;
     Grid g;
@@ -124,27 +123,31 @@ void gridify_test(double w, TriMesh* mesh) {
     for (int counter = 0; counter < num_trials; counter++) {
         double trial_w = w + counter * delta;
         g.set_width(trial_w);
-        cout << "\nTest gridify the point cloud..." << endl;
-        g.gridify(mesh);
+        cout << "\nTest gridify the point cloud in 10 random runs..." << endl;
+        for (int i = 0; i < 10; i++) {
+            auto mesh = meshes[rand() % meshes.size()];
+            g.gridify(mesh);
 
-        cout << "\tGrid size: " << trial_w << endl;
-        cout << "\tTotal # cells: " << g.cells_map.size() << endl;
-        cout << "\tAvg # pts per cell: " << ((double) mesh->vertices.size()) / ((double) g.cells_map.size()) << endl;
+            cout << "\tGrid size: " << trial_w << endl;
+            cout << "\tTotal # cells: " << g.cells_map.size() << endl;
+            cout << "\tAvg # pts per cell: " << ((double) mesh->vertices.size()) / ((double) g.cells_map.size()) << endl;
+        }
     }
 
 }
 
 int main(int argc, char **argv) {
+
+    srand(time(0));
+
     if (argc < 5) {
-        cerr << "Usage: " << argv[0] << " database_path w ann_min ann_max output_grid_filename [-test] [-show_prog_bar] [-debug]" << endl;
+        cerr << "Usage: " << argv[0] << " database_path w ann_min output_grid_filename [-show_prog_bar] [-debug]" << endl;
         exit(1);
     }
 
-    bool test_mode = false, show_prog_bar = false, debug_mode = false;
+    bool show_prog_bar = false, debug_mode = false;
     for (int i = 0; i < argc; i++) {
-        if (string(argv[i]) == "-test")
-            test_mode = true;
-        else if (string(argv[i]) == "-show_prog_bar")
+        if (string(argv[i]) == "-show_prog_bar")
             show_prog_bar = true;
         else if (string(argv[i]) == "-debug")
             debug_mode = true;
@@ -154,14 +157,15 @@ int main(int argc, char **argv) {
     string db_path = argv[++argi];
     double w = atof(argv[++argi]);
     double ann_min = atof(argv[++argi]);
-    double ann_max = atof(argv[++argi]);
+    // double ann_max = atof(argv[++argi]);
+    double ann_max = 0.0;
     string outgrid_filename = argv[++argi];
 
     timer_start();
 
     vector<TriMesh*> db_meshes;
     
-    rtree_info db_rtree_info = { 5, 10, 3, 7 };
+    rtree_info db_rtree_info = read_rstree_info("../common/config/rstree.pcd.config");
     vector<node_type*> roots;
 
     int num_meshes = read_db_batch(db_path, db_meshes, &db_rtree_info, roots);
@@ -177,7 +181,7 @@ int main(int argc, char **argv) {
 
     // performance_test(mesh_p, n, kd_p, root, &db_rtree_info);
 
-    // gridify_test(w, db_meshes[0]);
+    // gridify_test(w, db_meshes);
 
     timer_start();
 
@@ -275,7 +279,7 @@ int main(int argc, char **argv) {
 
     timer_start();
 
-    if (!debug_mode && !test_mode) {
+    if (!debug_mode) {
     	timer_start();
         s_db.save(outgrid_filename);
         cout << "Grid saved in " << timer_end(SECOND) << "(s)" << endl;

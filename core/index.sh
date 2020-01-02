@@ -2,52 +2,101 @@
 
 source ../common/config/dir_loc.sh
 
-# # index on synthetic datasets (origin)
-# ./index.out "$DIR_SYNTHETIC"/data/pcd-001M.ply 150.0 600.0 602.0 "$DIR_SYNTHETIC"/index/origin/synthetic-pcd-001M.idx
-# ./index.out "$DIR_SYNTHETIC"/data/pcd-002M.ply 150.0 600.0 602.0 "$DIR_SYNTHETIC"/index/origin/synthetic-pcd-002M.idx
-# ./index.out "$DIR_SYNTHETIC"/data/pcd-005M.ply 150.0 600.0 602.0 "$DIR_SYNTHETIC"/index/origin/synthetic-pcd-005M.idx
-# ./index.out "$DIR_SYNTHETIC"/data/pcd-020M.ply 150.0 600.0 602.0 "$DIR_SYNTHETIC"/index/origin/synthetic-pcd-020M.idx
-# ./index.out "$DIR_SYNTHETIC"/data/pcd-100M.ply 150.0 600.0 602.0 "$DIR_SYNTHETIC"/index/origin/synthetic-pcd-100M.idx
-
-# index on KITTI datasets ?
-# ./index.out "$DIR_KITTI"/kitti-join005.ply 0.2 1.5 1.6 "$DIR_INDEX"/kitti-join005.idx -debug #-show_prog_bar
-
-# index on redwood datasets
-# ./out/index.out "$DIR_DB"/redwood-01-livingroom.ply "$DIR_RSTREE"/redwood-01-livingroom.rstree.1 32 60 60.3 "$DIR_INDEX"/redwood-01-livingroom.idx -show_prog_bar #-test
-# ./index.out "$DIR_REDWOOD"/redwood-02-d507.ply 12 60 60.3 "$DIR_INDEX"/redwood-02.idx -show_prog_bar #-test
-
-# ./out/index.out "$DIR_DB"/redwood-01-livingroom.ply "$DIR_RSTREE"/redwood-01-livingroom.rstree.1 20 150 60.3 "$DIR_INDEX"/redwood-01-livingroom.side.idx -show_prog_bar
-
-# ./out/index.out "$DIR_DB"/redwood-02-office.ply "$DIR_RSTREE"/redwood-02-office.rstree.1 20 150 60.3 "$DIR_INDEX"/redwood-02-office.side.idx -show_prog_bar
 
 
 ## Generate grids by grid-size and radius
 
-# ./out/grid.out "$DIR_DB"/obj_scans_2/ 20 100 250 "$DIR_INDEX"/obj_scans_2/obj_scans_2.100.grid -show_prog_bar
-# ./out/grid.out "$DIR_DB"/obj_scans_2/ 20 200 250 "$DIR_INDEX"/obj_scans_2/obj_scans_2.200.grid -show_prog_bar
+# mkdir -p "$DIR_INDEX"/indoor_scans/recon_bedroom_1/
+# mkdir -p "$DIR_INDEX"/indoor_scans/recon_bedroom_2/
+# mkdir -p "$DIR_INDEX"/indoor_scans/recon_bedroom_3/
+# mkdir -p "$DIR_INDEX"/indoor_scans/recon_bedroom_4/
+# ./out/grid.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ 16 80 "$DIR_INDEX"/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid #-show_prog_bar
+# ./out/grid.out "$DIR_DB"/indoor_scans/recon_bedroom_2/ 24 120 "$DIR_INDEX"/indoor_scans/recon_bedroom_2/recon_bedroom_2.024.120.grid #-show_prog_bar
+# ./out/grid.out "$DIR_DB"/indoor_scans/recon_bedroom_3/ 30 150 "$DIR_INDEX"/indoor_scans/recon_bedroom_3/recon_bedroom_3.030.150.grid #-show_prog_bar
+# ./out/grid.out "$DIR_DB"/indoor_scans/recon_bedroom_4/ 40 200 "$DIR_INDEX"/indoor_scans/recon_bedroom_4/recon_bedroom_4.040.200.grid #-show_prog_bar
 
-# ./out/grid.out "$DIR_DB"/obj_scans_17/ 20 100 250 "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.grid -show_prog_bar
-# ./out/grid.out "$DIR_DB"/obj_scans_17/ 20 200 250 "$DIR_INDEX"/obj_scans_17/obj_scans_17.200.grid -show_prog_bar
+# mkdir -p "$DIR_INDEX"/indoor_scans/recon_boardroom_1/
+# mkdir -p "$DIR_INDEX"/indoor_scans/recon_boardroom_2/
+# mkdir -p "$DIR_INDEX"/indoor_scans/recon_boardroom_3/
+# mkdir -p "$DIR_INDEX"/indoor_scans/recon_boardroom_4/
+# ./out/grid.out "$DIR_DB"/indoor_scans/recon_boardroom_1/ 18 90 "$DIR_INDEX"/indoor_scans/recon_boardroom_1/recon_boardroom_1.018.090.grid #-show_prog_bar
+# ./out/grid.out "$DIR_DB"/indoor_scans/recon_boardroom_2/ 24 120 "$DIR_INDEX"/indoor_scans/recon_boardroom_2/recon_boardroom_2.024.120.grid #-show_prog_bar
+# ./out/grid.out "$DIR_DB"/indoor_scans/recon_boardroom_3/ 32 160 "$DIR_INDEX"/indoor_scans/recon_boardroom_3/recon_boardroom_3.032.160.grid #-show_prog_bar
+# ./out/grid.out "$DIR_DB"/indoor_scans/recon_boardroom_4/ 42 210 "$DIR_INDEX"/indoor_scans/recon_boardroom_4/recon_boardroom_4.042.210.grid #-show_prog_bar
 
-# ./out/grid.out "$DIR_DB"/obj_scans_100/ 20 100 250 "$DIR_INDEX"/obj_scans_100/obj_scans_100.100.grid -show_prog_bar
-# ./out/grid.out "$DIR_DB"/obj_scans_100/ 20 200 250 "$DIR_INDEX"/obj_scans_100/obj_scans_100.200.grid -show_prog_bar
+# mkdir -p "$DIR_INDEX"/indoor_scans/recon_loft_1/
+# mkdir -p "$DIR_INDEX"/indoor_scans/recon_loft_2/
+# mkdir -p "$DIR_INDEX"/indoor_scans/recon_loft_3/
+# mkdir -p "$DIR_INDEX"/indoor_scans/recon_loft_4/
+# ./out/grid.out "$DIR_DB"/indoor_scans/recon_loft_1/ 18 90 "$DIR_INDEX"/indoor_scans/recon_loft_1/recon_loft_1.018.090.grid #-show_prog_bar
+# ./out/grid.out "$DIR_DB"/indoor_scans/recon_loft_2/ 24 120 "$DIR_INDEX"/indoor_scans/recon_loft_2/recon_loft_2.024.120.grid #-show_prog_bar
+# ./out/grid.out "$DIR_DB"/indoor_scans/recon_loft_3/ 32 160 "$DIR_INDEX"/indoor_scans/recon_loft_3/recon_loft_3.032.160.grid #-show_prog_bar
+# ./out/grid.out "$DIR_DB"/indoor_scans/recon_loft_4/ 42 210 "$DIR_INDEX"/indoor_scans/recon_loft_4/recon_loft_4.042.210.grid #-show_prog_bar
+
+
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_1_100/
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_2_100/
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_3_100/
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_4_100/
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_1_100/ 26 130 "$DIR_INDEX"/obj_scans/obj_scans_1_100/obj_scans_1_100.026.130.grid -show_prog_bar
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_2_100/ 36 180 "$DIR_INDEX"/obj_scans/obj_scans_2_100/obj_scans_2_100.036.180.grid -show_prog_bar
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_3_100/ 48 240 "$DIR_INDEX"/obj_scans/obj_scans_3_100/obj_scans_3_100.048.240.grid -show_prog_bar
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_4_100/ 64 320 "$DIR_INDEX"/obj_scans/obj_scans_4_100/obj_scans_4_100.064.320.grid -show_prog_bar
+
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_3_200/
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_3_300/
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_3_400/
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_3_200/ 48 240 "$DIR_INDEX"/obj_scans/obj_scans_3_200/obj_scans_3_200.048.240.grid #-show_prog_bar
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_3_300/ 48 240 "$DIR_INDEX"/obj_scans/obj_scans_3_300/obj_scans_3_300.048.240.grid #-show_prog_bar
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_3_400/ 48 240 "$DIR_INDEX"/obj_scans/obj_scans_3_400/obj_scans_3_400.048.240.grid #-show_prog_bar
+
+## Not yet executed
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_1_200/
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_2_200/
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_4_200/
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_1_200/ 26 130 "$DIR_INDEX"/obj_scans/obj_scans_1_200/obj_scans_1_200.026.130.grid -show_prog_bar
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_2_200/ 36 180 "$DIR_INDEX"/obj_scans/obj_scans_2_200/obj_scans_2_200.036.180.grid -show_prog_bar
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_4_200/ 64 320 "$DIR_INDEX"/obj_scans/obj_scans_4_200/obj_scans_4_200.064.320.grid -show_prog_bar
+
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_1_300/
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_2_300/
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_4_300/
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_1_300/ 26 130 "$DIR_INDEX"/obj_scans/obj_scans_1_300/obj_scans_1_300.026.130.grid -show_prog_bar
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_2_300/ 36 180 "$DIR_INDEX"/obj_scans/obj_scans_2_300/obj_scans_2_300.036.180.grid -show_prog_bar
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_4_300/ 64 320 "$DIR_INDEX"/obj_scans/obj_scans_4_300/obj_scans_4_300.064.320.grid -show_prog_bar
+
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_1_400/
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_2_400/
+# mkdir -p "$DIR_INDEX"/obj_scans/obj_scans_4_400/
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_1_400/ 26 130 "$DIR_INDEX"/obj_scans/obj_scans_1_400/obj_scans_1_400.026.130.grid -show_prog_bar
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_2_400/ 36 180 "$DIR_INDEX"/obj_scans/obj_scans_2_400/obj_scans_2_400.036.180.grid -show_prog_bar
+# ./out/grid.out "$DIR_DB"/obj_scans/obj_scans_4_400/ 64 320 "$DIR_INDEX"/obj_scans/obj_scans_4_400/obj_scans_4_400.064.320.grid -show_prog_bar
+## Not yet executed
+
 
 
 ## Build R*-tree over the generated grids
 
-# ./out/index.out "$DIR_DB"/obj_scans_2/ "$DIR_INDEX"/obj_scans_2/obj_scans_2.100.grid "$DIR_INDEX"/obj_scans_2/obj_scans_2.100.idx
-# ./out/index.out "$DIR_DB"/obj_scans_2/ "$DIR_INDEX"/obj_scans_2/obj_scans_2.200.grid "$DIR_INDEX"/obj_scans_2/obj_scans_2.200.idx
+# ./out/index.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ "$DIR_INDEX"/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid
+# ./out/index.out "$DIR_DB"/indoor_scans/recon_bedroom_2/ "$DIR_INDEX"/indoor_scans/recon_bedroom_2/recon_bedroom_2.024.120.grid
+# ./out/index.out "$DIR_DB"/indoor_scans/recon_bedroom_3/ "$DIR_INDEX"/indoor_scans/recon_bedroom_3/recon_bedroom_3.030.150.grid
+# ./out/index.out "$DIR_DB"/indoor_scans/recon_bedroom_4/ "$DIR_INDEX"/indoor_scans/recon_bedroom_4/recon_bedroom_4.040.200.grid
 
-# ./out/index.out "$DIR_DB"/obj_scans_2/ "$DIR_INDEX"/obj_scans_2/obj_scans_2.100.grid "$DIR_INDEX"/obj_scans_2/obj_scans_2.100.int.idx
-# ./out/index.out "$DIR_DB"/obj_scans_2/ "$DIR_INDEX"/obj_scans_2/obj_scans_2.200.grid "$DIR_INDEX"/obj_scans_2/obj_scans_2.200.int.idx
+./out/index.out "$DIR_DB"/indoor_scans/recon_boardroom_1/ "$DIR_INDEX"/indoor_scans/recon_boardroom_1/recon_boardroom_1.018.090.grid
+./out/index.out "$DIR_DB"/indoor_scans/recon_boardroom_2/ "$DIR_INDEX"/indoor_scans/recon_boardroom_2/recon_boardroom_2.024.120.grid
+./out/index.out "$DIR_DB"/indoor_scans/recon_boardroom_3/ "$DIR_INDEX"/indoor_scans/recon_boardroom_3/recon_boardroom_3.032.160.grid
+./out/index.out "$DIR_DB"/indoor_scans/recon_boardroom_4/ "$DIR_INDEX"/indoor_scans/recon_boardroom_4/recon_boardroom_4.042.210.grid
 
+./out/index.out "$DIR_DB"/indoor_scans/recon_loft_1/ "$DIR_INDEX"/indoor_scans/recon_loft_1/recon_loft_1.018.090.grid
+./out/index.out "$DIR_DB"/indoor_scans/recon_loft_2/ "$DIR_INDEX"/indoor_scans/recon_loft_2/recon_loft_2.024.120.grid
+./out/index.out "$DIR_DB"/indoor_scans/recon_loft_3/ "$DIR_INDEX"/indoor_scans/recon_loft_3/recon_loft_3.032.160.grid
+./out/index.out "$DIR_DB"/indoor_scans/recon_loft_4/ "$DIR_INDEX"/indoor_scans/recon_loft_4/recon_loft_4.042.210.grid
 
-# ./out/index.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.grid "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.idx
-# ./out/index.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17/obj_scans_17.200.grid "$DIR_INDEX"/obj_scans_17/obj_scans_17.200.idx
+# ./out/index.out "$DIR_DB"/obj_scans/obj_scans_1_100/ "$DIR_INDEX"/obj_scans/obj_scans_1_100/obj_scans_1_100.026.130.grid
+# ./out/index.out "$DIR_DB"/obj_scans/obj_scans_2_100/ "$DIR_INDEX"/obj_scans/obj_scans_2_100/obj_scans_2_100.036.180.grid
+# ./out/index.out "$DIR_DB"/obj_scans/obj_scans_3_100/ "$DIR_INDEX"/obj_scans/obj_scans_3_100/obj_scans_3_100.048.240.grid
+# ./out/index.out "$DIR_DB"/obj_scans/obj_scans_4_100/ "$DIR_INDEX"/obj_scans/obj_scans_4_100/obj_scans_4_100.064.320.grid
 
-# ./out/index.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.grid "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.int.idx
-# ./out/index.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17/obj_scans_17.200.grid "$DIR_INDEX"/obj_scans_17/obj_scans_17.200.int.idx
-
-
-./out/index.out "$DIR_DB"/obj_scans_100/ "$DIR_INDEX"/obj_scans_100/obj_scans_100.100.grid "$DIR_INDEX"/obj_scans_100/obj_scans_100.100.int.idx
-./out/index.out "$DIR_DB"/obj_scans_100/ "$DIR_INDEX"/obj_scans_100/obj_scans_100.200.grid "$DIR_INDEX"/obj_scans_100/obj_scans_100.200.int.idx
+# ./out/index.out "$DIR_DB"/obj_scans/obj_scans_3_200/ "$DIR_INDEX"/obj_scans/obj_scans_3_200/obj_scans_3_200.048.240.grid
+# ./out/index.out "$DIR_DB"/obj_scans/obj_scans_3_300/ "$DIR_INDEX"/obj_scans/obj_scans_3_300/obj_scans_3_300.048.240.grid
+# ./out/index.out "$DIR_DB"/obj_scans/obj_scans_3_400/ "$DIR_INDEX"/obj_scans/obj_scans_3_400/obj_scans_3_400.048.240.grid

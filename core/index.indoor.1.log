@@ -1,0 +1,51 @@
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_bedroom_1/
+Reading /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_bedroom_1/recon_bedroom_1.ply... 
+  Reading 2521848 vertices... Done.
+Total no. meshes: 1
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid
+Total no. cells: 558260
+
+Building tree for info #4
+Built the tree in 411.741(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.idx.4 in 6.85575(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_bedroom_2/
+Reading /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_bedroom_2/recon_bedroom_2.ply... 
+  Reading 1256429 vertices... Done.
+Total no. meshes: 1
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_bedroom_2/recon_bedroom_2.024.120.grid
+Total no. cells: 249191
+
+Building tree for info #4
+Built the tree in 178.365(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_bedroom_2/recon_bedroom_2.024.120.idx.4 in 3.25995(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_bedroom_3/
+Reading /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_bedroom_3/recon_bedroom_3.ply... 
+  Reading 624896 vertices... Done.
+Total no. meshes: 1
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_bedroom_3/recon_bedroom_3.030.150.grid
+Total no. cells: 150345
+
+Building tree for info #4
+Built the tree in 110.223(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_bedroom_3/recon_bedroom_3.030.150.idx.4 in 1.96897(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_bedroom_4/
+Reading /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_bedroom_4/recon_bedroom_4.ply... 
+  Reading 311060 vertices... Done.
+Total no. meshes: 1
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_bedroom_4/recon_bedroom_4.040.200.grid
+Total no. cells: 81304
+
+Building tree for info #4
+Built the tree in 58.698(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_bedroom_4/recon_bedroom_4.040.200.idx.4 in 1.09512(s)
+Tree freed

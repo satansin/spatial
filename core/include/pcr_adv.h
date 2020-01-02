@@ -7,6 +7,7 @@
 extern "C" {
     #include "rtree.h"
 }
+#include "RTree.h"
 #include <fstream>
 #include <sstream>
 #include <vector>
@@ -26,6 +27,10 @@ const char* TABTAB = "    ";
 const char* TABTABTAB = "      ";
 
 const int RSTREE_SCALE = 1e5;
+
+const int INDEX_DIM = 2;
+typedef RTree<int, int, INDEX_DIM, double, 36> IndexTree;
+typedef RTree<int, int, INDEX_DIM, double, 7> AuxTree;
 
 struct PtwID {
 	int id;
@@ -670,7 +675,8 @@ struct Struct_Q {
 private:
 	int db_mesh_id;
 	double gt_err_linear, gt_err_quad;
-	unordered_map<int, int> q_db_id_map;
+	vector<int> q_db_id_map;
+	// vector<double> drift_map;
 	unordered_set<int> id_db_set;
 
 public:
@@ -682,13 +688,22 @@ public:
 
 	    int real_inlier_count;
 
-	    info_q_ifs >> this->m >> this->epsilon >> this->eta >> this->db_mesh_id;
-	    info_q_ifs >> real_inlier_count >> this->gt_err_linear >> this->gt_err_quad;
+	    // info_q_ifs >> this->m >> this->epsilon >> this->eta >> this->db_mesh_id;
+	    info_q_ifs >> this->m >> this->epsilon >> this->db_mesh_id;
+	    // this->epsilon *= 2.0;
+	    this->eta = 0.68;
+	    // info_q_ifs >> real_inlier_count >> this->gt_err_linear >> this->gt_err_quad;
+	    info_q_ifs >> this->gt_err_linear >> this->gt_err_quad;
 
 	    int q_id, db_id;
+	    double drift_dist;
 	    for (int i = 0; i < this->m; i++) {
-	        info_q_ifs >> q_id >> db_id; // in almost every case, q_id range from 0 to (m - 1)
-	        this->q_db_id_map[q_id] = db_id;
+	        info_q_ifs >> q_id >> db_id >> drift_dist; // in almost every case, q_id range from 0 to (m - 1)
+	        if (drift_dist > this->epsilon) {
+	        	db_id = -1;
+	        }
+	        this->q_db_id_map.push_back(db_id);
+	        // this->drift_map.push_back(drift_dist);
 	        if (db_id >= 0)
 	        	this->id_db_set.insert(db_id);
 	    }
@@ -704,7 +719,7 @@ public:
 		if (id_q < 0 || id_q >= this->m) {
 			return -1;
 		} else {
-			return q_db_id_map.at(id_q);
+			return q_db_id_map[id_q];
 		}
 	}
 
@@ -885,8 +900,15 @@ inline NN_type** nn_sphere_range_verbose(Pt3D* p, node_type *r_root, rtree_info*
 	return nn_ret;
 }
 
-inline int window_query(node_type *r_root, rtree_info* r_info, double sides[], double err,
-	vector<RangeReturn_type*>& ret, int& page_accessed) {
+////////////////////////// Toggle_1 /////////////////////////////////////
+inline int window_query(IndexTree* tree, double sides[], double err,
+	vector<int>& ret, int* page_accessed) {
+////////////////////////// Toggle_1 /////////////////////////////////////
+
+////////////////////////// Toggle_2 /////////////////////////////////////
+// inline int window_query(node_type *r_root, rtree_info* r_info, double sides[], double err,
+// 	vector<RangeReturn_type*>& ret, int& page_accessed) {
+////////////////////////// Toggle_2 /////////////////////////////////////
 
 	R_TYPE* query_min = (R_TYPE *) malloc(sizeof(R_TYPE) * 6);
 	R_TYPE* query_max = (R_TYPE *) malloc(sizeof(R_TYPE) * 6);
@@ -895,22 +917,93 @@ inline int window_query(node_type *r_root, rtree_info* r_info, double sides[], d
 		query_max[i] = (int) ((sides[i] + err) * RSTREE_SCALE);
 		// cout << "[" << query_min[i] << ", " << query_max[i] << "]" << endl;
 	}
-	RangeReturn_type* rr = NULL;
 
-	page_accessed = rectangle_search(r_root, 1, &query_min, &query_max, &rr, r_info);
+	////////////////////////// Toggle_1 /////////////////////////////////////
+	int num = tree->Search(query_min, query_max, ret, page_accessed);
+	////////////////////////// Toggle_1 /////////////////////////////////////
+
+	////////////////////////// Toggle_2 /////////////////////////////////////
+	// RangeReturn_type* rr = NULL;
+	// int num = 0;
+
+	// page_accessed = rectangle_search(r_root, 1, &query_min, &query_max, &rr, r_info);
+
+	// while (rr) {
+	// 	num++;
+	// 	ret.push_back(rr);
+	// 	rr = rr->prev;
+	// }
+	////////////////////////// Toggle_2 /////////////////////////////////////
 
 	free(query_min);
 	free(query_max);
 
-	int num = 0;
+	return num;
+}
 
-	while (rr) {
-		num++;
-		ret.push_back(rr);
-		rr = rr->prev;
+inline int node_search_bundle(const IndexTree::Node* idx_node, const AuxTree::Node* aux_node, int ovlp_min[INDEX_DIM], int ovlp_max[INDEX_DIM], vector<pair<int, int>>& ret) {
+
+	for (int i = 0; i < idx_node->m_count; i++) {
+
+		auto idx_br = idx_node->m_branch[i];
+		auto idx_rect = idx_br.m_rect;
+
+		bool idx_skip = false;
+		for (int index = 0; index < INDEX_DIM; index++) {
+			if (idx_rect.m_min[index] > ovlp_max[index] ||
+    		    ovlp_min[index] > idx_rect.m_max[index]) {
+    		    
+    		    idx_skip = true;
+    			break;
+    		}
+    	}
+    	if (idx_skip)
+    		continue;
+
+		for (int j = 0; j < aux_node->m_count; j++) {
+
+			auto aux_br = aux_node->m_branch[j];
+			auto aux_rect = aux_br.m_rect;
+
+			bool aux_skip = false;
+			for (int index = 0; index < INDEX_DIM; index++) {
+				if (aux_rect.m_min[index] > ovlp_max[index] ||
+	    		    ovlp_min[index] > aux_rect.m_max[index]) {
+	    		    
+	    		    aux_skip = true;
+	    			break;
+	    		}
+	    	}
+	    	if (aux_skip)
+	    		continue;
+
+			bool overlap = true;
+			for (int index = 0; index < INDEX_DIM; index++) {
+				if (idx_rect.m_min[index] > aux_rect.m_max[index] ||
+        		    aux_rect.m_min[index] > idx_rect.m_max[index]) {
+        		    
+        		    overlap = false;
+        			break;
+        		}
+        	}
+
+        	if (!overlap)
+        		continue;
+
+        	if (idx_node->m_level == 0) {
+        		ret.push_back(make_pair(aux_br.m_data, idx_br.m_data));
+        	} else {
+        		int new_ovlp_min[INDEX_DIM], new_ovlp_max[INDEX_DIM];
+        		for (int index = 0; index < INDEX_DIM; index++) {
+    				new_ovlp_min[index] = max(idx_rect.m_min[index], aux_rect.m_min[index]);
+    				new_ovlp_max[index] = min(idx_rect.m_max[index], aux_rect.m_max[index]);
+        		}
+        		
+        		node_search_bundle(idx_br.m_child, aux_br.m_child, new_ovlp_min, new_ovlp_max, ret);
+        	}
+		}
 	}
 
-	return num;
 }
 
 inline int window_query_bundle(node_type *r_root, rtree_info* r_info, const vector<Entry*>& e_list, double err, double bbox_min[], double bbox_max[],
@@ -1038,7 +1131,7 @@ inline int read_db_batch(string db_path, vector<TriMesh*>& db_meshes, rtree_info
         db_meshes.push_back(TriMesh::read(s_file));
 
         node_type* a_root;
-        read_rtree(&a_root, string(s_file + ".rstree.1").c_str(), db_rtree_info);
+        read_rtree(&a_root, string(s_file + ".rst.0").c_str(), db_rtree_info);
 
         db_roots.push_back(a_root);
     }

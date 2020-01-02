@@ -1,0 +1,77 @@
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/obj_scans/obj_scans_1_100/
+Total no. meshes: 100
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/obj_scans/obj_scans_1_100/obj_scans_1_100.026.130.grid
+Total no. cells: 4196733
+
+Building tree for info #4
+Built the tree in 3182.48(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/obj_scans/obj_scans_1_100/obj_scans_1_100.026.130.idx.4 in 50.0234(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/obj_scans/obj_scans_2_100/
+Total no. meshes: 100
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/obj_scans/obj_scans_2_100/obj_scans_2_100.036.180.grid
+Total no. cells: 2131908
+
+Building tree for info #4
+Built the tree in 1626.44(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/obj_scans/obj_scans_2_100/obj_scans_2_100.036.180.idx.4 in 28.8188(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/obj_scans/obj_scans_3_100/
+Total no. meshes: 100
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/obj_scans/obj_scans_3_100/obj_scans_3_100.048.240.grid
+Total no. cells: 1140271
+
+Building tree for info #4
+Built the tree in 842.133(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/obj_scans/obj_scans_3_100/obj_scans_3_100.048.240.idx.4 in 15.2838(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/obj_scans/obj_scans_4_100/
+Total no. meshes: 100
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/obj_scans/obj_scans_4_100/obj_scans_4_100.064.320.grid
+Total no. cells: 608313
+
+Building tree for info #4
+Built the tree in 446.74(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/obj_scans/obj_scans_4_100/obj_scans_4_100.064.320.idx.4 in 8.24483(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/obj_scans/obj_scans_3_200/
+Total no. meshes: 200
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/obj_scans/obj_scans_3_200/obj_scans_3_200.048.240.grid
+Total no. cells: 2226373
+
+Building tree for info #4
+Built the tree in 1654.27(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/obj_scans/obj_scans_3_200/obj_scans_3_200.048.240.idx.4 in 30.181(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/obj_scans/obj_scans_3_300/
+Total no. meshes: 300
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/obj_scans/obj_scans_3_300/obj_scans_3_300.048.240.grid
+Total no. cells: 3402626
+
+Building tree for info #4
+Built the tree in 2557.95(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/obj_scans/obj_scans_3_300/obj_scans_3_300.048.240.idx.4 in 41.9132(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/obj_scans/obj_scans_3_400/
+Total no. meshes: 400
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/obj_scans/obj_scans_3_400/obj_scans_3_400.048.240.grid
+Total no. cells: 4592127
+
+Building tree for info #4
+Built the tree in 3518.04(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/obj_scans/obj_scans_3_400/obj_scans_3_400.048.240.idx.4 in 56.0346(s)
+Tree freed
+

@@ -1,5 +1,6 @@
 #include <dirent.h>
 #include <cstdlib>
+#include <ctime>
 #include <fstream>
 #include "TriMesh.h"
 using namespace std;
@@ -39,6 +40,8 @@ bool process_single(string input_filename, string output_filename, double scale_
 }
 
 int main(int argc, char** argv) {
+	srand(time(0));
+
 	string input_filename = argv[1];
 	string output_filename = argv[2];
 	double scale_val = atof(argv[3]);
@@ -74,7 +77,6 @@ int main(int argc, char** argv) {
 		}
 
 		string output_foldername = get_foldername(output_filename);
-		system(string("mkdir -p " + output_filename).c_str());
 
 		ofstream ofs_meta(output_foldername + "meta.txt");
 		ofs_meta << s_files.size() << endl;
@@ -92,7 +94,13 @@ int main(int argc, char** argv) {
 		closedir(dir);
 
 	} else {
+		string output_foldername = get_foldername(output_filename.substr(0, output_filename.rfind('/')));
+
+		ofstream ofs_meta(output_foldername + "meta.txt");
+		ofs_meta << 1 << endl;
+
 		if (process_single(input_filename, output_filename, scale_val)) {
+			ofs_meta << 0 << " " << output_filename << endl;
 			cout << "Input " << input_filename << " processed and saved into " << output_filename << endl;
 		}
 	}

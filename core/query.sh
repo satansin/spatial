@@ -2,15 +2,29 @@
 
 source ../common/config/dir_loc.sh
 
-# ./out/query.out "$DIR_DB"/redwood-01-livingroom.ply "$DIR_RSTREE"/redwood-01-livingroom.rstree.1 "$DIR_INDEX"/redwood-01-livingroom.idx "$DIR_QUERY"/redwood-01-q1.ply "$DIR_RSTREE"/redwood-01-q1.rstree.1 1500 #-debug
-# ./out/query.out "$DIR_DB"/redwood-01-livingroom.ply "$DIR_RSTREE"/redwood-01-livingroom.rstree.1 "$DIR_INDEX"/redwood-01-livingroom.idx.edge "$DIR_QUERY"/redwood-01-q1.ply "$DIR_RSTREE"/redwood-01-q1.rstree.1 1500 #-debug
 
+## query for indoor scan - recon_bedroom
 
-# ./out/query.out "$DIR_DB"/redwood-01-livingroom.ply "$DIR_RSTREE"/redwood-01-livingroom.rstree.1 "$DIR_INDEX"/redwood-01-livingroom.idx "$DIR_QUERY"/redwood-01-q2.ply "$DIR_RSTREE"/redwood-01-q2.rstree.1 30000 -debug
-# ./out/query.out "$DIR_DB"/redwood-01-livingroom.ply "$DIR_RSTREE"/redwood-01-livingroom.rstree.1 "$DIR_INDEX"/redwood-01-livingroom.side.idx "$DIR_QUERY"/redwood-01-q2.ply "$DIR_RSTREE"/redwood-01-q2.rstree.1 300000 -test #-debug
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ "$DIR_INDEX"/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_1/q_01/q_01.0.ply 1000 #-test
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ "$DIR_INDEX"/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_1/q_01/q_01.1.ply 40000 #-test
+./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ "$DIR_INDEX"/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_1/q_01/q_01.2.ply 40000 -test -verbose=0 -force_cell=311 #-force_pt=18095 #-force_pt=15454
+# gdb -ex 'file ./out/query.out' -ex 'run /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/recon_bedroom_1/ /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid /rwproject/kdd-db/hliubs/10_data_spatial/3dor/query/indoor_scans/recon_bedroom_1/q_01/q_01.2.ply 40000 -test -verbose=1 -force_cell=311 -force_pt=15454'
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ "$DIR_INDEX"/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_1/q_01/q_01.3.ply 150000 #-test
 
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_2/ "$DIR_INDEX"/indoor_scans/recon_bedroom_2/recon_bedroom_2.024.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.0.ply 1000 #-test
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_2/ "$DIR_INDEX"/indoor_scans/recon_bedroom_2/recon_bedroom_2.024.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.1.ply 20000 #-test
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_2/ "$DIR_INDEX"/indoor_scans/recon_bedroom_2/recon_bedroom_2.024.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.2.ply 40000 #-test
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_2/ "$DIR_INDEX"/indoor_scans/recon_bedroom_2/recon_bedroom_2.024.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.3.ply 60000 #-test
 
-# ./out/query.out "$DIR_DB"/redwood-01-livingroom.ply "$DIR_RSTREE"/redwood-01-livingroom.rstree.1 "$DIR_INDEX"/redwood-01-livingroom.idx "$DIR_QUERY"/redwood-01-q1.ply "$DIR_RSTREE"/redwood-01-q1.rstree.1 #-debug
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_3/ "$DIR_INDEX"/indoor_scans/recon_bedroom_3/recon_bedroom_3.030.150.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_3/q_01/q_01.0.ply 1000 #-test
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_3/ "$DIR_INDEX"/indoor_scans/recon_bedroom_3/recon_bedroom_3.030.150.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_3/q_01/q_01.1.ply 10000 #-test
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_3/ "$DIR_INDEX"/indoor_scans/recon_bedroom_3/recon_bedroom_3.030.150.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_3/q_01/q_01.2.ply 20000 #-test
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_3/ "$DIR_INDEX"/indoor_scans/recon_bedroom_3/recon_bedroom_3.030.150.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_3/q_01/q_01.3.ply 30000 #-test
+
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_4/ "$DIR_INDEX"/indoor_scans/recon_bedroom_4/recon_bedroom_4.040.200.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_4/q_01/q_01.0.ply 1000 #-test
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_4/ "$DIR_INDEX"/indoor_scans/recon_bedroom_4/recon_bedroom_4.040.200.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_4/q_01/q_01.1.ply 6000 #-test
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_4/ "$DIR_INDEX"/indoor_scans/recon_bedroom_4/recon_bedroom_4.040.200.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_4/q_01/q_01.2.ply 15000 #-test
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_4/ "$DIR_INDEX"/indoor_scans/recon_bedroom_4/recon_bedroom_4.040.200.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_4/q_01/q_01.3.ply 20000 #-test
 
 
 ## query for object scans 2
@@ -33,7 +47,7 @@ source ../common/config/dir_loc.sh
 # ./out/query.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17/obj_scans_17.200.grid "$DIR_INDEX"/obj_scans_17/obj_scans_17.200.int.idx.4 "$DIR_QUERY"/obj_scans_17/q1.ply 1000 -verbose=0 #-test
 # ./out/query.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17/obj_scans_17.200.grid "$DIR_INDEX"/obj_scans_17/obj_scans_17.200.int.idx.4 "$DIR_QUERY"/obj_scans_17/q2.ply 200000 -verbose=0 #-test
 
-./out/query.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.grid "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.int.idx.4 "$DIR_QUERY"/obj_scans_17_test/q.010.090.ply 200000 #-test
+# ./out/query.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.grid "$DIR_INDEX"/obj_scans_17/obj_scans_17.100.int.idx.4 "$DIR_QUERY"/obj_scans_17_test/q.010.090.ply 200000 #-test
 
 
 ## query for object scans 100

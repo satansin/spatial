@@ -13,28 +13,19 @@ SRC=src
 OBJ=obj
 OUT=out
 
-all: clean pcg kitti_join filter extract_query_manual extract_query_auto extract_query_batch pre_index test
-
-pcg:
-	$(CXX) $(INC) $(SRC)/pcg.cpp -o $(OUT)/pcg.out
-
-kitti_join:
-	$(CXX) $(INC) $(USE_TM) $(SRC)/kitti_join.cpp -o $(OUT)/kitti_join.out -ltrimesh -lgluit -fopenmp
+all: clean filter extract_query pre_index batch_sel test
 
 filter:
 	$(CXX) $(INC) $(USE_TM) $(SRC)/filter.cpp -o $(OUT)/filter.out -ltrimesh -lgluit -fopenmp
-	
-extract_query_manual:
-	$(CXX) $(INC) $(USE_TM) $(SRC)/extract_query_manual.cpp -o $(OUT)/extract_query_manual.out -ltrimesh -lgluit -fopenmp
 
-extract_query_auto:
-	$(CXX) $(INC) $(USE_TM) $(SRC)/extract_query_auto.cpp -o $(OUT)/extract_query_auto.out -ltrimesh -lgluit -fopenmp
-
-extract_query_batch:
-	$(CXX) $(INC) $(USE_TM) $(USE_GSL) $(SRC)/extract_query_batch.cpp -o $(OUT)/extract_query_batch.out -ltrimesh -lgluit -fopenmp -lgsl -lgslcblas -lm
+extract_query:
+	$(CXX) $(INC) $(USE_TM) $(USE_GSL) $(SRC)/extract_query.cpp -o $(OUT)/extract_query.out -ltrimesh -lgluit -fopenmp -lgsl -lgslcblas -lm
 
 pre_index:
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/pre_index.cpp -o $(OUT)/pre_index.out -ltrimesh -lgluit -fopenmp
+
+batch_sel:
+	$(CXX) $(INC) $(SRC)/batch_sel.cpp -o $(OUT)/batch_sel.out
 
 test:
 	$(CXX) $(INC) $(USE_TM) $(SRC)/test.cpp -o $(OUT)/test.out -ltrimesh -lgluit -fopenmp

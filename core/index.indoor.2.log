@@ -1,0 +1,88 @@
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_boardroom_1/
+Total no. meshes: 1
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_boardroom_1/recon_boardroom_1.018.090.grid
+Total no. cells: 789854
+
+Building tree for info #4
+Built the tree in 572.67(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_boardroom_1/recon_boardroom_1.018.090.idx.4 in 9.72288(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_boardroom_2/
+Total no. meshes: 1
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_boardroom_2/recon_boardroom_2.024.120.grid
+Total no. cells: 437314
+
+Building tree for info #4
+Built the tree in 319.395(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_boardroom_2/recon_boardroom_2.024.120.idx.4 in 5.70779(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_boardroom_3/
+Total no. meshes: 1
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_boardroom_3/recon_boardroom_3.032.160.grid
+Total no. cells: 237085
+
+Building tree for info #4
+Built the tree in 173.177(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_boardroom_3/recon_boardroom_3.032.160.idx.4 in 3.18485(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_boardroom_4/
+Total no. meshes: 1
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_boardroom_4/recon_boardroom_4.042.210.grid
+Total no. cells: 131994
+
+Building tree for info #4
+Built the tree in 96.6309(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_boardroom_4/recon_boardroom_4.042.210.idx.4 in 1.77569(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_loft_1/
+Total no. meshes: 1
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_loft_1/recon_loft_1.018.090.grid
+Total no. cells: 571372
+
+Building tree for info #4
+Built the tree in 417.879(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_loft_1/recon_loft_1.018.090.idx.4 in 7.01312(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_loft_2/
+Total no. meshes: 1
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_loft_2/recon_loft_2.024.120.grid
+Total no. cells: 311542
+
+Building tree for info #4
+Built the tree in 231.502(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_loft_2/recon_loft_2.024.120.idx.4 in 4.13359(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_loft_3/
+Total no. meshes: 1
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_loft_3/recon_loft_3.032.160.grid
+Total no. cells: 166231
+
+Building tree for info #4
+Built the tree in 121.727(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_loft_3/recon_loft_3.032.160.idx.4 in 2.19001(s)
+Tree freed
+
+Reading database files from /project/kdd/hliubs/data/spatial/3dor/db/indoor_scans/recon_loft_4/
+Total no. meshes: 1
+
+Loading DB structure from /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_loft_4/recon_loft_4.042.210.grid
+Total no. cells: 91770
+
+Building tree for info #4
+Built the tree in 66.2593(s)
+Tree saved to /project/kdd/hliubs/data/spatial/3dor/index/indoor_scans/recon_loft_4/recon_loft_4.042.210.idx.4 in 1.21409(s)
+Tree freed
+

@@ -27,7 +27,7 @@ string get_foldername(string path) {
     return ret;
 }
 
-int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes, unordered_map<int, string>& db_filenames) {
+int read_db_mesh_batch(string db_path, vector<TriMesh*>& db_meshes, vector<string>& db_filenames) {
     string db_folder = get_foldername(db_path);
     string meta_filename = db_folder + "meta.txt";
 
@@ -44,8 +44,8 @@ int read_db_mesh_batch(string db_path, unordered_map<int, TriMesh*>& db_meshes, 
     string s_file;
     for (int i = 0; i < num; i++) {
         ifs >> id >> s_file;
-        db_meshes[id] = TriMesh::read(s_file);
-        db_filenames[id] = s_file;
+        db_meshes.push_back(TriMesh::read(s_file));
+        db_filenames.push_back(s_file);
     }
 
     ifs.close();
@@ -69,27 +69,25 @@ int main(int argc, char* argv[]) {
 
 	string input_filename = argv[1];
 
-    unordered_map<int, TriMesh*> db_meshes;
-    unordered_map<int, string> db_filenames;
+    vector<TriMesh*> db_meshes;
+    vector<string> db_filenames;
 
     if (batch_mode) {
         cout << "Num of meshes for batch: " << read_db_mesh_batch(input_filename, db_meshes, db_filenames) << endl;
     } else {
-        db_meshes[0] = TriMesh::read(input_filename);
+        db_meshes.push_back(TriMesh::read(input_filename));
     }
 
 	vector<rtree_info> info;
 	info.push_back(read_rstree_info("../common/config/rstree.pcd.config"));
-	
+
 	int id, n;
 	TriMesh* mesh;
 	R_TYPE** data;
 	node_type* root;
 	string realname;
-	for (auto &p: db_meshes) {
-		id = p.first;
-		mesh = p.second;
-
+	for (id = 0; id < db_meshes.size(); id++) {
+		mesh = db_meshes[id];
 		n = mesh->vertices.size();
 
 		data = (R_TYPE **) malloc(sizeof(R_TYPE *) * n);
@@ -101,9 +99,9 @@ int main(int argc, char* argv[]) {
 	    }
 
 	    if (batch_mode) {
-	    	realname = db_filenames[id] + ".rstree.int";
+	    	realname = db_filenames[id] + ".rst";
 	    } else {
-	    	realname = input_filename + ".rstree.int";
+	    	realname = input_filename + ".rst";
 	    }
 
 		for (int i = 0; i < info.size(); i++) {
@@ -113,12 +111,11 @@ int main(int argc, char* argv[]) {
 		    build_tree(&root, data, n, &info[i]);
 		    // cout << "Build R-tree in " << timer_end(SECOND) << "(s)" << endl;
 
-		    realname += string("." + to_string(i));
-
 		    // save R-tree
 		    // timer_start();
-		    save_rtree(root, realname.c_str(), &info[i]);
-		    cout << "Save R-tree to " << realname /*<< " in " << timer_end(SECOND) << "(s)"*/ << endl;
+		    string realname_idx(realname + "." + to_string(i));
+		    save_rtree(root, realname_idx.c_str(), &info[i]);
+		    cout << "Save R-tree to " << realname_idx /*<< " in " << timer_end(SECOND) << "(s)"*/ << endl;
 
 		    free_tree(root, &info[i]);
 		    cout << "R-tree freed" << endl;

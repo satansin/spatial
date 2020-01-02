@@ -10,7 +10,8 @@
 #include <stdlib.h>
 
 #include <algorithm>
-#include <functional>
+
+#include <vector>
 
 #define ASSERT assert // RTree uses ASSERT( condition )
 #ifndef Min
@@ -54,11 +55,10 @@ template<class DATATYPE, class ELEMTYPE, int NUMDIMS,
          class ELEMTYPEREAL = ELEMTYPE, int TMAXNODES = 8, int TMINNODES = TMAXNODES / 2>
 class RTree
 {
-protected: 
-
-  struct Node;  // Fwd decl.  Used by other internal structs and iterator
 
 public:
+
+  struct Node;  // Fwd decl.  Used by other internal structs and iterator
 
   // These constant must be declared after Branch and before Node struct
   // Stuck up here for MSVC 6 compiler.  NSVC .NET 2003 is much happier.
@@ -68,11 +68,39 @@ public:
     MINNODES = TMINNODES,                         ///< Min elements in node
   };
 
-public:
+  /// Minimal bounding rectangle (n-dimensional)
+  struct Rect
+  {
+    ELEMTYPE m_min[NUMDIMS];                      ///< Min dimensions of bounding box 
+    ELEMTYPE m_max[NUMDIMS];                      ///< Max dimensions of bounding box 
+  };
+
+  /// May be data or may be another subtree
+  /// The parents level determines this.
+  /// If the parents level is 0, then this is data
+  struct Branch
+  {
+    Rect m_rect;                                  ///< Bounds
+    Node* m_child;                                ///< Child node
+    DATATYPE m_data;                              ///< Data Id
+  };
+
+  /// Node for each branch level
+  struct Node
+  {
+    bool IsInternalNode()                         { return (m_level > 0); } // Not a leaf, but a internal node
+    bool IsLeaf()                                 { return (m_level == 0); } // A leaf, contains data
+    
+    int m_count;                                  ///< Count
+    int m_level;                                  ///< Leaf is zero, others positive
+    Branch m_branch[MAXNODES];                    ///< Branch
+  };
 
   RTree();
   RTree(const RTree& other);
   virtual ~RTree();
+
+  const Node* GetRoot() const { return m_root; }
   
   /// Insert entry
   /// \param a_min Min of bounding rect
@@ -93,7 +121,11 @@ public:
   /// \param a_resultCallback Callback function to return result.  Callback should return 'true' to continue searching
   /// \param a_context User context to pass as parameter to a_resultCallback
   /// \return Returns the number of entries found
-  int Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::function<bool (const DATATYPE&)> callback) const;
+  int Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::vector<DATATYPE>& a_searchResult, int* page_accessed) const;
+
+  int Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], const Node* node, std::vector<DATATYPE>& a_searchResult, int* page_accessed) const;
+
+  int NodeSearch(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::vector<Node*>& ret, int* page_accessed, int stop_level) const;
   
   /// Remove all entries from tree
   void RemoveAll();
@@ -274,34 +306,6 @@ public:
   DATATYPE& GetAt(Iterator& a_it)                 { return *a_it; }
 
 protected:
-
-  /// Minimal bounding rectangle (n-dimensional)
-  struct Rect
-  {
-    ELEMTYPE m_min[NUMDIMS];                      ///< Min dimensions of bounding box 
-    ELEMTYPE m_max[NUMDIMS];                      ///< Max dimensions of bounding box 
-  };
-
-  /// May be data or may be another subtree
-  /// The parents level determines this.
-  /// If the parents level is 0, then this is data
-  struct Branch
-  {
-    Rect m_rect;                                  ///< Bounds
-    Node* m_child;                                ///< Child node
-    DATATYPE m_data;                              ///< Data Id
-  };
-
-  /// Node for each branch level
-  struct Node
-  {
-    bool IsInternalNode()                         { return (m_level > 0); } // Not a leaf, but a internal node
-    bool IsLeaf()                                 { return (m_level == 0); } // A leaf, contains data
-    
-    int m_count;                                  ///< Count
-    int m_level;                                  ///< Leaf is zero, others positive
-    Branch m_branch[MAXNODES];                    ///< Branch
-  };
   
   /// A link list of nodes for reinsertion after a delete operation
   struct ListNode
@@ -355,7 +359,8 @@ protected:
   void FreeListNode(ListNode* a_listNode);
   bool Overlap(Rect* a_rectA, Rect* a_rectB) const;
   void ReInsert(Node* a_node, ListNode** a_listNode);
-  bool Search(Node* a_node, Rect* a_rect, int& a_foundCount, std::function<bool (const DATATYPE&)> callback) const;
+  bool Search(Node* a_node, Rect* a_rect, int& a_foundCount, std::vector<DATATYPE>& ret, int* page_accessed) const;
+  bool NodeSearch(Node* a_node, Rect* a_rect, int& a_foundCount, std::vector<Node*>& ret, int* page_accessed, int stop_level) const;
   void RemoveAllRec(Node* a_node);
   void Reset();
   void CountRec(Node* a_node, int& a_count);
@@ -529,9 +534,8 @@ void RTREE_QUAL::Remove(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMD
   RemoveRect(&rect, a_dataId, &m_root);
 }
 
-
 RTREE_TEMPLATE
-int RTREE_QUAL::Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::function<bool (const DATATYPE&)> callback) const
+int RTREE_QUAL::Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::vector<DATATYPE>& ret, int* page_accessed) const
 {
 #ifdef _DEBUG
   for(int index=0; index<NUMDIMS; ++index)
@@ -548,12 +552,59 @@ int RTREE_QUAL::Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDI
     rect.m_max[axis] = a_max[axis];
   }
 
-  // NOTE: May want to return search result another way, perhaps returning the number of found elements here.
-
   int foundCount = 0;
-  Search(m_root, &rect, foundCount, callback);
+  Search(m_root, &rect, foundCount, ret, page_accessed);
 
   return foundCount;
+}
+
+RTREE_TEMPLATE
+int RTREE_QUAL::Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], const Node* node, std::vector<DATATYPE>& ret, int* page_accessed) const
+{
+#ifdef _DEBUG
+  for(int index=0; index<NUMDIMS; ++index)
+  {
+    ASSERT(a_min[index] <= a_max[index]);
+  }
+#endif //_DEBUG
+
+  Rect rect;
+  
+  for(int axis=0; axis<NUMDIMS; ++axis)
+  {
+    rect.m_min[axis] = a_min[axis];
+    rect.m_max[axis] = a_max[axis];
+  }
+
+  int foundCount = 0;
+  Search(node, &rect, foundCount, ret, page_accessed);
+
+  return foundCount;
+}
+
+RTREE_TEMPLATE
+int RTREE_QUAL::NodeSearch(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::vector<Node*>& ret, int* page_accessed, int stop_level) const
+{
+#ifdef _DEBUG
+  for(int index=0; index<NUMDIMS; ++index)
+  {
+    ASSERT(a_min[index] <= a_max[index]);
+  }
+#endif //_DEBUG
+
+  Rect rect;
+  
+  for(int axis=0; axis<NUMDIMS; ++axis)
+  {
+    rect.m_min[axis] = a_min[axis];
+    rect.m_max[axis] = a_max[axis];
+  }
+
+  int foundCount = 0;
+  NodeSearch(m_root, &rect, foundCount, ret, page_accessed, stop_level);
+
+  return foundCount;
+
 }
 
 
@@ -1602,11 +1653,13 @@ void RTREE_QUAL::ReInsert(Node* a_node, ListNode** a_listNode)
 
 // Search in an index tree or subtree for all data retangles that overlap the argument rectangle.
 RTREE_TEMPLATE
-bool RTREE_QUAL::Search(Node* a_node, Rect* a_rect, int& a_foundCount, std::function<bool (const DATATYPE&)> callback) const
+bool RTREE_QUAL::Search(Node* a_node, Rect* a_rect, int& a_foundCount, std::vector<DATATYPE>& ret, int* page_accessed) const
 {
   ASSERT(a_node);
   ASSERT(a_node->m_level >= 0);
   ASSERT(a_rect);
+
+  (page_accessed[a_node->m_level])++;
 
   if(a_node->IsInternalNode())
   {
@@ -1615,7 +1668,7 @@ bool RTREE_QUAL::Search(Node* a_node, Rect* a_rect, int& a_foundCount, std::func
     {
       if(Overlap(a_rect, &a_node->m_branch[index].m_rect))
       {
-        if(!Search(a_node->m_branch[index].m_child, a_rect, a_foundCount, callback))
+        if(!Search(a_node->m_branch[index].m_child, a_rect, a_foundCount, ret, page_accessed))
         {
           // The callback indicated to stop searching
           return false;
@@ -1630,18 +1683,46 @@ bool RTREE_QUAL::Search(Node* a_node, Rect* a_rect, int& a_foundCount, std::func
     {
       if(Overlap(a_rect, &a_node->m_branch[index].m_rect))
       {
-        DATATYPE& id = a_node->m_branch[index].m_data;
+        DATATYPE id = a_node->m_branch[index].m_data;
         ++a_foundCount;
-
-          if(callback && !callback(id))
-          {
-            return false; // Don't continue searching
-          }
+        ret.push_back(id);
       }
     }
   }
 
   return true; // Continue searching
+}
+
+RTREE_TEMPLATE
+bool RTREE_QUAL::NodeSearch(Node* a_node, Rect* a_rect, int& a_foundCount, std::vector<Node*>& ret, int* page_accessed, int stop_level) const
+{
+  ASSERT(stop_level > 0);
+  ASSERT(a_node);
+  ASSERT(a_node->m_level > stop_level);
+  ASSERT(a_rect);
+
+  (page_accessed[a_node->m_level])++;
+
+  bool to_return = (a_node->m_level - stop_level == 1);
+
+  for(int index=0; index < a_node->m_count; ++index)
+  {
+    if(Overlap(a_rect, &a_node->m_branch[index].m_rect))
+    {
+      if(to_return)
+      {
+        ++a_foundCount;
+        ret.push_back(a_node->m_branch[index].m_child);
+      }
+      else
+      {
+        NodeSearch(a_node->m_branch[index].m_child, a_rect, a_foundCount, ret, page_accessed, stop_level);
+      }
+    }
+  }
+
+  return true;
+
 }
 
 
