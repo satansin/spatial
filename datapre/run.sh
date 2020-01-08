@@ -14,6 +14,7 @@ export LD_LIBRARY_PATH
 # mkdir -p "$DIR_DB"/indoor_scans/recon_bedroom_3/
 # mkdir -p "$DIR_DB"/indoor_scans/recon_bedroom_4/
 # ./out/filter.out "$DIR_RAW"/indoor_scans/recon_bedroom_0.ply "$DIR_DB"/indoor_scans/recon_bedroom_0/recon_bedroom_0.ply 1000 # cannot process due to file too large?
+# TODO: scripts to create meta file
 # ./out/filter.out "$DIR_RAW"/indoor_scans/recon_bedroom_1.ply "$DIR_DB"/indoor_scans/recon_bedroom_1/recon_bedroom_1.ply 1000
 # ./out/filter.out "$DIR_RAW"/indoor_scans/recon_bedroom_2.ply "$DIR_DB"/indoor_scans/recon_bedroom_2/recon_bedroom_2.ply 1000
 # ./out/filter.out "$DIR_RAW"/indoor_scans/recon_bedroom_3.ply "$DIR_DB"/indoor_scans/recon_bedroom_3/recon_bedroom_3.ply 1000
@@ -52,7 +53,6 @@ export LD_LIBRARY_PATH
 # ./out/filter.out "$DIR_RAW"/obj_scans/obj_scans_4/ "$DIR_DB"/obj_scans/obj_scans_4_full/ 1000 -batch
 
 
-
 ### build rstree index for db
 
 # ./out/pre_index.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ -batch
@@ -75,6 +75,46 @@ export LD_LIBRARY_PATH
 # ./out/pre_index.out "$DIR_DB"/obj_scans/obj_scans_2_full/ -batch
 # ./out/pre_index.out "$DIR_DB"/obj_scans/obj_scans_3_full/ -batch
 # ./out/pre_index.out "$DIR_DB"/obj_scans/obj_scans_4_full/ -batch
+
+
+### copy recons to comp
+
+# mkdir -p "$DIR_DB"/indoor_scans/comp_1/
+# mkdir -p "$DIR_DB"/indoor_scans/comp_2/
+# mkdir -p "$DIR_DB"/indoor_scans/comp_3/
+# mkdir -p "$DIR_DB"/indoor_scans/comp_4/
+
+# ln -s "$DIR_DB"/indoor_scans/recon_bedroom_1/recon_bedroom_1.ply		"$DIR_DB"/indoor_scans/comp_1/recon_bedroom_1.ply
+# ln -s "$DIR_DB"/indoor_scans/recon_boardroom_1/recon_boardroom_1.ply	"$DIR_DB"/indoor_scans/comp_1/recon_boardroom_1.ply
+# ln -s "$DIR_DB"/indoor_scans/recon_loft_1/recon_loft_1.ply				"$DIR_DB"/indoor_scans/comp_1/recon_loft_1.ply
+# echo -e "3\n0 $DIR_DB/indoor_scans/comp_1/recon_bedroom_1.ply\n1 $DIR_DB/indoor_scans/comp_1/recon_boardroom_1.ply\n2 $DIR_DB/indoor_scans/comp_1/recon_loft_1.ply" > "$DIR_DB"/indoor_scans/comp_1/meta.txt
+# ln -s "$DIR_DB"/indoor_scans/recon_bedroom_1/recon_bedroom_1.ply.rst.0		"$DIR_DB"/indoor_scans/comp_1/recon_bedroom_1.ply.rst.0
+# ln -s "$DIR_DB"/indoor_scans/recon_boardroom_1/recon_boardroom_1.ply.rst.0	"$DIR_DB"/indoor_scans/comp_1/recon_boardroom_1.ply.rst.0
+# ln -s "$DIR_DB"/indoor_scans/recon_loft_1/recon_loft_1.ply.rst.0			"$DIR_DB"/indoor_scans/comp_1/recon_loft_1.ply.rst.0
+
+# ln -s "$DIR_DB"/indoor_scans/recon_bedroom_2/recon_bedroom_2.ply		"$DIR_DB"/indoor_scans/comp_2/recon_bedroom_2.ply
+# ln -s "$DIR_DB"/indoor_scans/recon_boardroom_2/recon_boardroom_2.ply	"$DIR_DB"/indoor_scans/comp_2/recon_boardroom_2.ply
+# ln -s "$DIR_DB"/indoor_scans/recon_loft_2/recon_loft_2.ply				"$DIR_DB"/indoor_scans/comp_2/recon_loft_2.ply
+# echo -e "3\n0 $DIR_DB/indoor_scans/comp_2/recon_bedroom_2.ply\n1 $DIR_DB/indoor_scans/comp_2/recon_boardroom_2.ply\n2 $DIR_DB/indoor_scans/comp_2/recon_loft_2.ply" > "$DIR_DB"/indoor_scans/comp_2/meta.txt
+# ln -s "$DIR_DB"/indoor_scans/recon_bedroom_2/recon_bedroom_2.ply.rst.0		"$DIR_DB"/indoor_scans/comp_2/recon_bedroom_2.ply.rst.0
+# ln -s "$DIR_DB"/indoor_scans/recon_boardroom_2/recon_boardroom_2.ply.rst.0	"$DIR_DB"/indoor_scans/comp_2/recon_boardroom_2.ply.rst.0
+# ln -s "$DIR_DB"/indoor_scans/recon_loft_2/recon_loft_2.ply.rst.0			"$DIR_DB"/indoor_scans/comp_2/recon_loft_2.ply.rst.0
+
+# ln -s "$DIR_DB"/indoor_scans/recon_bedroom_3/recon_bedroom_3.ply		"$DIR_DB"/indoor_scans/comp_3/recon_bedroom_3.ply
+# ln -s "$DIR_DB"/indoor_scans/recon_boardroom_3/recon_boardroom_3.ply	"$DIR_DB"/indoor_scans/comp_3/recon_boardroom_3.ply
+# ln -s "$DIR_DB"/indoor_scans/recon_loft_3/recon_loft_3.ply				"$DIR_DB"/indoor_scans/comp_3/recon_loft_3.ply
+# echo -e "3\n0 $DIR_DB/indoor_scans/comp_3/recon_bedroom_3.ply\n1 $DIR_DB/indoor_scans/comp_3/recon_boardroom_3.ply\n2 $DIR_DB/indoor_scans/comp_3/recon_loft_3.ply" > "$DIR_DB"/indoor_scans/comp_3/meta.txt
+# ln -s "$DIR_DB"/indoor_scans/recon_bedroom_3/recon_bedroom_3.ply.rst.0		"$DIR_DB"/indoor_scans/comp_3/recon_bedroom_3.ply.rst.0
+# ln -s "$DIR_DB"/indoor_scans/recon_boardroom_3/recon_boardroom_3.ply.rst.0	"$DIR_DB"/indoor_scans/comp_3/recon_boardroom_3.ply.rst.0
+# ln -s "$DIR_DB"/indoor_scans/recon_loft_3/recon_loft_3.ply.rst.0			"$DIR_DB"/indoor_scans/comp_3/recon_loft_3.ply.rst.0
+
+# ln -s "$DIR_DB"/indoor_scans/recon_bedroom_4/recon_bedroom_4.ply		"$DIR_DB"/indoor_scans/comp_4/recon_bedroom_4.ply
+# ln -s "$DIR_DB"/indoor_scans/recon_boardroom_4/recon_boardroom_4.ply	"$DIR_DB"/indoor_scans/comp_4/recon_boardroom_4.ply
+# ln -s "$DIR_DB"/indoor_scans/recon_loft_4/recon_loft_4.ply				"$DIR_DB"/indoor_scans/comp_4/recon_loft_4.ply
+# echo -e "3\n0 $DIR_DB/indoor_scans/comp_4/recon_bedroom_4.ply\n1 $DIR_DB/indoor_scans/comp_4/recon_boardroom_4.ply\n2 $DIR_DB/indoor_scans/comp_4/recon_loft_4.ply" > "$DIR_DB"/indoor_scans/comp_4/meta.txt
+# ln -s "$DIR_DB"/indoor_scans/recon_bedroom_4/recon_bedroom_4.ply.rst.0		"$DIR_DB"/indoor_scans/comp_4/recon_bedroom_4.ply.rst.0
+# ln -s "$DIR_DB"/indoor_scans/recon_boardroom_4/recon_boardroom_4.ply.rst.0	"$DIR_DB"/indoor_scans/comp_4/recon_boardroom_4.ply.rst.0
+# ln -s "$DIR_DB"/indoor_scans/recon_loft_4/recon_loft_4.ply.rst.0			"$DIR_DB"/indoor_scans/comp_4/recon_loft_4.ply.rst.0
 
 
 

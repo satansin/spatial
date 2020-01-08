@@ -28,9 +28,9 @@ const char* TABTABTAB = "      ";
 
 const int RSTREE_SCALE = 1e5;
 
-const int INDEX_DIM = 2;
+const int INDEX_DIM = 6;
 typedef RTree<int, int, INDEX_DIM, double, 36> IndexTree;
-typedef RTree<int, int, INDEX_DIM, double, 7> AuxTree;
+typedef RTree<int, int, INDEX_DIM, double, 10> AuxTree;
 
 struct PtwID {
 	int id;
@@ -688,11 +688,9 @@ public:
 
 	    int real_inlier_count;
 
-	    // info_q_ifs >> this->m >> this->epsilon >> this->eta >> this->db_mesh_id;
 	    info_q_ifs >> this->m >> this->epsilon >> this->db_mesh_id;
 	    // this->epsilon *= 2.0;
 	    this->eta = 0.68;
-	    // info_q_ifs >> real_inlier_count >> this->gt_err_linear >> this->gt_err_quad;
 	    info_q_ifs >> this->gt_err_linear >> this->gt_err_quad;
 
 	    int q_id, db_id;
@@ -919,7 +917,8 @@ inline int window_query(IndexTree* tree, double sides[], double err,
 	}
 
 	////////////////////////// Toggle_1 /////////////////////////////////////
-	int num = tree->Search(query_min, query_max, ret, page_accessed);
+	int num;
+	num = tree->Search(query_min, query_max, ret, page_accessed);
 	////////////////////////// Toggle_1 /////////////////////////////////////
 
 	////////////////////////// Toggle_2 /////////////////////////////////////
@@ -939,71 +938,6 @@ inline int window_query(IndexTree* tree, double sides[], double err,
 	free(query_max);
 
 	return num;
-}
-
-inline int node_search_bundle(const IndexTree::Node* idx_node, const AuxTree::Node* aux_node, int ovlp_min[INDEX_DIM], int ovlp_max[INDEX_DIM], vector<pair<int, int>>& ret) {
-
-	for (int i = 0; i < idx_node->m_count; i++) {
-
-		auto idx_br = idx_node->m_branch[i];
-		auto idx_rect = idx_br.m_rect;
-
-		bool idx_skip = false;
-		for (int index = 0; index < INDEX_DIM; index++) {
-			if (idx_rect.m_min[index] > ovlp_max[index] ||
-    		    ovlp_min[index] > idx_rect.m_max[index]) {
-    		    
-    		    idx_skip = true;
-    			break;
-    		}
-    	}
-    	if (idx_skip)
-    		continue;
-
-		for (int j = 0; j < aux_node->m_count; j++) {
-
-			auto aux_br = aux_node->m_branch[j];
-			auto aux_rect = aux_br.m_rect;
-
-			bool aux_skip = false;
-			for (int index = 0; index < INDEX_DIM; index++) {
-				if (aux_rect.m_min[index] > ovlp_max[index] ||
-	    		    ovlp_min[index] > aux_rect.m_max[index]) {
-	    		    
-	    		    aux_skip = true;
-	    			break;
-	    		}
-	    	}
-	    	if (aux_skip)
-	    		continue;
-
-			bool overlap = true;
-			for (int index = 0; index < INDEX_DIM; index++) {
-				if (idx_rect.m_min[index] > aux_rect.m_max[index] ||
-        		    aux_rect.m_min[index] > idx_rect.m_max[index]) {
-        		    
-        		    overlap = false;
-        			break;
-        		}
-        	}
-
-        	if (!overlap)
-        		continue;
-
-        	if (idx_node->m_level == 0) {
-        		ret.push_back(make_pair(aux_br.m_data, idx_br.m_data));
-        	} else {
-        		int new_ovlp_min[INDEX_DIM], new_ovlp_max[INDEX_DIM];
-        		for (int index = 0; index < INDEX_DIM; index++) {
-    				new_ovlp_min[index] = max(idx_rect.m_min[index], aux_rect.m_min[index]);
-    				new_ovlp_max[index] = min(idx_rect.m_max[index], aux_rect.m_max[index]);
-        		}
-        		
-        		node_search_bundle(idx_br.m_child, aux_br.m_child, new_ovlp_min, new_ovlp_max, ret);
-        	}
-		}
-	}
-
 }
 
 inline int window_query_bundle(node_type *r_root, rtree_info* r_info, const vector<Entry*>& e_list, double err, double bbox_min[], double bbox_max[],
@@ -1068,11 +1002,6 @@ inline bool get_est_b_c(Pt3D* m_ptr, Pt3D* a_ptr, Pt3D* h_ptr, Pt3D& b_est, Pt3D
     auto cross = cross_prd(ma, mb_est);
 
     c_est = e + cross * (0.942809041 * mb_est.mode() / cross.mode());
-
-	// Pt3D std_coor[3] = { {0, 0, 0}, {r, 0, 0}, {0, 0, d_ma} }; // put m, b_est, a in a righthand coordinate system
-	// Pt3D real_coor[3] = { m, b_est, a.pt };
-	// auto xf = cal_trans(std_coor, real_coor, 3);
-	// Pt3D c_est = trans_pt(&xf, { r / 3.0, r * 0.94280904, 0 }); // rotate b_est arccos(1/3) towards y+ surrounding m
     
     return true;
 

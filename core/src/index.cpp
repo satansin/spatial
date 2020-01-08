@@ -48,11 +48,20 @@ int main(int argc, char **argv) {
         ++bar;
         bar.display();
 
+        // use side length as index keys
         int box_min[INDEX_DIM], box_max[INDEX_DIM];
         for (int j = 0; j < INDEX_DIM; j++) {
             box_min[j] = (int) (e->sides[j] * 1e5);
             box_max[j] = (int) (e->sides[j] * 1e5);
         }
+
+        // // use vol and meas as index keys
+        // double box_min[INDEX_DIM], box_max[INDEX_DIM];
+        // box_min[0] = e->vol;
+        // box_max[0] = e->vol;
+        // box_min[1] = e->meas;
+        // box_max[1] = e->meas;
+        
         tree.Insert(box_min, box_max, i);
         ////////////////////////// Toggle_1 /////////////////////////////////////
 
@@ -67,6 +76,8 @@ int main(int argc, char **argv) {
 
     ////////////////////////// Toggle_1 /////////////////////////////////////
     bar.done();
+
+    tree.SortDim0();
 
     string outidx_filename = idx_filename + ".t";
     timer_start();
