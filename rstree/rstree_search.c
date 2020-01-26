@@ -815,8 +815,6 @@ void sphere_NodeSearch(node_type *curr_node, R_TYPE *query, R_LONG_TYPE min, R_L
 		for (i=0;i<total;i++)
 		{
 			dist = cal_Euclidean(curr_node->ptr[i], query, aInfo);
-			// if (curr_node->ptr[i]->id == 71541 || curr_node->ptr[i]->id == 70273)
-			// 	printf("%d: %.10f, min=%.10f, max=%.10f\n", curr_node->ptr[i]->id, dist, min, max);
 #ifdef R_FLOAT
 			if (min - FLOAT_ZERO <= dist && dist <= max + FLOAT_ZERO)
 #else
@@ -854,6 +852,176 @@ void sphere_search(node_type *root, R_TYPE *query, R_LONG_TYPE min, R_LONG_TYPE 
 {
 	*returnResult = NULL;
 	sphere_NodeSearch(root, query, min, max, returnResult, r_info);
+}
+
+
+int ll_length(RangeReturn_type **rr_ret)
+{
+	int len = 0;
+	RangeReturn_type *itr = *rr_ret;
+	while (itr) {
+		len++;
+		itr = itr->next;
+	}
+	return len;
+}
+
+
+void NN_range_update(RangeReturn_type **rr_ret, R_LONG_TYPE dist, node_type *node, R_LONG_TYPE *nn_min, R_LONG_TYPE *nn_max, double span)
+{
+
+	// TODO: print min
+	// printf("Update: %ld\n", dist);
+
+	if (dist < *nn_min)
+	{
+		// update nn_min & nn_max
+		*nn_min = dist;
+		double sqrt_max = sqrt((double) dist) + span;
+		*nn_max = (R_LONG_TYPE) (sqrt_max * sqrt_max) + INT_ZERO;
+		// printf("Updated min: %ld\n", *nn_min);
+		// printf("Updated max: %ld\n", *nn_max);
+
+		// delete following rr_ret nodes which > updated *nn_max
+		RangeReturn_type *itr = *rr_ret;
+		while (itr)
+		{
+			if (itr->dist > *nn_max)
+				break;
+			itr = itr->next;
+		}
+		if (itr)
+		{
+			if (itr->prev)
+			{
+				itr->prev->next = NULL;
+			}
+			else
+			{
+				*rr_ret = NULL;
+			}
+			// while (itr != NULL)
+			// TODO: delete the following, but first not do it, test memory and time
+		}
+	}
+
+	RangeReturn_type* new_return = (RangeReturn_type *) malloc(sizeof(RangeReturn_type));
+	new_return->dist = dist;
+	new_return->oid = node->id;
+	new_return->pointer = node;
+	new_return->next = NULL;
+	new_return->prev = NULL;
+
+	// insert new_return into a proper position
+	RangeReturn_type *itr = *rr_ret;
+	RangeReturn_type *itr_prev = NULL;
+	while (itr) {
+		if (itr->dist >= dist)
+		{
+			break;
+		}
+		itr_prev = itr;
+		itr = itr->next;
+	}
+
+	if (itr) // has next, link new to next
+	{
+		new_return->next = itr;
+		itr->prev = new_return;
+	}
+	if (itr_prev) // has prev, link new to prev
+	{
+		itr_prev->next = new_return;
+		new_return->prev = itr_prev;
+	}
+	else // has no prev, meaning new is the first, link *rr_ret to new
+	{
+		*rr_ret = new_return;
+	}
+
+	// printf("Length: %d\n", ll_length(rr_ret));
+}
+
+int contain(int excl_list[], int excl_num, int id)
+{
+	int i;
+	for (i = 0; i < excl_num; i++)
+	{
+		if (excl_list[i] == id)
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
+void NN_range_NodeSearch(node_type *curr_node, R_TYPE *query, RangeReturn_type **rr_ret, rtree_info *aInfo, R_LONG_TYPE *nn_min, R_LONG_TYPE *nn_max,
+	R_LONG_TYPE rad, double span, int excl_list[], int excl_num)
+{
+	
+	int i, total;
+	R_LONG_TYPE dist;
+	ABL *branch;
+	
+	E_page_access_count++;
+
+	//*** new
+	if (curr_node->vacancy == aInfo->M)
+	{
+		return;
+	}
+	
+	/* Please refer NN Queries paper */
+	if (curr_node->ptr[0]->attribute == LEAF) 
+	{
+		total = aInfo->M - curr_node->vacancy;
+		for (i=0;i<total;i++)
+		{
+			dist = cal_Euclidean(curr_node->ptr[i], query, aInfo);
+			if (dist <= *nn_max && dist > rad && !contain(excl_list, excl_num, curr_node->ptr[i]->id)) // udpate only when dist > rad
+				NN_range_update(rr_ret, dist, curr_node->ptr[i], nn_min, nn_max, span);
+		}
+	}
+	else
+	{
+		/* Please refer SIGMOD record Sep. 1998 Vol. 27 No. 3 P.18 */
+		total=aInfo->M-curr_node->vacancy;
+		branch=(struct BranchArray *)malloc(total*sizeof(struct BranchArray)*total);
+		gen_ABL_minmax(curr_node, branch, query, total, aInfo);
+		for (i=0;i<total;i++)
+		{
+			if (branch[i].min > *nn_max)
+				break;
+			else if (branch[i].max <= rad)
+				continue;
+			else
+				NN_range_NodeSearch(branch[i].node, query, rr_ret, aInfo, nn_min, nn_max, rad, span, excl_list, excl_num);
+		}
+		free(branch);
+	}
+	return;
+
+}
+
+
+/**
+ * Gives me the squred distance
+ */
+void NN_range_search(node_type *root, R_TYPE *query, RangeReturn_type **rr_ret, rtree_info *aInfo, R_LONG_TYPE rad, double span, int excl_list[], int excl_num)
+{
+	*rr_ret = NULL;
+
+	R_LONG_TYPE *nn_min = (R_LONG_TYPE *) malloc(sizeof(R_LONG_TYPE));
+	R_LONG_TYPE *nn_max = (R_LONG_TYPE *) malloc(sizeof(R_LONG_TYPE));
+	*nn_min = INFINITY;
+	*nn_max = INFINITY;
+
+	NN_range_NodeSearch(root, query, rr_ret, aInfo, nn_min, nn_max, rad, span, excl_list, excl_num);
+
+	free(nn_min);
+	free(nn_max);
+
 }
 
 

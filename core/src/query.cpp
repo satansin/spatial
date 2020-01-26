@@ -16,6 +16,20 @@
 using namespace std;
 using namespace trimesh;
 
+void nn_sphere_range_and_show_new(const Struct_Q* s_q, Pt3D* q, node_type *r_root, rtree_info* r_info, double sq_dist, double err,
+    vector<RangeReturn_type*>& ret, bool verbose = false, string nav = "", int excl_id_list[] = {}, int excl_id_num = 0) {
+
+    nn_sphere_range_new(q, r_root, r_info, sq_dist, err, ret, excl_id_list, excl_id_num);
+    
+    if (verbose) {
+        cout << nav << "nn_sphere_range-------RR:";
+        for (auto &it: ret) {
+            cout << " " << s_q->id_q_to_str(it->oid) << "=" << (sqrt(it->dist) / RSTREE_SCALE);
+        }
+        cout << endl;
+    }
+}
+
 void nn_sphere_range_and_show(const Struct_Q* s_q, Pt3D* q, node_type *r_root, rtree_info* r_info, double sq_dist, double err,
     vector<RangeReturn_type*>& ret, bool verbose = false, string nav = "", const unordered_set<int>& excl_id_set = {}) {
 
@@ -80,7 +94,14 @@ int cal_entries_new(PtwID q, double min, const Struct_Q* s_q, const TriMesh* mes
     vector<RangeReturn_type*> range_a, range_h, range_b, range_c;
     PtwID ten_a, ten_h, ten_b, ten_c;
 
-    nn_sphere_range_and_show(s_q, &(q.pt), r_root_q, r_info, sq(min - err), err, range_a, (verbose > 0));
+    // nn_sphere_range_and_show(s_q, &(q.pt), r_root_q, r_info, sq(min - err), err, range_a, (verbose > 0));
+    nn_sphere_range_and_show_new(s_q, &(q.pt), r_root_q, r_info, sq(min - err), err, range_a, (verbose > 0));
+
+    // for (int i = 0; i < range_a.size(); i++) {
+    //     for (int j = i + 1; j < range_a.size(); j++) {
+    //         cout << eucl_dist(mesh_q->vertices[range_a[i]->oid], mesh_q->vertices[range_a[j]->oid]) << endl;
+    //     }
+    // }
 
     for (auto &it_a: range_a) {
         if (it_a->oid < 0)
@@ -94,7 +115,9 @@ int cal_entries_new(PtwID q, double min, const Struct_Q* s_q, const TriMesh* mes
         auto m = middle_pt(q.pt, ten_a.pt);
         float d_pm = eucl_dist(q.pt, m);
 
-        nn_sphere_range_and_show(s_q, &m, r_root_q, r_info, sq(d_pm - err), err, range_h, (verbose > 1), "", { q.id, ten_a.id });
+        // nn_sphere_range_and_show(s_q, &m, r_root_q, r_info, sq(d_pm - err), err, range_h, (verbose > 1), "", { q.id, ten_a.id });
+        int excl_qa[2] = { q.id, ten_a.id };
+        nn_sphere_range_and_show_new(s_q, &m, r_root_q, r_info, sq(d_pm - err), err, range_h, (verbose > 1), "", excl_qa, 2);
 
         for (auto &it_h: range_h) {
             if (it_h->oid < 0)
@@ -111,7 +134,8 @@ int cal_entries_new(PtwID q, double min, const Struct_Q* s_q, const TriMesh* mes
                 continue;
             }
 
-            nn_sphere_range_and_show(s_q, &ten_b_est, r_root_q, r_info, 0.0, err, range_b, (verbose > 2), TAB, { q.id, ten_a.id });
+            // nn_sphere_range_and_show(s_q, &ten_b_est, r_root_q, r_info, 0.0, err, range_b, (verbose > 2), TAB, { q.id, ten_a.id });
+            nn_sphere_range_and_show_new(s_q, &ten_b_est, r_root_q, r_info, 0.0, err, range_b, (verbose > 2), TAB, excl_qa, 2);
 
             for (auto &it_b: range_b) {
                 if (it_b->oid < 0)
@@ -122,7 +146,9 @@ int cal_entries_new(PtwID q, double min, const Struct_Q* s_q, const TriMesh* mes
 
                 ten_b = PtwID(it_b->oid, mesh_q);
 
-                nn_sphere_range_and_show(s_q, &ten_c_est, r_root_q, r_info, 0.0, err, range_c, (verbose > 3), TABTAB, { q.id, ten_a.id, ten_b.id });
+                // nn_sphere_range_and_show(s_q, &ten_c_est, r_root_q, r_info, 0.0, err, range_c, (verbose > 3), TABTAB, { q.id, ten_a.id, ten_b.id });
+                int excl_qab[3] = { q.id, ten_a.id, ten_b.id };
+                nn_sphere_range_and_show_new(s_q, &ten_c_est, r_root_q, r_info, 0.0, err, range_c, (verbose > 3), TABTAB, excl_qab, 3);
 
                 for (auto &it_c: range_c) {
                     if (it_c->oid < 0)
@@ -167,24 +193,20 @@ int cal_entries_new(PtwID q, double min, const Struct_Q* s_q, const TriMesh* mes
 }
 
 // this function is used only when volume and volume ratio are used for indexing keys
-bool check_congr(const Entry* e, const Entry* f, double epsilon) {
-    epsilon = max(epsilon, 0.01);
-
-    double e_edges[5], f_edges[5];
-    e_edges[0] = eucl_dist(e->repre->pt, e->remai[0]->pt);
-    e_edges[1] = eucl_dist(e->repre->pt, e->remai[1]->pt);
-    e_edges[2] = eucl_dist(e->remai[0]->pt, e->remai[1]->pt);
-    e_edges[3] = eucl_dist(e->repre->pt, e->remai[2]->pt);
-    e_edges[4] = eucl_dist(e->remai[0]->pt, e->remai[2]->pt);
-    f_edges[0] = eucl_dist(f->repre->pt, f->remai[0]->pt);
-    f_edges[1] = eucl_dist(f->repre->pt, f->remai[1]->pt);
-    f_edges[2] = eucl_dist(f->remai[0]->pt, f->remai[1]->pt);
-    f_edges[3] = eucl_dist(f->repre->pt, f->remai[2]->pt);
-    f_edges[4] = eucl_dist(f->remai[0]->pt, f->remai[2]->pt);
-    for (int i = 0; i < 5; i++) {
-        if (abs(e_edges[i] - f_edges[i]) > 2 * epsilon) {
-            return false;
-        }
+bool check_congr(const Entry* e, const Entry* f, double err) {
+    // for (int i = 0; i < 5; i++) {
+    //     if (abs(e_edges[i] - f_edges[i]) > 2 * epsilon) {
+    //         return false;
+    //     }
+    // }
+    if (abs(e->sides[1] - f->sides[1]) > err) {
+        return false;
+    }
+    if (abs(e->sides[2] - f->sides[2]) > err) {
+        return false;
+    }
+    if (abs(e->sides[5] - f->sides[5]) > err) {
+        return false;
     }
     return true;
 }
@@ -225,7 +247,7 @@ bool check_congr(const Entry* e, const Entry* f, double epsilon) {
 
 ////////////////////////// Toggle_1 /////////////////////////////////////
 int retrieve_congr_entry(vector<Entry*>& e_list, double epsilon, IndexTree* tree, const Struct_DB* s_db,
-    vector<Entry_Pair*>& ret, int& total_page_accessed, bool verbose = false) {
+    vector<Entry_Pair*>& ret, bool verbose = false) {
 ////////////////////////// Toggle_1 /////////////////////////////////////
 
 ////////////////////////// Toggle_2 /////////////////////////////////////
@@ -242,30 +264,15 @@ int retrieve_congr_entry(vector<Entry*>& e_list, double epsilon, IndexTree* tree
     	if (verbose)
     		cout << "For entry:" << endl << e->to_str(10) << endl;
 
-        const int HIGHEST = 6;
-        int *page_accessed = new int[HIGHEST];
-        for (int i = 0; i < HIGHEST; i++) {
-            page_accessed[i] = 0;
-        }
-
         ////////////////////////// Toggle_1 /////////////////////////////////////
         vector<int> rr_ret;
-        total_nhits += window_query(tree, e->sides, corr_epsilon, rr_ret, page_accessed);
+        window_query(tree, e, corr_epsilon, rr_ret);
         ////////////////////////// Toggle_1 /////////////////////////////////////
 
         ////////////////////////// Toggle_2 /////////////////////////////////////
         // vector<RangeReturn_type*> rr_ret;
     	// total_nhits += window_query(tree, r_info, e->sides, corr_epsilon, rr_ret, page_accessed);
         ////////////////////////// Toggle_2 /////////////////////////////////////
-
-        // cout << "Page accessed:";
-        // for (int i = 0; i < HIGHEST; i++) {
-        //     cout << "\t" << page_accessed[i];
-        //     total_page_accessed += page_accessed[i];
-        // }
-        // cout << endl;
-
-        delete[] page_accessed;
 
 	    for (auto &hit: rr_ret) {
             ////////////////////////// Toggle_1 /////////////////////////////////////
@@ -275,12 +282,16 @@ int retrieve_congr_entry(vector<Entry*>& e_list, double epsilon, IndexTree* tree
             ////////////////////////// Toggle_2 /////////////////////////////////////
 	        // int hit_key = hit->oid;
             ////////////////////////// Toggle_2 /////////////////////////////////////
-	        Entry* f = s_db->get_entry(hit_key);
-	        Entry_Pair* new_pair = new Entry_Pair(e, f, s_db->get_grid_id_by_global_cell_id(hit_key));
-	        ret.push_back(new_pair);
 
-	        if (verbose)
-	            cout << "Found pair:" << endl << new_pair->to_str(10) << endl;
+	        Entry* f = s_db->get_entry(hit_key);
+            if (check_congr(e, f, corr_epsilon)) {
+                total_nhits++;
+    	        Entry_Pair* new_pair = new Entry_Pair(e, f, s_db->get_grid_id_by_global_cell_id(hit_key));
+    	        ret.push_back(new_pair);
+
+    	        if (verbose)
+    	            cout << "Found pair:" << endl << new_pair->to_str(10) << endl;
+            }
 	    }
     }
 
@@ -304,11 +315,7 @@ int retrieve_congr_entry_bundle(vector<Entry*>& e_list, double epsilon, IndexTre
     Entry* e;
     int box_min[INDEX_DIM], box_max[INDEX_DIM];
     for (int i = 0; i < e_list.size(); i++) {
-        e = e_list[i];
-        for (int j = 0; j < INDEX_DIM; j++) {
-            box_min[j] = (int) ((e->sides[j] - corr_epsilon) * RSTREE_SCALE);
-            box_max[j] = (int) ((e->sides[j] + corr_epsilon) * RSTREE_SCALE);
-        }
+        e_list[i]->get_index_box(corr_epsilon, box_min, box_max);
         aux_tree.Insert(box_min, box_max, i);
     }
 
@@ -321,11 +328,13 @@ int retrieve_congr_entry_bundle(vector<Entry*>& e_list, double epsilon, IndexTre
     for (auto &r: search_ret) {
         Entry* e = e_list[r.first];
         Entry* f = s_db->get_entry(r.second);
-        Entry_Pair* new_pair = new Entry_Pair(e, f, s_db->get_grid_id_by_global_cell_id(r.second));
-        ret.push_back(new_pair);
+        if (check_congr(e, f, corr_epsilon)) {
+            Entry_Pair* new_pair = new Entry_Pair(e, f, s_db->get_grid_id_by_global_cell_id(r.second));
+            ret.push_back(new_pair);
 
-        if (verbose)
-            cout << "Found pair:" << endl << new_pair->to_str(10) << endl;
+            if (verbose)
+                cout << "Found pair:" << endl << new_pair->to_str(10) << endl;
+        }
     }
 
     return search_ret.size();
@@ -467,7 +476,7 @@ int main(int argc, char **argv) {
     cout << "Total no. cells: " << s_db.get_total_cells_count() << endl << endl;
 
     ////////////////////////// Toggle_1 /////////////////////////////////////
-    string idx_filename = grid_filename + ".idx.s";
+    string idx_filename = get_idx_filename(grid_filename);
     ////////////////////////// Toggle_1 /////////////////////////////////////
 
     ////////////////////////// Toggle_2 /////////////////////////////////////
@@ -505,7 +514,7 @@ int main(int argc, char **argv) {
 
     // load the query R-tree
     cout << "Loading R-tree for query points..." << endl;
-    read_rtree(&root_q, string(query_filename + ".rst.0").c_str(), &query_rtree_info);
+    read_rtree(&root_q, get_rst_filename(query_filename).c_str(), &query_rtree_info);
 
     // load the query structure
     Struct_Q s_q;
@@ -525,13 +534,16 @@ int main(int argc, char **argv) {
 
 	    int total_num_verification = 0;
 	    double total_time = 0.0, proposal_time = 0.0, verification_time = 0.0;
+	    double grid_time = 0.0;
         double time_p1 = 0.0, time_p2 = 0.0;
 
 	    double w_q = 3.464102 * s_db.get_w();
 	    cout << "Query voxelized of grid size " << w_q << endl;
 
+	    timer_start();
 	    s_q.g_q = new Grid(w_q);
 	    s_q.g_q->gridify(mesh_q);
+	    cout << "Gridify completed in " << timer_end(SECOND) << "(s)" << endl;
 
 	    cout << "Total number of query cells: " << s_q.g_q->cells_map.size() << endl;
 
@@ -602,8 +614,8 @@ int main(int argc, char **argv) {
                 int total_page_accessed = 0;
 
                 ////////////////////////// Toggle_1 /////////////////////////////////////
-                int num_hits = retrieve_congr_entry_bundle(v_entries, s_q.epsilon, &tree, &s_db, v_pairs, (verbose > 4));
-                // int num_hits = retrieve_congr_entry(v_entries, s_q.epsilon, &tree, &s_db, v_pairs, total_page_accessed, (verbose > 4));
+                // int num_hits = retrieve_congr_entry_bundle(v_entries, s_q.epsilon, &tree, &s_db, v_pairs, (verbose > 4));
+                int num_hits = retrieve_congr_entry(v_entries, s_q.epsilon, &tree, &s_db, v_pairs, (verbose > 4));
                 ////////////////////////// Toggle_1 /////////////////////////////////////
 
                 ////////////////////////// Toggle_2 /////////////////////////////////////

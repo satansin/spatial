@@ -34,11 +34,37 @@
 #define RTREE_TEMPLATE_PRIME template<class DATATYPE_P, class ELEMTYPE_P, int NUMDIMS_P, class ELEMTYPEREAL_P, int TMAXNODES_P, int TMINNODES_P>
 #define RTREE_QUAL_PRIME RTree<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>
 
+#define OUTRA_RECT OutraRect<ELEMTYPE, NUMDIMS>
+
+#define OVERLAP_P Overlap<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>
+
+#define OVERLAPPING_AREA_P OverlappingArea<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>
+
+#define RESIDUAL_SEARCH   ResidualSearch<DATATYPE, ELEMTYPE, NUMDIMS, ELEMTYPEREAL, TMAXNODES, TMINNODES>
+#define RESIDUAL_SEARCH_P ResidualSearch<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>
+
+#define JOIN_NODE_P JoinNode<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>
+
+#define JOIN_INT_NODE   JoinInternalLoop<DATATYPE, ELEMTYPE, NUMDIMS, ELEMTYPEREAL, TMAXNODES, TMINNODES>
+#define JOIN_INT_NODE_P JoinInternalLoop<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>
+
+#define SORTED_RESIDUAL_SEARCH   SortedResidualSearch<DATATYPE, ELEMTYPE, NUMDIMS, ELEMTYPEREAL, TMAXNODES, TMINNODES>
+#define SORTED_RESIDUAL_SEARCH_P SortedResidualSearch<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>
+
+#define JOIN_SORTED_NODE_P JoinSortedNode<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>
+
 #define RTREE_DONT_USE_MEMPOOLS // This version does not contain a fixed memory allocator, fill in lines with EXAMPLE to implement one.
 #define RTREE_USE_SPHERICAL_VOLUME // Better split classification, may be slower on some systems
 
 // Fwd decl
 class RTFileStream;  // File I/O helper class, look below for implementation and notes.
+
+template<class ELEMTYPE, int NUMDIMS>
+struct OutraRect
+{
+  ELEMTYPE m_min[NUMDIMS];
+  ELEMTYPE m_max[NUMDIMS];
+};
 
 
 /// \class RTree
@@ -102,11 +128,11 @@ public:
   /// \param a_resultCallback Callback function to return result.  Callback should return 'true' to continue searching
   /// \param a_context User context to pass as parameter to a_resultCallback
   /// \return Returns the number of entries found
-  int Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::vector<DATATYPE>& a_searchResult, int* page_accessed) const;
+  int Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::vector<DATATYPE>& a_searchResult) const;
 
-  int Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], const Node* node, std::vector<DATATYPE>& a_searchResult, int* page_accessed) const;
+  int Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], const Node* node, std::vector<DATATYPE>& a_searchResult) const;
 
-  int NodeSearch(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::vector<Node*>& ret, int* page_accessed, int stop_level) const;
+  int NodeSearch(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::vector<Node*>& ret, int stop_level) const;
 
   RTREE_TEMPLATE_PRIME
   int SpatialJoin(const RTREE_QUAL_PRIME* tree_prime, std::vector<std::pair<int, int>>& ret) const;
@@ -371,8 +397,8 @@ protected:
   void FreeListNode(ListNode* a_listNode);
   bool Overlap(const Rect* a_rectA, const Rect* a_rectB) const;
   void ReInsert(Node* a_node, ListNode** a_listNode);
-  bool Search(Node* a_node, Rect* a_rect, int& a_foundCount, std::vector<DATATYPE>& ret, int* page_accessed) const;
-  bool NodeSearch(Node* a_node, Rect* a_rect, int& a_foundCount, std::vector<Node*>& ret, int* page_accessed, int stop_level) const;
+  bool Search(Node* a_node, Rect* a_rect, int& a_foundCount, std::vector<DATATYPE>& ret) const;
+  bool NodeSearch(Node* a_node, Rect* a_rect, int& a_foundCount, std::vector<Node*>& ret, int stop_level) const;
   void RemoveAllRec(Node* a_node);
   void Reset();
   void CountRec(Node* a_node, int& a_count);
@@ -390,27 +416,27 @@ protected:
   void SortDim0Node(Node* a_node);
 
   RTREE_TEMPLATE_PRIME
-  int JoinNode(const Node* node, const RTREE_QUAL_PRIME* tree_prime, const typename RTREE_QUAL_PRIME::Node* node_prime, const Rect* ovlp_rect, std::vector<std::pair<int, int>>& ret) const;
+  bool Overlap(const Rect* rect, const typename RTREE_QUAL_PRIME::Rect* rect_prime) const;
+
+  bool Overlap(const Rect* rect, const OUTRA_RECT* ovlp_rect) const;
 
   RTREE_TEMPLATE_PRIME
-	bool Overlap(const Rect* rect, const typename RTREE_QUAL_PRIME::Rect* rect_prime) const;
+  void OverlappingArea(const Rect* rect, const typename RTREE_QUAL_PRIME::Rect* rect_prime, OUTRA_RECT& ret) const;
+
+  RTREE_TEMPLATE_PRIME
+  int ResidualSearch(const Node* node, const typename RTREE_QUAL_PRIME::Rect* rect_prime, const OUTRA_RECT* ovlp_rect, std::vector<int>& ret) const;
+
+  RTREE_TEMPLATE_PRIME
+  int JoinNode(const Node* node, const RTREE_QUAL_PRIME* tree_prime, const typename RTREE_QUAL_PRIME::Node* node_prime, const OUTRA_RECT* ovlp_rect, std::vector<std::pair<int, int>>& ret) const;
 
 	RTREE_TEMPLATE_PRIME
-	void OverlappingArea(const Rect* rect, const typename RTREE_QUAL_PRIME::Rect* rect_prime, Rect& ret) const;
-
-	// bool Overlap(const Rect* rect, const ELEMTYPE ovlp_min[NUMDIMS], const ELEMTYPE ovlp_max[NUMDIMS]) const;
-
-	RTREE_TEMPLATE_PRIME
-	int SortedResidualSearch(const Rect* rect, DATATYPE data, const typename RTREE_QUAL_PRIME::Node* node_prime, std::vector<std::pair<int, int>>& ret) const;
-
-	RTREE_TEMPLATE_PRIME
-	int ResidualSearch(const Rect* rect, DATATYPE data, const typename RTREE_QUAL_PRIME::Node* node_prime, /*const Rect* ovlp_rect,*/ std::vector<std::pair<int, int>>& ret) const;
+	int SortedResidualSearch(const Node* node, const typename RTREE_QUAL_PRIME::Rect* rect_prime, const OUTRA_RECT* ovlp_rect, std::vector<int>& ret) const;
 
 	RTREE_TEMPLATE_PRIME
 	int JoinInternalLoop(const Rect* rect, int unmarked, const typename RTREE_QUAL_PRIME::Node* node_prime, std::vector<int>& ret) const;
 
 	RTREE_TEMPLATE_PRIME
-	int JoinSortedNode(const Node* node, const RTREE_QUAL_PRIME* tree_prime, const typename RTREE_QUAL_PRIME::Node* node_prime, const Rect* ovlp_rect, std::vector<std::pair<int, int>>& ret) const;
+	int JoinSortedNode(const Node* node, const RTREE_QUAL_PRIME* tree_prime, const typename RTREE_QUAL_PRIME::Node* node_prime, const OUTRA_RECT* ovlp_rect, std::vector<std::pair<int, int>>& ret) const;
 
 
 };
@@ -583,7 +609,7 @@ void RTREE_QUAL::SortDim0()
 }
 
 RTREE_TEMPLATE
-int RTREE_QUAL::Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::vector<DATATYPE>& ret, int* page_accessed) const
+int RTREE_QUAL::Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::vector<DATATYPE>& ret) const
 {
 #ifdef _DEBUG
   for(int index=0; index<NUMDIMS; ++index)
@@ -601,13 +627,13 @@ int RTREE_QUAL::Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDI
   }
 
   int foundCount = 0;
-  Search(m_root, &rect, foundCount, ret, page_accessed);
+  Search(m_root, &rect, foundCount, ret);
 
   return foundCount;
 }
 
 RTREE_TEMPLATE
-int RTREE_QUAL::Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], const Node* node, std::vector<DATATYPE>& ret, int* page_accessed) const
+int RTREE_QUAL::Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], const Node* node, std::vector<DATATYPE>& ret) const
 {
 #ifdef _DEBUG
   for(int index=0; index<NUMDIMS; ++index)
@@ -625,13 +651,13 @@ int RTREE_QUAL::Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDI
   }
 
   int foundCount = 0;
-  Search(node, &rect, foundCount, ret, page_accessed);
+  Search(node, &rect, foundCount, ret);
 
   return foundCount;
 }
 
 RTREE_TEMPLATE
-int RTREE_QUAL::NodeSearch(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::vector<Node*>& ret, int* page_accessed, int stop_level) const
+int RTREE_QUAL::NodeSearch(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::vector<Node*>& ret, int stop_level) const
 {
 #ifdef _DEBUG
   for(int index=0; index<NUMDIMS; ++index)
@@ -649,7 +675,7 @@ int RTREE_QUAL::NodeSearch(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[N
   }
 
   int foundCount = 0;
-  NodeSearch(m_root, &rect, foundCount, ret, page_accessed, stop_level);
+  NodeSearch(m_root, &rect, foundCount, ret, stop_level);
 
   return foundCount;
 
@@ -663,15 +689,14 @@ int RTREE_QUAL::SpatialJoin(const RTREE_QUAL_PRIME* tree_prime, std::vector<std:
   std::cout << "Highest of root: " << m_root->m_level << std::endl;
   std::cout << "Highest of aux_root: " << root_prime->m_level << std::endl;
 
-  // ELEMTYPE ovlp_min[NUMDIMS], ovlp_max[NUMDIMS];
-  Rect ovlp_rect;
+  OUTRA_RECT ovlp_rect;
   for (int i = 0; i < NUMDIMS; i++) {
      ovlp_rect.m_min[i] = std::numeric_limits<ELEMTYPE>::min();
      ovlp_rect.m_max[i] = std::numeric_limits<ELEMTYPE>::max();
   }
 
-  // JoinSortedNode<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(m_root, tree_prime, root_prime, &ovlp_rect, ret);
-  JoinNode<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(m_root, tree_prime, root_prime, &ovlp_rect, ret);
+  JOIN_SORTED_NODE_P(m_root, tree_prime, root_prime, &ovlp_rect, ret);
+  // JOIN_NODE_P(m_root, tree_prime, root_prime, &ovlp_rect, ret);
 
   return ret.size();
 }
@@ -1722,22 +1747,24 @@ void RTREE_QUAL::ReInsert(Node* a_node, ListNode** a_listNode)
 
 // Search in an index tree or subtree for all data retangles that overlap the argument rectangle.
 RTREE_TEMPLATE
-bool RTREE_QUAL::Search(Node* a_node, Rect* a_rect, int& a_foundCount, std::vector<DATATYPE>& ret, int* page_accessed) const
+bool RTREE_QUAL::Search(Node* a_node, Rect* a_rect, int& a_foundCount, std::vector<DATATYPE>& ret) const
 {
   ASSERT(a_node);
   ASSERT(a_node->m_level >= 0);
   ASSERT(a_rect);
-
-  (page_accessed[a_node->m_level])++;
 
   if(a_node->IsInternalNode())
   {
     // This is an internal node in the tree
     for(int index=0; index < a_node->m_count; ++index)
     {
+      if(a_node->m_branch[index].m_rect.m_min[0] > a_rect->m_max[0])
+      {
+        break;
+      }
       if(Overlap(a_rect, &a_node->m_branch[index].m_rect))
       {
-        if(!Search(a_node->m_branch[index].m_child, a_rect, a_foundCount, ret, page_accessed))
+        if(!Search(a_node->m_branch[index].m_child, a_rect, a_foundCount, ret))
         {
           // The callback indicated to stop searching
           return false;
@@ -1750,6 +1777,10 @@ bool RTREE_QUAL::Search(Node* a_node, Rect* a_rect, int& a_foundCount, std::vect
     // This is a leaf node
     for(int index=0; index < a_node->m_count; ++index)
     {
+      if(a_node->m_branch[index].m_rect.m_min[0] > a_rect->m_max[0])
+      {
+        break;
+      }
       if(Overlap(a_rect, &a_node->m_branch[index].m_rect))
       {
         DATATYPE id = a_node->m_branch[index].m_data;
@@ -1763,14 +1794,12 @@ bool RTREE_QUAL::Search(Node* a_node, Rect* a_rect, int& a_foundCount, std::vect
 }
 
 RTREE_TEMPLATE
-bool RTREE_QUAL::NodeSearch(Node* a_node, Rect* a_rect, int& a_foundCount, std::vector<Node*>& ret, int* page_accessed, int stop_level) const
+bool RTREE_QUAL::NodeSearch(Node* a_node, Rect* a_rect, int& a_foundCount, std::vector<Node*>& ret, int stop_level) const
 {
   ASSERT(stop_level > 0);
   ASSERT(a_node);
   ASSERT(a_node->m_level > stop_level);
   ASSERT(a_rect);
-
-  (page_accessed[a_node->m_level])++;
 
   bool to_return = (a_node->m_level - stop_level == 1);
 
@@ -1785,7 +1814,7 @@ bool RTREE_QUAL::NodeSearch(Node* a_node, Rect* a_rect, int& a_foundCount, std::
       }
       else
       {
-        NodeSearch(a_node->m_branch[index].m_child, a_rect, a_foundCount, ret, page_accessed, stop_level);
+        NodeSearch(a_node->m_branch[index].m_child, a_rect, a_foundCount, ret, stop_level);
       }
     }
   }
@@ -1828,39 +1857,21 @@ bool RTREE_QUAL::Overlap(const Rect* rect, const typename RTREE_QUAL_PRIME::Rect
 }
 
 RTREE_TEMPLATE
-RTREE_TEMPLATE_PRIME
-int RTREE_QUAL::ResidualSearch(const Rect* rect, DATATYPE data, const typename RTREE_QUAL_PRIME::Node* node_prime, /*const Rect* ovlp_rect,*/ std::vector<std::pair<int, int>>& ret) const
+bool RTREE_QUAL::Overlap(const Rect* rect, const OUTRA_RECT* ovlp_rect) const
 {
-	for (int i = 0; i < node_prime->m_count; i++)
-	{
-		auto br_prime = node_prime->m_branch[i];
-		auto rect_prime = br_prime.m_rect;
-
-		// if (!Overlap<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(ovlp_rect, &rect_prime))
-		// {
-		// 	continue;
-		// }
-
-		if (!Overlap<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(rect, &rect_prime))
-		{
-			continue;
-		}
-
-		if (node_prime->IsLeaf()) {
-			ret.push_back(std::make_pair(data, br_prime.m_data));
-		} else {
-    	// Rect new_ovlp_rect;
-     //  OverlappingArea<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(&rect, &rect_prime, new_ovlp_rect);
-
-			ResidualSearch<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(rect, data, br_prime.m_child, /*new_ovlp_rect,*/ ret);
-		}
-
-	}
+  for (int index = 0; index < NUMDIMS; index++)
+  {
+    if (rect->m_min[index] > ovlp_rect->m_max[index] || ovlp_rect->m_min[index] > rect->m_max[index])
+    {
+      return false;
+    }
+  }
+  return true;
 }
 
 RTREE_TEMPLATE
 RTREE_TEMPLATE_PRIME
-void RTREE_QUAL::OverlappingArea(const Rect* rect, const typename RTREE_QUAL_PRIME::Rect* rect_prime, Rect& ret) const
+void RTREE_QUAL::OverlappingArea(const Rect* rect, const typename RTREE_QUAL_PRIME::Rect* rect_prime, OUTRA_RECT& ret) const
 {
   for (int index = 0; index < NUMDIMS; index++)
   {
@@ -1871,7 +1882,38 @@ void RTREE_QUAL::OverlappingArea(const Rect* rect, const typename RTREE_QUAL_PRI
 
 RTREE_TEMPLATE
 RTREE_TEMPLATE_PRIME
-int RTREE_QUAL::JoinNode(const Node* node, const RTREE_QUAL_PRIME* tree_prime, const typename RTREE_QUAL_PRIME::Node* node_prime, const Rect* ovlp_rect, std::vector<std::pair<int, int>>& ret) const
+int RTREE_QUAL::ResidualSearch(const Node* node, const typename RTREE_QUAL_PRIME::Rect* rect_prime, const OUTRA_RECT* ovlp_rect, std::vector<int>& ret) const
+{
+	for (int i = 0; i < node->m_count; i++)
+	{
+		auto br = node->m_branch[i];
+		auto rect = br.m_rect;
+
+		if (!Overlap(&rect, ovlp_rect))
+		{
+			continue;
+		}
+
+		if (!OVERLAP_P(&rect, rect_prime))
+		{
+			continue;
+		}
+
+		if (node->IsLeaf()) {
+			ret.push_back(br.m_data);
+		} else {
+    	OUTRA_RECT new_ovlp_rect;
+      OVERLAPPING_AREA_P(&rect, rect_prime, new_ovlp_rect);
+
+			RESIDUAL_SEARCH_P(br.m_child, rect_prime, &new_ovlp_rect, ret);
+		}
+
+	}
+}
+
+RTREE_TEMPLATE
+RTREE_TEMPLATE_PRIME
+int RTREE_QUAL::JoinNode(const Node* node, const RTREE_QUAL_PRIME* tree_prime, const typename RTREE_QUAL_PRIME::Node* node_prime, const OUTRA_RECT* ovlp_rect, std::vector<std::pair<int, int>>& ret) const
 {
   for (int i = 0; i < node->m_count; i++)
   {
@@ -1888,12 +1930,12 @@ int RTREE_QUAL::JoinNode(const Node* node, const RTREE_QUAL_PRIME* tree_prime, c
       auto br_prime = node_prime->m_branch[j];
       auto rect_prime = br_prime.m_rect;
 
-      if (!Overlap<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(ovlp_rect, &rect_prime))
+      if (!tree_prime->Overlap(&rect_prime, ovlp_rect))
       {
         continue;
       }
 
-      if (!Overlap<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(&rect, &rect_prime))
+      if (!OVERLAP_P(&rect, &rect_prime))
       {
         continue;
       }
@@ -1904,20 +1946,30 @@ int RTREE_QUAL::JoinNode(const Node* node, const RTREE_QUAL_PRIME* tree_prime, c
       }
       else
       {
-      	Rect new_ovlp_rect;
-        OverlappingArea<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(&rect, &rect_prime, new_ovlp_rect);
+      	OUTRA_RECT new_ovlp_rect;
+        OVERLAPPING_AREA_P(&rect, &rect_prime, new_ovlp_rect);
 
       	if (node->IsInternalNode() && node_prime->IsLeaf())
 	      {
-	        tree_prime->ResidualSearch<DATATYPE, ELEMTYPE, NUMDIMS, ELEMTYPEREAL, TMAXNODES, TMINNODES>(&rect_prime, br_prime.m_data, br.m_child, /*&new_ovlp_rect,*/ ret); // continue search residual subtree of index node
+          std::vector<int> residual_ret;
+	        RESIDUAL_SEARCH_P(br.m_child, &rect_prime, &new_ovlp_rect, residual_ret); // continue search residual subtree of index node
+          for (int &r: residual_ret)
+          {
+            ret.push_back(std::make_pair(br_prime.m_data, r));
+          }
 	      }
 	      else if (node->IsLeaf() && node_prime->IsInternalNode())
 	      {
-	        ResidualSearch<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(&rect, br.m_data, br_prime.m_child, /*&new_ovlp_rect,*/ ret); // continue search residual subtree of aux node
+          std::vector<int> residual_ret;
+	        tree_prime->RESIDUAL_SEARCH(br_prime.m_child, &rect, &new_ovlp_rect, residual_ret); // continue search residual subtree of aux node
+          for (int &r: residual_ret)
+          {
+            ret.push_back(std::make_pair(r, br.m_data));
+          }
 	      }
 	      else
 	      {
-	        JoinNode<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(br.m_child, tree_prime, br_prime.m_child, &new_ovlp_rect, ret);
+	        JOIN_NODE_P(br.m_child, tree_prime, br_prime.m_child, &new_ovlp_rect, ret);
 	      }
     	}
     }
@@ -1926,27 +1978,35 @@ int RTREE_QUAL::JoinNode(const Node* node, const RTREE_QUAL_PRIME* tree_prime, c
 
 RTREE_TEMPLATE
 RTREE_TEMPLATE_PRIME
-int RTREE_QUAL::SortedResidualSearch(const Rect* rect, DATATYPE data, const typename RTREE_QUAL_PRIME::Node* node_prime, std::vector<std::pair<int, int>>& ret) const
+int RTREE_QUAL::SortedResidualSearch(const Node* node, const typename RTREE_QUAL_PRIME::Rect* rect_prime, const OUTRA_RECT* ovlp_rect, std::vector<int>& ret) const
 {
-	for (int i = 0; i < node_prime->m_count; i++)
+	for (int i = 0; i < node->m_count; i++)
 	{
-		auto br_prime = node_prime->m_branch[i];
-		auto rect_prime = br_prime.m_rect;
+		auto br = node->m_branch[i];
+		auto rect = br.m_rect;
 
-		if (rect_prime.m_min[0] > rect->m_max[0])
+		if (rect.m_min[0] > rect_prime->m_max[0])
 		{
 			break;
 		}
 
-		if (!Overlap<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(rect, &rect_prime))
+		if (!Overlap(&rect, ovlp_rect))
 		{
 			continue;
 		}
 
-		if (node_prime->IsLeaf()) {
-			ret.push_back(std::make_pair(data, br_prime.m_data));
+		if (!OVERLAP_P(&rect, rect_prime))
+		{
+			continue;
+		}
+
+		if (node->IsLeaf()) {
+			ret.push_back(br.m_data);
 		} else {
-			ResidualSearch<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(rect, data, br_prime.m_child, ret);
+    	OUTRA_RECT new_ovlp_rect;
+      OVERLAPPING_AREA_P(&rect, rect_prime, new_ovlp_rect);
+
+			SORTED_RESIDUAL_SEARCH_P(br.m_child, rect_prime, &new_ovlp_rect, ret);
 		}
 	}
 }
@@ -1978,7 +2038,7 @@ int RTREE_QUAL::JoinInternalLoop(const Rect* rect, int unmarked, const typename 
 
 RTREE_TEMPLATE
 RTREE_TEMPLATE_PRIME
-int RTREE_QUAL::JoinSortedNode(const Node* node, const RTREE_QUAL_PRIME* tree_prime, const typename RTREE_QUAL_PRIME::Node* node_prime, const Rect* ovlp_rect, std::vector<std::pair<int, int>>& ret) const
+int RTREE_QUAL::JoinSortedNode(const Node* node, const RTREE_QUAL_PRIME* tree_prime, const typename RTREE_QUAL_PRIME::Node* node_prime, const OUTRA_RECT* ovlp_rect, std::vector<std::pair<int, int>>& ret) const
 {
   int i = 0, j = 0;
   std::vector<std::pair<int, int>> inters_pairs;
@@ -1990,7 +2050,7 @@ int RTREE_QUAL::JoinSortedNode(const Node* node, const RTREE_QUAL_PRIME* tree_pr
     	if (Overlap(&(node->m_branch[i].m_rect), ovlp_rect))
     	{
     		std::vector<int> ret_a;
-      	JoinInternalLoop<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(&(node->m_branch[i].m_rect), j, node_prime, ret_a);
+      	JOIN_INT_NODE_P(&(node->m_branch[i].m_rect), j, node_prime, ret_a);
       	for (int &a: ret_a)
       	{
       		inters_pairs.push_back(std::make_pair(i, a));
@@ -2000,10 +2060,10 @@ int RTREE_QUAL::JoinSortedNode(const Node* node, const RTREE_QUAL_PRIME* tree_pr
     }
     else
     {
-    	if (Overlap<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(ovlp_rect, &(node_prime->m_branch[j].m_rect)))
+    	if (tree_prime->Overlap(&(node_prime->m_branch[j].m_rect), ovlp_rect))
     	{
     		std::vector<int> ret_b;
-    		tree_prime->JoinInternalLoop<DATATYPE, ELEMTYPE, NUMDIMS, ELEMTYPEREAL, TMAXNODES, TMINNODES>(&(node_prime->m_branch[j].m_rect), i, node, ret_b);
+    		tree_prime->JOIN_INT_NODE(&(node_prime->m_branch[j].m_rect), i, node, ret_b);
     		for (int &b: ret_b)
     		{
     			inters_pairs.push_back(std::make_pair(b, j));
@@ -2013,44 +2073,45 @@ int RTREE_QUAL::JoinSortedNode(const Node* node, const RTREE_QUAL_PRIME* tree_pr
     }
   }
 
-  if (node->IsLeaf() && node_prime->IsLeaf())
+
+  for (auto &p: inters_pairs)
   {
-  	for (auto &p: inters_pairs)
-  	{
-  		ret.push_back(std::make_pair(node_prime->m_branch[p.second].m_data, node->m_branch[p.first].m_data)); // stop search when both index and aux reach leaf
-		}
-  }
-  else if (node->IsInternalNode() && node_prime->IsLeaf())
-  {
-  	for (auto &p: inters_pairs)
-  	{
-    	tree_prime->SortedResidualSearch<DATATYPE, ELEMTYPE, NUMDIMS, ELEMTYPEREAL, TMAXNODES, TMINNODES>(
-    		&(node_prime->m_branch[p.second].m_rect), node_prime->m_branch[p.second].m_data, node->m_branch[p.first].m_child, ret
-    	); // continue search residual subtree of index node
+    auto br = node->m_branch[p.first];
+    auto br_prime = node_prime->m_branch[p.second];
+
+    if (node->IsLeaf() && node_prime->IsLeaf())
+    {
+    	ret.push_back(std::make_pair(br_prime.m_data, br.m_data)); // stop search when both index and aux reach leaf
     }
-  }
-  else if (node->IsLeaf() && node_prime->IsInternalNode())
-  {
-  	for (auto &p: inters_pairs)
-  	{
-	    SortedResidualSearch<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(
-	    	&(node->m_branch[p.first].m_rect), node->m_branch[p.first].m_data, node_prime->m_branch[p.second].m_child, ret
-	    ); // continue search residual subtree of aux node
+    else
+    {
+	  	OUTRA_RECT new_ovlp_rect;
+	    OVERLAPPING_AREA_P(&(br.m_rect), &(br_prime.m_rect), new_ovlp_rect);
+
+	    if (node->IsInternalNode() && node_prime->IsLeaf())
+	    {
+        std::vector<int> residual_ret;
+	     	SORTED_RESIDUAL_SEARCH_P(br.m_child, &(br_prime.m_rect), &new_ovlp_rect, residual_ret); // continue search residual subtree of index node
+        for (int &r: residual_ret)
+        {
+          ret.push_back(std::make_pair(br_prime.m_data, r));
+        }
+	    }
+	    else if (node->IsLeaf() && node_prime->IsInternalNode())
+	    {
+        std::vector<int> residual_ret;
+	  	  tree_prime->SORTED_RESIDUAL_SEARCH(br_prime.m_child, &(br.m_rect), &new_ovlp_rect, residual_ret); // continue search residual subtree of aux node
+        for (int &r: residual_ret)
+        {
+          ret.push_back(std::make_pair(r, br.m_data));
+        }
+	    }
+	    else
+	    {
+		    JOIN_SORTED_NODE_P(br.m_child, tree_prime, br_prime.m_child, &new_ovlp_rect, ret);
+	  	}
   	}
   }
-  else
-  {
-  	for (auto &p: inters_pairs)
-  	{
-	  	Rect new_ovlp_rect;
-	    OverlappingArea<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(
-	    	&(node->m_branch[p.first].m_rect), &(node_prime->m_branch[p.second]).m_rect, new_ovlp_rect
-	    );
-	    JoinSortedNode<DATATYPE_P, ELEMTYPE_P, NUMDIMS_P, ELEMTYPEREAL_P, TMAXNODES_P, TMINNODES_P>(
-	    	node->m_branch[p.first].m_child, tree_prime, node_prime->m_branch[p.second].m_child, &new_ovlp_rect, ret
-	    );
-	  }
-	}
 }
 
 

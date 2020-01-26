@@ -39,10 +39,21 @@ int main(int argc, char **argv) {
 
     cout << "Size of entries: " << db_entries.size() << endl;
 
-    // get min & max vols
+    // initialization of min & max vols
     double min_vol = std::numeric_limits<double>::max(), max_vol = -1;
+    // initialization of min & max meas
     double min_meas = 0, max_meas = 1;
-    double min_side[6] = { std::numeric_limits<double>::max() }, max_side[6] = { -1 };
+    // initialization of min & max side, variance 80 side, average side, and variance side
+    double min_side[6], max_side[6], var_80_side[6], avg_side[6], var_side[6];
+    for (int i = 0; i < 6; i++) {
+        min_side[i] = std::numeric_limits<double>::max();
+        max_side[i] = -1;
+        var_80_side[i] = 0;
+        avg_side[i] = 0;
+        var_side[i] = 0;
+    }
+
+    // First pass: calculate min & max, var 80, avg
     for (auto &v: db_entries) {
     	if (v->fail)
     		continue;
@@ -57,8 +68,14 @@ int main(int argc, char **argv) {
                 min_side[i] = v->sides[i];
             if (v->sides[i] > max_side[i])
                 max_side[i] = v->sides[i];
+
+            var_80_side[i] += (v->sides[i] - 80) * (v->sides[i] - 80) / db_entries.size();
+
+            avg_side[i] += v->sides[i] / db_entries.size();
         }
     }
+
+    // print out min & max, var 80, avg
     cout << "Max vol: " << max_vol << endl;
     cout << "Min vol: " << min_vol << endl;
     cout << "Max meas: " << max_meas << endl;
@@ -66,15 +83,17 @@ int main(int argc, char **argv) {
     for (int i = 0; i < 6; i++) {
         cout << "Max side[" << i << "]: " << max_side[i] << endl;
         cout << "Min side[" << i << "]: " << min_side[i] << endl;
+        cout << "Var 80 side[" << i << "]: " <<var_80_side[i] << endl;
+        cout << "Avg side[" << i << "]: " <<avg_side[i] << endl;
     }
 
+    // initialization of intervals, histograms
     const double intv_vol = (max_vol - min_vol) / bin_size;
     const double intv_meas = 1.0 / bin_size;
     double intv_side[6];
     for (int i = 0; i < 6; i++) {
         intv_side[i] = (max_side[i] - min_side[i]) / bin_size;
     }
-
     int histo_vol[bin_size], histo_meas[bin_size], histo_side[6][bin_size];
     for (int i = 0; i < bin_size; i++) {
     	histo_vol[i] = 0;
@@ -84,6 +103,7 @@ int main(int argc, char **argv) {
         }
     }
 
+    // Second pass: calculate histograms, variance of sides
     for (auto &v: db_entries) {
     	if (v->fail)
     		continue;
@@ -93,9 +113,17 @@ int main(int argc, char **argv) {
 
         for (int i = 0; i < 6; i++) {
             histo_side[i][get_bin(min_side[i], intv_side[i], bin_size, v->sides[i])]++;
+
+            var_side[i] += (v->sides[i] - avg_side[i]) * (v->sides[i] - avg_side[i]) / db_entries.size();
         }
     }
 
+    // print out variance of sides
+    for (int i = 0; i < 6; i++) {
+        cout << "Var side[" << i << "]: " <<var_side[i] << endl;
+    }
+
+    // print out histograms
     cout << "Histogram of vol: (in " << bin_size << " bins):" << endl;
     for (int i = 0; i < bin_size; i++) {
     	cout << "[" << (min_vol + i * intv_vol) << ", " << (min_vol + (i + 1) * intv_vol);

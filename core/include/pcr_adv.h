@@ -8,6 +8,7 @@ extern "C" {
     #include "rtree.h"
 }
 #include "RTree.h"
+#include "share.h"
 #include <fstream>
 #include <sstream>
 #include <vector>
@@ -28,9 +29,10 @@ const char* TABTABTAB = "      ";
 
 const int RSTREE_SCALE = 1e5;
 
-const int INDEX_DIM = 6;
+// const int INDEX_DIM = 6;
+const int INDEX_DIM = 3;
 typedef RTree<int, int, INDEX_DIM, double, 36> IndexTree;
-typedef RTree<int, int, INDEX_DIM, double, 10> AuxTree;
+typedef RTree<int, int, INDEX_DIM, double, 6> AuxTree;
 
 struct PtwID {
 	int id;
@@ -416,6 +418,27 @@ struct Entry {
 			is >> this->sides[i];
 		}
 	}
+	void get_index_box(double err, int box_min[INDEX_DIM], int box_max[INDEX_DIM]) {
+        // use 6-side length as index keys
+        // for (int i = 0; i < INDEX_DIM; i++) {
+        //     box_min[i] = (int) ((this->sides[i] - err) * RSTREE_SCALE);
+        //     box_max[i] = (int) ((this->sides[i] + err) * RSTREE_SCALE);
+        // }
+        // use 3-side length as index keys
+        box_min[0] = (int) ((this->sides[0] - err) * 1e5);
+        box_max[0] = (int) ((this->sides[0] + err) * 1e5);
+        // box_min[1] = (int) ((this->sides[1] - err) * 1e5);
+        // box_max[1] = (int) ((this->sides[1] + err) * 1e5);
+        box_min[1] = (int) ((this->sides[3] - err) * 1e5);
+        box_max[1] = (int) ((this->sides[3] + err) * 1e5);
+        box_min[2] = (int) ((this->sides[4] - err) * 1e5);
+        box_max[2] = (int) ((this->sides[4] + err) * 1e5);
+        // box_min[3] = (int) ((this->sides[5] - err) * 1e5);
+        // box_max[3] = (int) ((this->sides[5] + err) * 1e5);
+	}
+	void get_index_box(int box_min[INDEX_DIM], int box_max[INDEX_DIM]) {
+		get_index_box(0.0, box_min, box_max);
+	}
 	void fill_sides() {
 		sides[0] = eucl_dist(this->repre->pt, this->remai[0]->pt);
 		sides[1] = eucl_dist(this->repre->pt, this->remai[1]->pt);
@@ -775,6 +798,35 @@ inline void convert_pt(Pt3D* p, R_TYPE*& ret) {
     ret[2] = (int) (p->z * RSTREE_SCALE);
 }
 
+inline void nn_sphere_range_new(Pt3D* p, node_type *r_root, rtree_info* r_info, double sq_dist, double err,
+	vector<RangeReturn_type*>& ret, int excl_id_list[] = {}, int excl_id_num = 0) {
+
+	R_TYPE *query;
+    convert_pt(p, query);
+	RangeReturn_type* rr = NULL;
+
+	long long sq_dist_long;
+	if (sq_dist == 0.0) {
+		sq_dist_long = 0;
+	} else {
+		sq_dist_long = (long long) (sq_dist * RSTREE_SCALE * RSTREE_SCALE);
+	}
+	double span;
+	if (err == 0.0) {
+		span = 0.0;
+	} else {
+		span = err * 2 * RSTREE_SCALE;
+	}
+
+	NN_range_search(r_root, query, &rr, r_info, sq_dist_long, span, excl_id_list, excl_id_num);
+
+	while (rr) {
+		ret.push_back(rr);
+		rr = rr->next;
+	}
+
+}
+
 inline NN_type** nn_sphere(Pt3D* p, node_type *r_root, rtree_info* r_info, double sq_dist,
 	const unordered_set<int>& excl_id_set = {}, int k = 1) {
 	
@@ -899,8 +951,7 @@ inline NN_type** nn_sphere_range_verbose(Pt3D* p, node_type *r_root, rtree_info*
 }
 
 ////////////////////////// Toggle_1 /////////////////////////////////////
-inline int window_query(IndexTree* tree, double sides[], double err,
-	vector<int>& ret, int* page_accessed) {
+inline int window_query(IndexTree* tree, Entry* e, double err, vector<int>& ret) {
 ////////////////////////// Toggle_1 /////////////////////////////////////
 
 ////////////////////////// Toggle_2 /////////////////////////////////////
@@ -908,24 +959,19 @@ inline int window_query(IndexTree* tree, double sides[], double err,
 // 	vector<RangeReturn_type*>& ret, int& page_accessed) {
 ////////////////////////// Toggle_2 /////////////////////////////////////
 
-	R_TYPE* query_min = (R_TYPE *) malloc(sizeof(R_TYPE) * 6);
-	R_TYPE* query_max = (R_TYPE *) malloc(sizeof(R_TYPE) * 6);
-	for (int i = 0; i < 6; i++) {
-		query_min[i] = (int) ((sides[i] - err) * RSTREE_SCALE);
-		query_max[i] = (int) ((sides[i] + err) * RSTREE_SCALE);
-		// cout << "[" << query_min[i] << ", " << query_max[i] << "]" << endl;
-	}
+	int query_box_min[INDEX_DIM], query_box_max[INDEX_DIM];
+	e->get_index_box(err, query_box_min, query_box_max);
 
 	////////////////////////// Toggle_1 /////////////////////////////////////
 	int num;
-	num = tree->Search(query_min, query_max, ret, page_accessed);
+	num = tree->Search(query_box_min, query_box_max, ret);
 	////////////////////////// Toggle_1 /////////////////////////////////////
 
 	////////////////////////// Toggle_2 /////////////////////////////////////
 	// RangeReturn_type* rr = NULL;
 	// int num = 0;
 
-	// page_accessed = rectangle_search(r_root, 1, &query_min, &query_max, &rr, r_info);
+	// page_accessed = rectangle_search(r_root, 1, &query_box_min, &query_box_max, &rr, r_info);
 
 	// while (rr) {
 	// 	num++;
@@ -933,9 +979,6 @@ inline int window_query(IndexTree* tree, double sides[], double err,
 	// 	rr = rr->prev;
 	// }
 	////////////////////////// Toggle_2 /////////////////////////////////////
-
-	free(query_min);
-	free(query_max);
 
 	return num;
 }
@@ -1025,10 +1068,22 @@ inline string get_foldername(string path) {
     return ret;
 }
 
-inline int read_db_mesh_batch(string db_path, vector<TriMesh*>& db_meshes) {
-    string db_folder = get_foldername(db_path);
+inline string get_meta_filename(string path) {
+	string folder = get_foldername(path);
+	return (folder + "meta.txt");
+}
 
-    ifstream ifs(db_folder + "meta.txt");
+inline string get_idx_filename(string grid_filename) {
+	return (grid_filename + ".idx.s3");
+}
+
+inline string get_rst_filename(string mesh_filename) {
+	return (mesh_filename + ".rst.0");
+}
+
+inline int read_db_mesh_batch(string db_path, vector<TriMesh*>& db_meshes) {
+
+    ifstream ifs(get_meta_filename(db_path));
 
     int num;
     ifs >> num;
@@ -1046,9 +1101,8 @@ inline int read_db_mesh_batch(string db_path, vector<TriMesh*>& db_meshes) {
 }
 
 inline int read_db_batch(string db_path, vector<TriMesh*>& db_meshes, rtree_info* db_rtree_info, vector<node_type*>& db_roots) {
-    string db_folder = get_foldername(db_path);
 
-    ifstream ifs(db_folder + "meta.txt");
+    ifstream ifs(get_meta_filename(db_path));
 
     int num;
     ifs >> num;
@@ -1060,7 +1114,7 @@ inline int read_db_batch(string db_path, vector<TriMesh*>& db_meshes, rtree_info
         db_meshes.push_back(TriMesh::read(s_file));
 
         node_type* a_root;
-        read_rtree(&a_root, string(s_file + ".rst.0").c_str(), db_rtree_info);
+        read_rtree(&a_root, get_rst_filename(s_file).c_str(), db_rtree_info);
 
         db_roots.push_back(a_root);
     }

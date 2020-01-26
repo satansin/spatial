@@ -14,8 +14,6 @@ int main(int argc, char **argv) {
     int argi = 0;
     string db_path = argv[(++argi)];
     string grid_filename = argv[(++argi)];
-    // string idx_filename = argv[(++argi)];
-    string idx_filename = grid_filename + ".idx";
 
     cout << "Reading database files from " << db_path << endl;
     vector<TriMesh*> db_meshes;
@@ -48,19 +46,8 @@ int main(int argc, char **argv) {
         ++bar;
         bar.display();
 
-        // use side length as index keys
         int box_min[INDEX_DIM], box_max[INDEX_DIM];
-        for (int j = 0; j < INDEX_DIM; j++) {
-            box_min[j] = (int) (e->sides[j] * 1e5);
-            box_max[j] = (int) (e->sides[j] * 1e5);
-        }
-
-        // // use vol and meas as index keys
-        // double box_min[INDEX_DIM], box_max[INDEX_DIM];
-        // box_min[0] = e->vol;
-        // box_max[0] = e->vol;
-        // box_min[1] = e->meas;
-        // box_max[1] = e->meas;
+        e->get_index_box(box_min, box_max);
         
         tree.Insert(box_min, box_max, i);
         ////////////////////////// Toggle_1 /////////////////////////////////////
@@ -79,9 +66,11 @@ int main(int argc, char **argv) {
 
     tree.SortDim0();
 
-    string outidx_filename = idx_filename + ".t";
+    string outidx_filename = get_idx_filename(grid_filename);
+    cout << "Saving the index to " << outidx_filename << endl;
     timer_start();
     tree.Save(outidx_filename.c_str());
+	cout << "Index saved in " << timer_end(SECOND) << "(s)" << endl;
     ////////////////////////// Toggle_1 /////////////////////////////////////
 
     ////////////////////////// Toggle_2 /////////////////////////////////////
