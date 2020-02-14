@@ -525,8 +525,9 @@ int main(int argc, char **argv) {
     cout << endl;
 
     const int exec_times = 100;
-    double exec_prop_time = 0, exec_veri_time = 0;
+    double exec_prop_time = 0, exec_veri_time = 0, exec_user_time = 0;
     int exec_veri_num = 0;
+    int exec_num_fail = 0;
 
     for (int exec_i = 0; exec_i < exec_times; exec_i++) {
 
@@ -563,6 +564,7 @@ int main(int argc, char **argv) {
 
 	    cout << endl;
 
+        bool find_accept = false;
 	    const int k_m = 10;
 	    int verified_size = 0;
 	    for (int t = 0; t < k_m; t++) {
@@ -655,8 +657,10 @@ int main(int argc, char **argv) {
 	        }
 	        verification_time += timer_end(SECOND);
 
-	        if (verified_size > 0)
+	        if (verified_size > 0) {
+                find_accept = true;
 	            break;
+            }
 
 	        if (test_mode)
 	        	break;
@@ -679,6 +683,11 @@ int main(int argc, char **argv) {
 	    exec_prop_time += proposal_time;
 	    exec_veri_time += verification_time;
 	    exec_veri_num += total_num_verification;
+        exec_user_time += total_time;
+
+        if (!find_accept) {
+            exec_num_fail++;
+        }
 
 	    if (test_mode)
 	    	break;
@@ -687,7 +696,11 @@ int main(int argc, char **argv) {
     if (!test_mode) {
     	cout << endl << "Average proposal time: " << (exec_prop_time / exec_times) << endl;
     	cout << endl << "Average verification time: " << (exec_veri_time / exec_times) << endl;
-    	cout << endl << "Average number of candidate transformations: " << ((double) exec_veri_num / exec_times) << endl << endl;
+    	cout << endl << "Average number of candidate transformations: " << ((double) exec_veri_num / exec_times) << endl;
+        cout << endl << "Failed exec: " << exec_num_fail << endl;
+        cout << endl << "Average user time: " << (exec_user_time / exec_times) << endl;
     }
+
+    cout << endl;
 
 }

@@ -3,6 +3,9 @@
 #include "point.h"
 #include "trans.h"
 #include "share.h"
+#include "pcr_adv.h"
+#include "OcTree.h"
+#include "ProgressBar.hpp"
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
@@ -25,22 +28,23 @@ inline bool eqf(double a, double b) { return abs(a - b) <= FINE_ZERO; };
 int main(int argc, char **argv) {
     srand(time(NULL));
 
-    string database_filename = "../data/t2.ply";
-    string query_filename = "../data/t2_query.ply";
+    string database_filename = "/rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/recon_bedroom_3/recon_bedroom_3.ply";
+    string query_filename = "/rwproject/kdd-db/hliubs/10_data_spatial/3dor/query/indoor_scans/recon_bedroom_3/q_01/q_01.0.ply";
 
     TriMesh *mesh_p = TriMesh::read(database_filename);
     TriMesh *mesh_q = TriMesh::read(query_filename);
 
     int m = mesh_q->vertices.size();
     int n = mesh_p->vertices.size();
-    Pt3D pts_q[m], pts_p[n];
-    for (int i = 0; i < m; i++) {
-        pts_q[i] = pt(mesh_q->vertices[i]);
-    }
-    for (int i = 0; i < n; i++) {
-        pts_p[i] = pt(mesh_p->vertices[i]);
-    }
 
+    OTree o_tree;
+    float err = 2.0;
+    cout << "Start building OcTree with err: " << err << endl;
+    o_tree.buildFromMesh(mesh_p, err, true);
+
+    // load the query structure
+    Struct_Q s_q;
+    s_q.read(query_filename + ".info");
 
     // int ran1, ran2, ran3, ran4;
     // Pt3D bq1, bq2, bq3, bq4;
@@ -97,125 +101,148 @@ int main(int argc, char **argv) {
     //          << ran3 << " " << ran4 << endl;
     // }
 
-    string idmap_filename = "../data/t2_id";
-    ifstream idmap_ifs(idmap_filename);
-    int id_db;
-    vector<int> idmap;
-    while (idmap_ifs >> id_db) {
-        idmap.push_back(id_db);
-    }
+    // // cheating-verify
+    // if (s_q.get_id_mapping(ran1) >= 0 && s_q.get_id_mapping(ran2) >= 0 && s_q.get_id_mapping(ran3) >= 0 && s_q.get_id_mapping(ran4) >= 0) {
+    // 	cout << "success" << endl;
+    // } else {
+    // 	cout << "fail" << endl;
+    // }
 
+    timer_start();
 
-    int ran1 = 234, ran2 = 152, ran3 = 18, ran4 = 391;
+    int ran1 = 2174, ran2 = 7652, ran3 = 6486, ran4 = 1076;
     Pt3D q[4], p[4];
-    q[0] = pts_q[ran1];
-    q[1] = pts_q[ran2];
-    q[2] = pts_q[ran3];
-    q[3] = pts_q[ran4];
+    q[0] = pt(mesh_q->vertices[ran1]);
+    q[1] = pt(mesh_q->vertices[ran2]);
+    q[2] = pt(mesh_q->vertices[ran3]);
+    q[3] = pt(mesh_q->vertices[ran4]);
 
     double d12_q = eucl_dist(q[0], q[1]);
-    cout << "dist between " << ran1 << "(" << idmap[ran1] << ") and "
-         << ran2 << "(" << idmap[ran2] << "): "
+    cout << "dist between " << ran1 << "(" << s_q.get_id_mapping(ran1) << ") and "
+        					<< ran2 << "(" << s_q.get_id_mapping(ran2) << "): "
          << d12_q << " in query" << endl;
 
     double d34_q = eucl_dist(q[2], q[3]);
-    cout << "dist between " << ran3 << "(" << idmap[ran3] << ") and "
-         << ran4 << "(" << idmap[ran4] << "): "
+    cout << "dist between " << ran3 << "(" << s_q.get_id_mapping(ran3) << ") and "
+        					<< ran4 << "(" << s_q.get_id_mapping(ran4) << "): "
          << d34_q << " in query" << endl;
 
-    Pt3D q12 = {q[1].x - q[0].x, q[1].y - q[0].y, q[1].z - q[0].z};
-    Pt3D q34 = {q[3].x - q[2].x, q[3].y - q[2].y, q[3].z - q[2].z};
-    double r34 =
-        (q12.y * q[0].x - q12.x * q[0].y + q12.x * q[2].y - q12.y * q[2].x) / 
-        (q34.x * q12.y - q34.y * q12.x);
-    double r12 = (q[2].x + r34 * q34.x - q[0].x) / q12.x;
-    // cout << r12 << endl << r34 << endl;
+    // Pt3D q12 = {q[1].x - q[0].x, q[1].y - q[0].y, q[1].z - q[0].z};
+    // Pt3D q34 = {q[3].x - q[2].x, q[3].y - q[2].y, q[3].z - q[2].z};
+    // double r34 =
+    //     (q12.y * q[0].x - q12.x * q[0].y + q12.x * q[2].y - q12.y * q[2].x) / 
+    //     (q34.x * q12.y - q34.y * q12.x);
+    // double r12 = (q[2].x + r34 * q34.x - q[0].x) / q12.x;
+    // // cout << r12 << endl << r34 << endl;
 
-    vector<Pred_coin> pred_coin12;
-    vector<Pred_coin> pred_coin34;
+    float epsilon = 0.1;
+
+    // vector<Pred_coin> pred_coin12;
+    // vector<Pred_coin> pred_coin34;
+    int count = 0;
+    ProgressBar bar(n, 70);
     for (int i = 0; i < n; i++) {
-        Pt3D pi = pts_p[i];
-        for (int j = i + 1; j < n; j++) {
-            Pt3D pj = pts_p[j];
-            double dij_p = eucl_dist(pi, pj);
-            if(abs(dij_p - d12_q) <= 0.2) {
-                pred_coin12.push_back({
-                    { pi.x + (pj.x - pi.x) * r12,
-                      pi.y + (pj.y - pi.y) * r12,
-                      pi.z + (pj.z - pi.z) * r12,
-                    }, i, j});
-                pred_coin12.push_back({
-                    { pj.x + (pi.x - pj.x) * r12,
-                      pj.y + (pi.y - pj.y) * r12,
-                      pj.z + (pi.z - pj.z) * r12,
-                    }, j, i});
-            }
-            if (abs(dij_p - d34_q) <= 0.2) {
-                pred_coin34.push_back({
-                    { pi.x + (pj.x - pi.x) * r34,
-                      pi.y + (pj.y - pi.y) * r34,
-                      pi.z + (pj.z - pi.z) * r34,
-                    }, i, j});
-                pred_coin34.push_back({
-                    { pj.x + (pi.x - pj.x) * r34,
-                      pj.y + (pi.y - pj.y) * r34,
-                      pj.z + (pi.z - pj.z) * r34,
-                    }, j, i});
-            }
-            // if (i == 3411 && j == 4079) {
-            //  cout << pred_coin12[pred_coin12.size() - 2].endpt1 << " ";
-            //  cout << pred_coin12[pred_coin12.size() - 2].endpt2 << " ";
-            //  print_pt(&pred_coin12[pred_coin12.size() - 2].e);
-            //  cout << endl;
-            //  cout << pred_coin12[pred_coin12.size() - 1].endpt1 << " ";
-            //  cout << pred_coin12[pred_coin12.size() - 1].endpt2 << " ";
-            //  print_pt(&pred_coin12[pred_coin12.size() - 1].e);
-            //  cout << endl;
+        // Pt3D pi = pt(mesh_p->vertices[i]);
+
+        // if (i != 212538)
+        //     continue;
+
+        ++bar;
+        bar.display();
+
+        vector<int> ret;
+        o_tree.intersectingPair(mesh_p->vertices[i], d12_q, 2 * epsilon, mesh_p, ret);
+        count += ret.size();
+
+        // for (int j = i + 1; j < n; j++) {
+        //     Pt3D pj = pt(mesh_p->vertices[j]);
+        //     double dij_p = eucl_dist(pi, pj);
+        //     if(abs(dij_p - d12_q) <= 2 * epsilon) {
+                // pred_coin12.push_back({
+                //     { pi.x + (pj.x - pi.x) * r12,
+                //       pi.y + (pj.y - pi.y) * r12,
+                //       pi.z + (pj.z - pi.z) * r12,
+                //     }, i, j});
+                // cout << "Matching 1 & 2: " << i << " & " << j << endl;
+                // count++;
+        //         pred_coin12.push_back({
+        //             { pj.x + (pi.x - pj.x) * r12,
+        //               pj.y + (pi.y - pj.y) * r12,
+        //               pj.z + (pi.z - pj.z) * r12,
+        //             }, j, i});
             // }
-            // if (i == 296 && j == 5374) {
-            //  cout << pred_coin34[pred_coin34.size() - 2].endpt1 << " ";
-            //  cout << pred_coin34[pred_coin34.size() - 2].endpt2 << " ";
-            //  print_pt(&pred_coin34[pred_coin34.size() - 2].e);
-            //  cout << endl;
-            //  cout << pred_coin34[pred_coin34.size() - 1].endpt1 << " ";
-            //  cout << pred_coin34[pred_coin34.size() - 1].endpt2 << " ";
-            //  print_pt(&pred_coin34[pred_coin34.size() - 1].e);
-            //  cout << endl;
-            // }
-        }
+        //     if (abs(dij_p - d34_q) <= 0.2) {
+        //         pred_coin34.push_back({
+        //             { pi.x + (pj.x - pi.x) * r34,
+        //               pi.y + (pj.y - pi.y) * r34,
+        //               pi.z + (pj.z - pi.z) * r34,
+        //             }, i, j});
+        //         pred_coin34.push_back({
+        //             { pj.x + (pi.x - pj.x) * r34,
+        //               pj.y + (pi.y - pj.y) * r34,
+        //               pj.z + (pi.z - pj.z) * r34,
+        //             }, j, i});
+        //     }
+        //     // if (i == 3411 && j == 4079) {
+        //     //  cout << pred_coin12[pred_coin12.size() - 2].endpt1 << " ";
+        //     //  cout << pred_coin12[pred_coin12.size() - 2].endpt2 << " ";
+        //     //  print_pt(&pred_coin12[pred_coin12.size() - 2].e);
+        //     //  cout << endl;
+        //     //  cout << pred_coin12[pred_coin12.size() - 1].endpt1 << " ";
+        //     //  cout << pred_coin12[pred_coin12.size() - 1].endpt2 << " ";
+        //     //  print_pt(&pred_coin12[pred_coin12.size() - 1].e);
+        //     //  cout << endl;
+        //     // }
+        //     // if (i == 296 && j == 5374) {
+        //     //  cout << pred_coin34[pred_coin34.size() - 2].endpt1 << " ";
+        //     //  cout << pred_coin34[pred_coin34.size() - 2].endpt2 << " ";
+        //     //  print_pt(&pred_coin34[pred_coin34.size() - 2].e);
+        //     //  cout << endl;
+        //     //  cout << pred_coin34[pred_coin34.size() - 1].endpt1 << " ";
+        //     //  cout << pred_coin34[pred_coin34.size() - 1].endpt2 << " ";
+        //     //  print_pt(&pred_coin34[pred_coin34.size() - 1].e);
+        //     //  cout << endl;
+        //     // }
+        // }
     }
 
-    int no_e12 = pred_coin12.size();
-    int no_e34 = pred_coin34.size();
-    cout << "matching set of q1q2: " << no_e12 << endl
-         << "matching set of q3q4: " << no_e34 << endl;
+    bar.done();
 
-    double d13_q = eucl_dist(q[0], q[2]);
-    int sta = 0;
-    for (int i = 0; i < no_e12; i++) {
-        for (int j = 0; j < no_e34; j++) {
-            if (eucl_dist(pred_coin12[i].e, pred_coin34[j].e) <= 0.5) {
-                double d13_p = eucl_dist(pts_p[pred_coin12[i].endpt1], pts_p[pred_coin34[j].endpt1]);
-                if (abs(d13_p - d13_q) <= 0.2) {
-                    sta++;
-                    // cout << "coin found: "
-                    //   << pred_coin12[i].endpt1 << "-" << pred_coin12[i].endpt2
-                    //   << " and "
-                    //   << pred_coin34[j].endpt1 << "-" << pred_coin34[j].endpt2 << endl;
-                    p[0] = pts_p[pred_coin12[i].endpt1];
-                    p[1] = pts_p[pred_coin12[i].endpt2];
-                    p[2] = pts_p[pred_coin34[j].endpt1];
-                    p[3] = pts_p[pred_coin34[j].endpt2];
+    cout << "Num of matching 1 & 2: " << count << endl;
 
-                    Trans xf = cal_trans(q, p, 4);
-                    // print_trans(&xf);
+    // int no_e12 = pred_coin12.size();
+    // int no_e34 = pred_coin34.size();
+    // cout << "matching set of q1q2: " << no_e12 << endl
+    //      << "matching set of q3q4: " << no_e34 << endl;
 
-                    // cout << cal_err(pts_q, m, pts_p, n, xf) << endl;
-                }
-            }
-        }
-    }
+    // double d13_q = eucl_dist(q[0], q[2]);
+    // int sta = 0;
+    // for (int i = 0; i < no_e12; i++) {
+    //     for (int j = 0; j < no_e34; j++) {
+    //         if (eucl_dist(pred_coin12[i].e, pred_coin34[j].e) <= 0.5) {
+    //             double d13_p = eucl_dist(pts_p[pred_coin12[i].endpt1], pts_p[pred_coin34[j].endpt1]);
+    //             if (abs(d13_p - d13_q) <= 0.2) {
+    //                 sta++;
+    //                 // cout << "coin found: "
+    //                 //   << pred_coin12[i].endpt1 << "-" << pred_coin12[i].endpt2
+    //                 //   << " and "
+    //                 //   << pred_coin34[j].endpt1 << "-" << pred_coin34[j].endpt2 << endl;
+    //                 p[0] = pts_p[pred_coin12[i].endpt1];
+    //                 p[1] = pts_p[pred_coin12[i].endpt2];
+    //                 p[2] = pts_p[pred_coin34[j].endpt1];
+    //                 p[3] = pts_p[pred_coin34[j].endpt2];
 
-    // cout << sta << endl;
+    //                 Trans xf = cal_trans(q, p, 4);
+    //                 // print_trans(&xf);
+
+    //                 // cout << cal_err(pts_q, m, pts_p, n, xf) << endl;
+    //             }
+    //         }
+    //     }
+    // }
+
+    // // cout << sta << endl;
+
+    cout << "Query time: " << timer_end(SECOND) << endl;
 
 }

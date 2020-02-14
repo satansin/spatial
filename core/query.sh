@@ -3,11 +3,70 @@
 source ../common/config/dir_loc.sh
 
 
+## tuning w
+
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.006.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.0.ply 1000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.0.ply 1000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.018.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.0.ply 1000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.024.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.0.ply 1000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.030.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.0.ply 1000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.036.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.0.ply 1000
+
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.006.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.1.ply 10000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.1.ply 10000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.018.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.1.ply 10000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.024.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.1.ply 10000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.030.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.1.ply 10000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.036.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.1.ply 10000
+
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.006.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.2.ply 20000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.2.ply 20000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.018.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.2.ply 20000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.024.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.2.ply 20000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.030.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.2.ply 20000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.036.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.2.ply 20000
+
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.006.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.3.ply 40000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.3.ply 40000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.018.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.3.ply 40000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.024.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.3.ply 40000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.030.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.3.ply 40000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.036.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.3.ply 40000
+
+
+## tuning r
+
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.030.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.0.ply 1000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.060.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.0.ply 1000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.090.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.0.ply 1000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.0.ply 1000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.150.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.0.ply 1000
+
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.030.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.1.ply 10000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.060.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.1.ply 10000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.090.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.1.ply 10000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.1.ply 10000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.150.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.1.ply 10000
+
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.030.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.2.ply 20000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.060.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.2.ply 20000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.090.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.2.ply 20000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.2.ply 20000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.150.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.2.ply 20000
+
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.030.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.3.ply 40000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.060.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.3.ply 40000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.090.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.3.ply 40000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.3.ply 40000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.012.150.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.3.ply 40000
+
+
+
 ## query for indoor scan - recon_bedroom
 
 # ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ "$DIR_INDEX"/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_1/q_01/q_01.0.ply 1000 #-test
 # ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ "$DIR_INDEX"/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_1/q_01/q_01.1.ply 40000 #-test
-./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ "$DIR_INDEX"/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_1/q_01/q_01.2.ply 40000 #-test -verbose=0 -force_cell=311 #-force_pt=15454 #-force_pt=18095
+# ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ "$DIR_INDEX"/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_1/q_01/q_01.2.ply 40000 #-test -verbose=0 -force_cell=311 #-force_pt=15454 #-force_pt=18095
 # gdb -ex 'file ./out/query.out' -ex 'run /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/recon_bedroom_1/ /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid /rwproject/kdd-db/hliubs/10_data_spatial/3dor/query/indoor_scans/recon_bedroom_1/q_01/q_01.2.ply 40000 -test -verbose=1 -force_cell=311 -force_pt=15454'
 # ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ "$DIR_INDEX"/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_1/q_01/q_01.3.ply 150000 #-test
 
@@ -26,6 +85,11 @@ source ../common/config/dir_loc.sh
 # ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_4/ "$DIR_INDEX"/indoor_scans/recon_bedroom_4/recon_bedroom_4.040.200.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_4/q_01/q_01.2.ply 15000 #-test
 # ./out/query.out "$DIR_DB"/indoor_scans/recon_bedroom_4/ "$DIR_INDEX"/indoor_scans/recon_bedroom_4/recon_bedroom_4.040.200.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_4/q_01/q_01.3.ply 20000 #-test
 
+
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.024.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.0.ply 1000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.024.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.1.ply 20000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.024.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.2.ply 40000
+# ./out/query.out "$DIR_DB"/indoor_scans/comp_2/ "$DIR_INDEX"/indoor_scans/comp_2/comp_2.024.120.grid "$DIR_QUERY"/indoor_scans/recon_bedroom_2/q_01/q_01.3.ply 60000
 
 ## query for object scans 2
 

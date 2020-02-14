@@ -22,10 +22,10 @@ OUT=out
 #     add $(USE_TM)
 #     add the following (!!in the end!!): -ltrimesh -lgluit -fopenmp
 
-all: clean 4pcs grid index analyze calc query
+all: clean 4pcs grid index analyze calc query oc_index
 
 4pcs: trans.o point.o
-	$(CXX) $(INC) $(USE_TM) $(SRC)/4pcs.cpp $(OBJ)/* -o $(OUT)/4pcs.out -ltrimesh -lgluit -fopenmp
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/4pcs.cpp $(OBJ)/* -o $(OUT)/4pcs.out -ltrimesh -lgluit -fopenmp -g
 
 grid: tetra_meas.o point.o
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/grid.cpp $(OBJ)/* -o $(OUT)/grid.out -ltrimesh -lgluit -fopenmp
@@ -41,6 +41,9 @@ analyze:
 
 calc:
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/calc.cpp $(OBJ)/* -o $(OUT)/calc.out -ltrimesh -lgluit -fopenmp
+
+oc_index:
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/oc_index.cpp $(OBJ)/* -o $(OUT)/oc_index.out -ltrimesh -lgluit -fopenmp -g
 
 trans.o: point.o $(OBJ)/
 	$(CXX) $(INC) $(USE_EIGEN) $(USE_TM) -c $(SRC)/trans.cpp -o $(OBJ)/trans.o
