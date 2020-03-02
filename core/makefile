@@ -22,40 +22,57 @@ OUT=out
 #     add $(USE_TM)
 #     add the following (!!in the end!!): -ltrimesh -lgluit -fopenmp
 
-all: clean 4pcs grid index analyze calc query oc_index
+all: query6 query3 query6_acc query3_acc index6 index3 super4pcs superg4pcs grid # analyze test
 
-4pcs: trans.o point.o
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/4pcs.cpp $(OBJ)/* -o $(OUT)/4pcs.out -ltrimesh -lgluit -fopenmp -g
+super4pcs: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/super4pcs.cpp $(OBJ)/* -o $(OUT)/super4pcs.out -ltrimesh -lgluit -fopenmp #-g
 
-grid: tetra_meas.o point.o
+superg4pcs: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/superg4pcs.cpp $(OBJ)/* -o $(OUT)/superg4pcs.out -ltrimesh -lgluit -fopenmp #-g
+
+grid: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/grid.cpp $(OBJ)/* -o $(OUT)/grid.out -ltrimesh -lgluit -fopenmp
 
-index: point.o
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/index.cpp $(OBJ)/* -o $(OUT)/index.out -ltrimesh -lgluit -fopenmp
+index6: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/index.cpp $(OBJ)/* -o $(OUT)/index6.out -ltrimesh -lgluit -fopenmp
 
-query: tetra_meas.o point.o
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query.out -ltrimesh -lgluit -fopenmp #-g
+index3: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/index.cpp $(OBJ)/* -o $(OUT)/index3.out -ltrimesh -lgluit -fopenmp -DIDX_3
 
-analyze:
+query6: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query6.out -ltrimesh -lgluit -fopenmp -g
+
+query3: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query3.out -ltrimesh -lgluit -fopenmp -DIDX_3
+
+query6_acc: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query6_acc.out -ltrimesh -lgluit -fopenmp -DACC
+
+query3_acc: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query3_acc.out -ltrimesh -lgluit -fopenmp -DIDX_3 -DACC
+
+analyze: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/analyze.cpp $(OBJ)/* -o $(OUT)/analyze.out -ltrimesh -lgluit -fopenmp
 
-calc:
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/calc.cpp $(OBJ)/* -o $(OUT)/calc.out -ltrimesh -lgluit -fopenmp
+test: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/test.cpp $(OBJ)/* -o $(OUT)/test.out -ltrimesh -lgluit -fopenmp #-g
 
-oc_index:
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/oc_index.cpp $(OBJ)/* -o $(OUT)/oc_index.out -ltrimesh -lgluit -fopenmp -g
+build_obj: clean trans.o tetra_meas.o c_rtree.o mesh.o util.o
 
-trans.o: point.o $(OBJ)/
+trans.o: $(OBJ)/
 	$(CXX) $(INC) $(USE_EIGEN) $(USE_TM) -c $(SRC)/trans.cpp -o $(OBJ)/trans.o
 
-tetra_meas.o: point.o $(OBJ)/
+tetra_meas.o: $(OBJ)/
 	$(CXX) $(INC) $(USE_EIGEN) $(USE_TM) -c $(SRC)/tetra_meas.cpp -o $(OBJ)/tetra_meas.o
 
-point.o: $(OBJ)/
-	$(CXX) $(INC) $(USE_TM) -c $(SRC)/point.cpp -o $(OBJ)/point.o
+c_rtree.o: $(OBJ)/
+	$(CXX) $(INC) $(USE_EIGEN) $(USE_TM) -I../rstree/ -c $(SRC)/c_rtree.cpp -o $(OBJ)/c_rtree.o
 
-# circumcenter.o:
-# 	$(CXX) $(INC) -c $(SRC)/circumcenter.cpp -o $(OBJ)/circumcenter.o
+mesh.o: $(OBJ)/
+	$(CXX) $(INC) $(USE_EIGEN) $(USE_TM) -c $(SRC)/mesh.cpp -o $(OBJ)/mesh.o
+
+util.o: $(OBJ)/
+	$(CXX) $(INC) -c $(SRC)/util.cpp -o $(OBJ)/util.o
 
 $(OBJ)/:
 	$(shell mkdir -p $(OBJ))

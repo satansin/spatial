@@ -111,63 +111,65 @@ export LD_LIBRARY_PATH
 
 ### extract queries from db - indoor_scans
 
-# for i in {1..4} # i->resolution
-# do
-# 	mkdir -p "$DIR_QUERY"/indoor_scans/comp_"$i"/
+for i in 1 # i->resolution
+do
+	mkdir -p "$DIR_QUERY"/indoor_scans/comp_"$i"/
 
-# 	for j in {1..8} # j->query id
-# 	do
-# 		mkdir -p "$DIR_QUERY"/indoor_scans/comp_"$i"/q_0"$j"/
-# 	done
+	## not making subfolders anymore
+	# for j in {1..8} # j->query id
+	# do
+	# 	mkdir -p "$DIR_QUERY"/indoor_scans/comp_"$i"/q_0"$j"/
+	# done
 
-# 	for k in {0..4} # k->noisy level
-# 	do
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply	 1400  2400  2000  3000   500  1450 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_01/q_01."$k".ply
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply -1220     0  2250  3500 -1850  -400 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_02/q_02."$k".ply
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  -200   800  3500  5000 -3000 -1900 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_03/q_03."$k".ply
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply   700  3000  2000  4800 -4000 -2000 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_04/q_04."$k".ply
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  1500  3000   500  2000   700  3000 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_05/q_05."$k".ply
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  2800  3800  2400  4100 -2300  -800 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_06/q_06."$k".ply
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  1000  1450  2100  2700   600  1800 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_07/q_07."$k".ply
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply -3000     0   800  3300   200  3000 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_08/q_08."$k".ply
-# 	done
-# done
+	for k in {0..5} # k->noise level
+	do
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply	 1400  2400  2000  3000   500  1450 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_01."$k".ply -snoise
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply -1220     0  2250  3500 -1850  -400 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_02."$k".ply -snoise
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  -200   800  3500  5000 -3000 -1900 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_03."$k".ply -snoise
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply   700  3000  2000  4800 -4000 -2000 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_04."$k".ply -snoise
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  1500  3000   500  2000   700  3000 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_05."$k".ply -snoise
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  2800  3800  2400  4100 -2300  -800 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_06."$k".ply -snoise
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  1000  1450  2100  2700   600  1800 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_07."$k".ply -snoise
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply -3000     0   800  3300   200  3000 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_08."$k".ply -snoise
+	done
+done
 
-# for i in {5..7} # i->resolution
-# do
-# 	mkdir -p "$DIR_QUERY"/indoor_scans/comp_"$i"/
+for i in {5..7} # i->resolution
+do
+	mkdir -p "$DIR_QUERY"/indoor_scans/comp_"$i"/
 
-# 	for j in {1..8} # j->query id
-# 	do
-# 		mkdir -p "$DIR_QUERY"/indoor_scans/comp_"$i"/q_0"$j"/
-# 	done
+	## not making subfolders anymore
+	# for j in {1..8} # j->query id
+	# do
+	# 	mkdir -p "$DIR_QUERY"/indoor_scans/comp_"$i"/q_0"$j"/
+	# done
 
-# 	for k in {0..4} # k->noisy level
-# 	do
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply	 1400  2400  2000  3000   500  1450 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_01/q_01."$k".ply
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply -1220     0  2250  3500 -1850  -400 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_02/q_02."$k".ply
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  -200   800  3500  5000 -3000 -1900 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_03/q_03."$k".ply
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply   700  3000  2000  4800 -4000 -2000 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_04/q_04."$k".ply
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  1500  3000   500  2000   700  3000 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_05/q_05."$k".ply
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  2800  3800  2400  4100 -2300  -800 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_06/q_06."$k".ply
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  1000  1450  2100  2700   600  1800 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_07/q_07."$k".ply
-# 		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply -3000     0   800  3300   200  3000 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_08/q_08."$k".ply
-# 	done
-# done
+	for k in {0..5} # k->noise level
+	do
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply	 1400  2400  2000  3000   500  1450 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_01."$k".ply
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply -1220     0  2250  3500 -1850  -400 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_02."$k".ply
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  -200   800  3500  5000 -3000 -1900 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_03."$k".ply
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply   700  3000  2000  4800 -4000 -2000 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_04."$k".ply
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  1500  3000   500  2000   700  3000 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_05."$k".ply
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  2800  3800  2400  4100 -2300  -800 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_06."$k".ply
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply  1000  1450  2100  2700   600  1800 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_07."$k".ply
+		./out/extract_query.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply -3000     0   800  3300   200  3000 "$k" "$DIR_QUERY"/indoor_scans/comp_"$i"/q_08."$k".ply
+	done
+done
 
 
 ### build rstree index for query - indoor_scans
 
-# for i in {1..7} # i->resolution
-# do
-# 	for j in {1..8} # j->query id
-# 	do
-# 		for k in {0..4}
-# 		do
-# 			./out/pre_index.out "$DIR_QUERY"/indoor_scans/comp_"$i"/q_0"$j"/q_0"$j"."$k".ply
-# 		done
-# 	done
-# done
+for i in 1 5 6 7 # i->resolution
+do
+	for j in {1..8} # j->query id
+	do
+		for k in {0..5} # k->noise level
+		do
+			./out/pre_index.out "$DIR_QUERY"/indoor_scans/comp_"$i"/q_0"$j"."$k".ply
+		done
+	done
+done
 
 
 ### extract queries from db - obj_scans

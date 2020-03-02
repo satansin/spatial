@@ -88,9 +88,10 @@ private:
 		delete node;
 	}
 
-	bool intersectingAnnulus(OTreeNode* node, float* p, float dist, float eps) {
+	bool intersectingAnnulus(OTreeNode* node, Pt3D p, float dist, float eps) {
+		double convP[3] = { p.x, p.y, p.z };
 		for (int i = 0; i < 3; i++) {
-			if (node->mLoc[i] > p[i] + dist + eps || node->mLoc[i] + node->mSl < p[i] - dist - eps) {
+			if (node->mLoc[i] > convP[i] + dist + eps + 0.001 || node->mLoc[i] + node->mSl < convP[i] - dist - eps - 0.001) {
 				return false; // node box is outside the annulus
 			}
 		}
@@ -98,26 +99,25 @@ private:
 		float maxDist = 0.0;
 		for (int i = 0; i < 3; i++) {
 			float mid = node->mLoc[i] + node->mSl / 2.0;
-			if (p[i] < mid) {
-				maxDist += sq(node->mLoc[i] + node->mSl - p[i]);
+			if (convP[i] < mid) {
+				maxDist += sq(node->mLoc[i] + node->mSl - convP[i]);
 			} else {
-				maxDist += sq(p[i] - node->mLoc[i]);
+				maxDist += sq(convP[i] - node->mLoc[i]);
 			}
 		}
 		maxDist = sqrt(maxDist);
-		if (maxDist < dist - eps) {
+		if (maxDist < dist - eps - 0.001) {
 			return false;
 		} else {
 			return true;
 		}
 	}
 
-	void intersectingPairNode(OTreeNode* node, float* p, float dist, float eps, TriMesh* mesh, vector<int>& ret) {
+	void intersectingPairNode(OTreeNode* node, Pt3D p, float dist, float eps, TriMesh* mesh, vector<int>& ret) {
 		// cout << "Accessing node of level " << node->mLevel << endl;
 		if (node->isLeaf()) {
-			Pt3D convP {p[0], p[1], p[2]};
 			for (auto &i: node->mArrPt) {
-				auto iDist = eucl_dist(convP, pt(mesh->vertices[i]));
+				auto iDist = eucl_dist(p, pt(mesh->vertices[i]));
 				if (abs(iDist - dist) <= eps) {
 					ret.push_back(i);
 				}
@@ -133,7 +133,7 @@ private:
 		}
 	}
 public:
-	void intersectingPair(float* p, float dist, float eps, TriMesh* mesh, vector<int>& ret) {
+	void intersectingPair(Pt3D p, float dist, float eps, TriMesh* mesh, vector<int>& ret) {
 		// cout << "(" << p[0] << ", " << p[1] << ", " << p[2] << "), " << dist << ", " << eps << endl;
 		intersectingPairNode(mRoot, p, dist, eps, mesh, ret);
 	}
@@ -272,7 +272,8 @@ public:
 	}
 
 	virtual ~OTree() {
-		freeNode(mRoot);
+		// freeNode(mRoot);
+		// delete mRoot;
 	}
 };
 

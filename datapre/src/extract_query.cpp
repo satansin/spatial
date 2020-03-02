@@ -92,16 +92,21 @@ int main(int argc, char** argv) {
 	srand(time(NULL));
 
 	if (argc < 5) {
-		cerr << "Usage: " << argv[0] << " db_filename window_x1 window_x2 window_y1 window_y2 window_z1 window_z2 noise_lvl output_filename" << endl;
+		cerr << "Usage: " << argv[0] << " db_filename window_x1 window_x2 window_y1 window_y2 window_z1 window_z2 noise_lvl output_filename [-snoise]" << endl;
 		cerr << "or" << endl;
-		cerr << "Usage: " << argv[0] << " db_path noise_lvl output_filename -batch" << endl;
+		cerr << "Usage: " << argv[0] << " db_path noise_lvl output_filename -batch [-snoise]" << endl;
 		exit(1);
 	}
 
 	bool batch = false;
-	if (string(argv[4]) == "-batch") {
-		batch = true;
-	}
+	bool snoise = false;
+    for (int i = 0; i < argc; i++) {
+        string argv_str(argv[i]);
+        if (argv_str == "-batch")
+            batch = true;
+        else if (argv_str == "-snoise")
+        	snoise = true;
+    }
 
 	int argi = 0;
 	const string db_path = argv[(++argi)];
@@ -177,22 +182,28 @@ int main(int argc, char** argv) {
     // double real_epsilon = max(epsilon, 0.00001);
     // double sigma = real_epsilon / gsl_cdf_ugaussian_Qinv((1.0 - real_eta) / 2.0);
 
-    double sigma = 0.0;
+    float sigma = 0.0;
 
     if (noise_lvl > 0) {
 
-	    query_mesh->need_bbox();
-	    auto query_bbox = query_mesh->bbox;
-	    double max_dim_range = -1.0;
-	    double dim_range;
-	    for (int i = 0; i < 3; i++) {
-	    	dim_range = query_bbox.max[i] - query_bbox.min[i];
-	    	if (dim_range > max_dim_range) {
-	    		max_dim_range = dim_range;
-	    	}
-	    }
+	    // query_mesh->need_bbox();
+	    // auto query_bbox = query_mesh->bbox;
+	    // double max_dim_range = -1.0;
+	    // double dim_range;
+	    // for (int i = 0; i < 3; i++) {
+	    // 	dim_range = query_bbox.max[i] - query_bbox.min[i];
+	    // 	if (dim_range > max_dim_range) {
+	    // 		max_dim_range = dim_range;
+	    // 	}
+	    // }
 
-	    sigma = max_dim_range * 0.0001 * noise_lvl;
+	    // sigma = max_dim_range * 0.0001 * noise_lvl;
+
+	    if (snoise) {
+	    	sigma = 0.1 * noise_lvl;
+	    } else {
+	    	sigma = (float) noise_lvl;
+	    }
     }
 
     const gsl_rng_type* RNG_TYPE;

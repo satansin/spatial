@@ -1,7 +1,8 @@
 #ifndef __POINT_H
 #define __POINT_H
 
-#include "TriMesh.h"
+#include <iostream>
+#include <cmath>
 
 struct Pt2D
 {
@@ -14,16 +15,16 @@ struct Pt3D
 	double x;
 	double y;
 	double z;
-	Pt3D operator-(const Pt3D& q) const {
+	const Pt3D operator-(const Pt3D& q) const {
 		return { x - q.x, y - q.y, z - q.z };
 	}
-	Pt3D operator+(const Pt3D& q) const {
+	const Pt3D operator+(const Pt3D& q) const {
 		return { x + q.x, y + q.y, z + q.z };
 	}
-	Pt3D operator*(double scalar) const {
+	const Pt3D operator*(double scalar) const {
 		return { x * scalar, y * scalar, z * scalar };
 	}
-	Pt3D operator/(double scalar) const {
+	const Pt3D operator/(double scalar) const {
 		return { x / scalar, y / scalar, z / scalar };
 	}
 	double mode() const {
@@ -34,32 +35,73 @@ struct Pt3D
 	}
 };
 
-inline Pt3D pt(trimesh::point p) {
-	return {p[0], p[1], p[2]};
+inline double sq(double d) {
+	return (d * d);
 }
 
-inline Pt3D get_pt(const trimesh::TriMesh *mesh, int id) {
-	return pt(mesh->vertices[id]);
+inline Pt3D middle_pt(const Pt3D* p, const Pt3D* q) {
+	Pt3D mid;
+	mid.x = (p->x + q->x) * 0.5;
+	mid.y = (p->y + q->y) * 0.5;
+	mid.z = (p->z + q->z) * 0.5;
+	return mid;
 }
 
-inline Pt3D middle_pt(Pt3D p, Pt3D q) {
-	return { (p.x + q.x) * 0.5, (p.y + q.y) * 0.5, (p.z + q.z ) * 0.5 };
+inline void print_pt(const Pt2D* p) {
+	std::cout << "(" << p->x << ", " << p->y << ")";
 }
 
-void print_pt(Pt2D* p);
+inline void print_pt(const Pt3D* p) {
+	std::cout << "(" << p->x << ", " << p->y << ", " << p->z << ")";
+}
 
-void print_pt(Pt3D* p);
+inline double sq_dist(const double* p, const double* q, int dim = 3) {
+	double ret = 0.0;
+	for (int i = 0; i < dim; i++) {
+		ret += ((p[i] - q[i]) * (p[i] - q[i]));
+	}
+	return ret;
+}
 
-float sq_dist(const float* p, const float* q, int dim);
+inline double eucl_dist(const double* p, const double* q, int dim = 3) {
+	return sqrt(sq_dist(p, q, dim));
+}
 
-float eucl_dist(const float* p, const float* q, int dim = 3);
+inline double sq_dist(const float* p, const float* q, int dim = 3) {
+	double ret = 0.0;
+	for (int i = 0; i < dim; i++) {
+		ret += ((p[i] - q[i]) * (p[i] - q[i]));
+	}
+	return ret;
+}
 
-double eucl_dist(Pt2D p, Pt2D q);
+inline double eucl_dist(const float* p, const float* q, int dim = 3) {
+	return sqrt(sq_dist(p, q, dim));
+}
 
-double eucl_dist(Pt3D p, Pt3D q);
+inline double sq_dist(const Pt3D* p, const Pt3D* q) {
+	return ((p->x - q->x) * (p->x - q->x) +
+			(p->y - q->y) * (p->y - q->y) +
+			(p->z - q->z) * (p->z - q->z));
+}
 
-double dot_prd(Pt3D a, Pt3D b);
+inline double eucl_dist(const Pt2D* p, const Pt2D* q) {
+	return sqrt((p->x - q->x) * (p->x - q->x) +
+				(p->y - q->y) * (p->y - q->y));
+}
 
-Pt3D cross_prd(Pt3D a, Pt3D b);
+inline double eucl_dist(const Pt3D* p, const Pt3D* q) {
+	return sqrt(sq_dist(p, q));
+}
+
+inline double dot_prd(const Pt3D* a, const Pt3D* b) {
+	return (a->x * b->x + a->y * b->y + a->z * b->z);
+}
+
+inline const Pt3D cross_prd(const Pt3D* a, const Pt3D* b) {
+	return {a->y * b->z - a->z * b->y,
+			a->z * b->x - a->x * b->z,
+			a->x * b->y - a->y * b->x};
+}
 
 #endif

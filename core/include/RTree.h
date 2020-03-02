@@ -136,6 +136,8 @@ public:
 
   RTREE_TEMPLATE_PRIME
   int SpatialJoin(const RTREE_QUAL_PRIME* tree_prime, std::vector<std::pair<int, int>>& ret) const;
+
+  int SphereSearch(const ELEMTYPE center[NUMDIMS], ELEMTYPEREAL sq_dist_min, ELEMTYPEREAL sq_dist_max, std::vector<DATATYPE>& ret) const;
   
   /// Remove all entries from tree
   void RemoveAll();
@@ -438,6 +440,12 @@ protected:
 	RTREE_TEMPLATE_PRIME
 	int JoinSortedNode(const Node* node, const RTREE_QUAL_PRIME* tree_prime, const typename RTREE_QUAL_PRIME::Node* node_prime, const OUTRA_RECT* ovlp_rect, std::vector<std::pair<int, int>>& ret) const;
 
+  int SphereSearchNode(const Node* node, const ELEMTYPE center[NUMDIMS], ELEMTYPEREAL sq_min, ELEMTYPEREAL sq_max, std::vector<DATATYPE>& ret) const;
+
+  ELEMTYPEREAL SqDist(const ELEMTYPE center[NUMDIMS], const Rect* a_rect) const;
+  ELEMTYPEREAL SqMinDist(const ELEMTYPE center[NUMDIMS], const Rect* a_rect) const;
+  ELEMTYPEREAL SqMaxDist(const ELEMTYPE center[NUMDIMS], const Rect* a_rect) const;
+
 
 };
 
@@ -699,6 +707,17 @@ int RTREE_QUAL::SpatialJoin(const RTREE_QUAL_PRIME* tree_prime, std::vector<std:
   // JOIN_NODE_P(m_root, tree_prime, root_prime, &ovlp_rect, ret);
 
   return ret.size();
+}
+
+RTREE_TEMPLATE
+int RTREE_QUAL::SphereSearch(const ELEMTYPE center[NUMDIMS], ELEMTYPEREAL sq_dist_min, ELEMTYPEREAL sq_dist_max, std::vector<DATATYPE>& ret) const
+{
+  assert(sq_dist_min <= sq_dist_max);
+
+  // ELEMTYPEREAL sq_dist_min = dist_min * dist_min - 0.001;
+  // ELEMTYPEREAL sq_dist_max = dist_max * dist_max + 0.001;
+
+  SphereSearchNode(m_root, center, sq_dist_min, sq_dist_max, ret);
 }
 
 
@@ -2114,6 +2133,86 @@ int RTREE_QUAL::JoinSortedNode(const Node* node, const RTREE_QUAL_PRIME* tree_pr
   }
 }
 
+RTREE_TEMPLATE
+int RTREE_QUAL::SphereSearchNode(const Node* a_node, const ELEMTYPE center[NUMDIMS], ELEMTYPEREAL sq_min, ELEMTYPEREAL sq_max, std::vector<DATATYPE>& ret) const
+{
+  ASSERT(a_node);
+  ASSERT(a_node->m_level >= 0);
+
+  if(a_node->IsInternalNode())
+  {
+    // This is an internal node in the tree
+    for(int index=0; index < a_node->m_count; ++index)
+    {
+      if(SqMinDist(center, &(a_node->m_branch[index].m_rect)) <= sq_max && SqMaxDist(center, &(a_node->m_branch[index].m_rect)) >= sq_min)
+      {
+        SphereSearchNode(a_node->m_branch[index].m_child, center, sq_min, sq_max, ret);
+      }
+    }
+  }
+  else
+  {
+    // This is a leaf node
+    for(int index=0; index < a_node->m_count; ++index)
+    {
+      auto sq = SqDist(center, &(a_node->m_branch[index].m_rect));
+      if(sq_min <= sq && sq <= sq_max)
+      {
+        ret.push_back(a_node->m_branch[index].m_data);
+      }
+    }
+  }
+
+  return 0;
+
+}
+
+RTREE_TEMPLATE
+ELEMTYPEREAL RTREE_QUAL::SqDist(const ELEMTYPE center[NUMDIMS], const Rect* a_rect) const
+{
+  ELEMTYPEREAL sq = 0;
+  for (int i = 0; i < NUMDIMS; i++)
+  {
+    ELEMTYPE diff = center[i] - a_rect->m_min[i];
+    sq += ((ELEMTYPEREAL) diff) * ((ELEMTYPEREAL) diff);
+  }
+  return sq;
+}
+
+RTREE_TEMPLATE
+ELEMTYPEREAL RTREE_QUAL::SqMinDist(const ELEMTYPE center[NUMDIMS], const Rect* a_rect) const
+{
+  ELEMTYPEREAL sq = 0;
+  
+  for(int i = 0; i < NUMDIMS; i++)
+  {
+    if (center[i] > a_rect->m_max[i])
+    {
+      ELEMTYPE diff = center[i] - a_rect->m_max[i];
+      sq += diff * diff;
+    }
+    else if (center[i] < a_rect->m_min[i])
+    {
+      ELEMTYPE diff = a_rect->m_min[i] - center[i];
+      sq += diff * diff;
+    }
+  }
+  
+  return sq;
+}
+
+RTREE_TEMPLATE
+ELEMTYPEREAL RTREE_QUAL::SqMaxDist(const ELEMTYPE center[NUMDIMS], const Rect* a_rect) const
+{
+  ELEMTYPEREAL sq = 0;
+
+  for (int i = 0; i < NUMDIMS; i++) {
+    ELEMTYPE diff = (center[i] * 2 < a_rect->m_min[i] + a_rect->m_max[i]) ? (a_rect->m_max[i] - center[i]) : (center[i] - a_rect->m_min[i]);
+    sq += diff * diff;
+  }
+
+  return sq;
+}
 
 #undef RTREE_TEMPLATE
 #undef RTREE_QUAL

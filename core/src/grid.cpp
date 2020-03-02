@@ -1,13 +1,10 @@
-#include "TriMesh.h"
-#include "KDtree.h"
 #include "point.h"
 #include "tetra_meas.h"
 #include "pcr_adv.h"
-extern "C" {
-    #include "rtree.h"
-}
+#include "c_rtree.h"
 #include "ProgressBar.hpp"
-#include "share.h"
+#include "util.h"
+
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -17,10 +14,10 @@ extern "C" {
 #include <string>
 #include <ctime>
 #include <cstdlib>
-using namespace std;
-using namespace trimesh;
 
-void cal_index_entry_new(PtwID* p, double min, const TriMesh* mesh_p, node_type *r_root, rtree_info* r_info, bool debug_mode, Entry* prem_entry) {
+using namespace std;
+
+void cal_index_entry(PtwID* p, double min, const Mesh* mesh_p, C_RTree* r_p, bool debug_mode, Entry* prem_entry) {
 
 	PtwID a, b, c, h;
 
@@ -29,12 +26,13 @@ void cal_index_entry_new(PtwID* p, double min, const TriMesh* mesh_p, node_type 
     // start looking for the first subsidiary pt a
     // if (debug_mode) timer_start();
 
-    auto nn_a = nn_sphere(&(p->pt), r_root, r_info, sq(min))[0];
+    int nn_a;
+    auto nn_d_a = r_p->nn_sphere(&(p->pt), min, &nn_a);
 
-    // if (debug_mode) cout << TABTAB << "First pt #" << nn_a->oid << " dist=" << sqrt(nn_a->dist) << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
+    // if (debug_mode) cout << TABTAB << "First pt #" << nn_a << " dist=" << nn_d_a << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
-    if (nn_a->oid >= 0) {
-     	a = PtwID(nn_a->oid, mesh_p);
+    if (nn_a >= 0) {
+     	a = PtwID(nn_a, mesh_p);
     } else {
     	return;
     }
@@ -42,20 +40,21 @@ void cal_index_entry_new(PtwID* p, double min, const TriMesh* mesh_p, node_type 
     // start looking for the help pt h
     // if (debug_mode) timer_start();
 
-    auto m = middle_pt(p->pt, a.pt);
+    auto m = middle_pt(&p->pt, &a.pt);
 
-    float d_pm = eucl_dist(p->pt, m);
-    auto nn_h = nn_sphere(&m, r_root, r_info, sq(d_pm), { p->id, a.id })[0];
+    double d_pm = eucl_dist(&p->pt, &m);
+    int nn_h;
+    auto nn_d_h = r_p->nn_sphere(&m, d_pm, &nn_h, { p->id, a.id });
 
-    // if (debug_mode) cout << TABTAB << "Help pt #" << nn_h->oid << " dist=" << sqrt(nn_h->dist) << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
+    // if (debug_mode) cout << TABTAB << "Help pt #" << nn_h << " dist=" << nn_d_h << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
-    if (nn_h->oid >= 0) {
-     	h = PtwID(nn_h->oid, mesh_p);
+    if (nn_h >= 0) {
+     	h = PtwID(nn_h, mesh_p);
     } else {
     	return;
     }
 
-    if (debug_mode) { cout << TABTAB; printf("hp=%f, ha=%f\n", eucl_dist(h.pt, p->pt), eucl_dist(h.pt, a.pt)); }
+    // if (debug_mode) { cout << TABTAB; printf("hp=%f, ha=%f\n", eucl_dist(h.pt, p->pt), eucl_dist(h.pt, a.pt)); }
 
     // start looking for the rest two pts b and c
     // if (debug_mode) timer_start();
@@ -66,25 +65,27 @@ void cal_index_entry_new(PtwID* p, double min, const TriMesh* mesh_p, node_type 
     	return;
     }
 
-    auto nn_b = nn_sphere(&b_est, r_root, r_info, 0.0, { p->id, a.id })[0];
-    if (nn_b->oid >= 0) {
-     	b = PtwID(nn_b->oid, mesh_p);
+    int nn_b;
+    auto nn_d_b = r_p->nn_sphere(&b_est, 0.0, &nn_b, { p->id, a.id });
+    if (nn_b >= 0) {
+     	b = PtwID(nn_b, mesh_p);
     } else {
     	return;
     }
 
-    auto nn_c = nn_sphere(&c_est, r_root, r_info, 0.0, { p->id, a.id, b.id })[0];
-    if (nn_c->oid >= 0) {
-     	c = PtwID(nn_c->oid, mesh_p);
+    int nn_c;
+    auto nn_d_c = r_p->nn_sphere(&c_est, 0.0, &nn_c, { p->id, a.id, b.id });
+    if (nn_c >= 0) {
+     	c = PtwID(nn_c, mesh_p);
     } else {
     	return;
     }
 
-    // if (debug_mode) cout << TABTAB << "Second pt #" << nn_b->oid << " dist=" << sqrt(nn_b->dist)
-    // 	<< ", third pt #" << nn_c->oid << " dist=" << sqrt(nn_c->dist) << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
+    // if (debug_mode) cout << TABTAB << "Second pt #" << nn_b << " dist=" << nn_d_b
+    // 	<< ", third pt #" << nn_c << " dist=" << nn_d_c << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
     // get the ratio set
-    auto ratio_set = get_ratio_set_vol(p->pt, a.pt, b.pt, c.pt);
+    auto ratio_set = get_ratio_set_vol(&p->pt, &a.pt, &b.pt, &c.pt);
 
     if (ratio_set.ratio - prem_entry->meas > 0) {
     	prem_entry->set(*p, a, b, c, ratio_set.volume, ratio_set.ratio, h);
@@ -93,29 +94,29 @@ void cal_index_entry_new(PtwID* p, double min, const TriMesh* mesh_p, node_type 
 
 }
 
-void performance_test(TriMesh *mesh, int n, KDtree *kd, node_type *r_root, rtree_info* aInfo) {
-    srand(time(NULL));
-    R_TYPE *query;
-    query = (R_TYPE *) malloc(sizeof(R_TYPE) * aInfo->dim);
-    for (int i = 0; i < 100; ++i) {
-        auto test_pt = mesh->vertices[rand() % n];
-        for (int j = 0; j < aInfo->dim; j++) {
-            query[j] = test_pt[j];
-        }
-        timer_start();
-        auto nn_kd = kd->closest_to_pt(test_pt);
-        auto t_kd = timer_end(MILLISECOND);
+// void performance_test(TriMesh *mesh, int n, KDtree *kd, node_type *r_root, rtree_info* aInfo) {
+//     srand(time(NULL));
+//     R_TYPE *query;
+//     query = (R_TYPE *) malloc(sizeof(R_TYPE) * aInfo->dim);
+//     for (int i = 0; i < 100; ++i) {
+//         auto test_pt = mesh->vertices[rand() % n];
+//         for (int j = 0; j < aInfo->dim; j++) {
+//             query[j] = test_pt[j];
+//         }
+//         timer_start();
+//         auto nn_kd = kd->closest_to_pt(test_pt);
+//         auto t_kd = timer_end(MILLISECOND);
 
-        NN_type *NNresult;
-        timer_start();
-        k_NN_search(r_root, query, 1, &NNresult, aInfo);
-        auto t_r = timer_end(MILLISECOND);
+//         NN_type *NNresult;
+//         timer_start();
+//         k_NN_search(r_root, query, 1, &NNresult, aInfo);
+//         auto t_r = timer_end(MILLISECOND);
 
-        cout << t_kd << " v.s. " << t_r << endl;
-    }
-}
+//         cout << t_kd << " v.s. " << t_r << endl;
+//     }
+// }
 
-void gridify_test(double w, vector<TriMesh*> meshes) {
+void gridify_test(double w, DB_Meshes* db_meshes) {
     double delta = 0.3 * w;
     int num_trials = 11;
     Grid g;
@@ -125,12 +126,12 @@ void gridify_test(double w, vector<TriMesh*> meshes) {
         g.set_width(trial_w);
         cout << "\nTest gridify the point cloud in 10 random runs..." << endl;
         for (int i = 0; i < 10; i++) {
-            auto mesh = meshes[rand() % meshes.size()];
+            auto mesh = db_meshes->get_mesh(rand() % db_meshes->size());
             g.gridify(mesh);
 
             cout << "\tGrid size: " << trial_w << endl;
             cout << "\tTotal # cells: " << g.cells_map.size() << endl;
-            cout << "\tAvg # pts per cell: " << ((double) mesh->vertices.size()) / ((double) g.cells_map.size()) << endl;
+            cout << "\tAvg # pts per cell: " << ((double) mesh->size()) / ((double) g.cells_map.size()) << endl;
         }
     }
 
@@ -163,20 +164,20 @@ int main(int argc, char **argv) {
 
     timer_start();
 
-    vector<TriMesh*> db_meshes;
+    cout << "Reading database files from " << db_path << endl;
+    DB_Meshes db_meshes;
+    int num_meshes = db_meshes.read_from_path(db_path);
+    cout << "Total no. meshes: " << num_meshes << endl << endl;
+
+    int n = db_meshes.total();
+
+    cout << "Reading database R-trees..." << endl;
+    vector<C_RTree> db_rtrees;
+    read_rtrees_from_db_meshes(&db_meshes, db_rtrees);
     
-    rtree_info db_rtree_info = read_rstree_info("../common/config/rstree.pcd.config");
-    vector<node_type*> roots;
-
-    int num_meshes = read_db_batch(db_path, db_meshes, &db_rtree_info, roots);
-
-    long long n = 0;
-    for (auto &p: db_meshes)
-        n += p->vertices.size();
-
     cout << endl;
-    cout << "Total no. pts: " << n << endl << endl;
 
+    cout << "Total no. pts: " << n << endl << endl;
     cout << "Total I/- time: " << timer_end(SECOND) << "(s)" << endl;
 
     // performance_test(mesh_p, n, kd_p, root, &db_rtree_info);
@@ -194,7 +195,7 @@ int main(int argc, char **argv) {
 
     for (int mesh_id = 0; mesh_id < num_meshes; mesh_id++) {
         Grid* g = new Grid(w);
-        g->gridify(db_meshes[mesh_id]);
+        g->gridify(db_meshes.get_mesh(mesh_id));
         s_db.append_grid(g);
     }
 
@@ -204,7 +205,7 @@ int main(int argc, char **argv) {
 
     cout << "Grid size: " << w << endl;
     cout << "Total # cells: " << num_cells << endl;
-    cout << "Avg # pts per cell: " << ((long double) n) / ((double) num_cells) << endl << endl;
+    cout << "Avg # pts per cell: " << ((double) n) / ((double) num_cells) << endl << endl;
 
     int fail_count = 0;
     int global_cell_id = 0;
@@ -214,8 +215,8 @@ int main(int argc, char **argv) {
     auto db_grids = s_db.get_grids();
     for (int mesh_id = 0; mesh_id < db_grids.size(); mesh_id++) {
         auto g = db_grids[mesh_id];
-        auto mesh_p = db_meshes[mesh_id];
-        auto root = roots[mesh_id];
+        auto mesh_p = db_meshes.get_mesh(mesh_id);
+        auto r_p = db_rtrees[mesh_id];
 
         cout << "Processing mesh #" << mesh_id << endl << endl;
 
@@ -244,8 +245,7 @@ int main(int argc, char **argv) {
 
             // if (global_cell_id < 50) { // uncomment it for testing
             for (auto &p: c->list) {
-                // Entry e = cal_index_entry(&c, p, ann_min, ann_max, &g, kd_p, debug_mode);
-                cal_index_entry_new(&p, ann_min, mesh_p, root, &db_rtree_info, debug_mode, prem_entry);
+                cal_index_entry(&p, ann_min, mesh_p, &r_p, debug_mode, prem_entry);
             }
             // } // uncomment it for testing
 

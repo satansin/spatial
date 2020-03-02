@@ -34,10 +34,6 @@ source ../common/config/dir_loc.sh
 # 	echo -en "\n" >> "$DIR_STAT"/01_tuning_w_r/tuning_r_new.dat
 # done
 
-## varied n
-
-STATF="$DIR_STAT"/02_indoors/01_varied_n/
-
 # ./out/query.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.1.ply 1000 #-verbose=1 -test -force_cell=38 -force_pt=976
 
 # ./out/query.out "$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.040.200.grid "$DIR_QUERY"/indoor_scans/comp_6/q_01.1.ply 100
@@ -47,7 +43,7 @@ STATF="$DIR_STAT"/02_indoors/01_varied_n/
 # ./out/query.out "$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid "$DIR_QUERY"/indoor_scans/comp_7/q_01.0.ply 100
 
 # ./out/query.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid "$DIR_QUERY"/indoor_scans/comp_1/q_01.0.ply 100 #-test
-./out/query3_acc.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid "$DIR_QUERY"/indoor_scans/comp_1/q_01.1.ply 4000 #-verbose=0 #-test
+./out/query.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid "$DIR_QUERY"/indoor_scans/comp_1/q_01.1.ply 4000 #-verbose=0 #-test
 
 
 

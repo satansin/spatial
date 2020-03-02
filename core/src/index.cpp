@@ -1,5 +1,5 @@
 #include "pcr_adv.h"
-#include "share.h"
+#include "util.h"
 #include "RTree.h"
 #include "ProgressBar.hpp"
 #include <iostream>
@@ -16,13 +16,13 @@ int main(int argc, char **argv) {
     string grid_filename = argv[(++argi)];
 
     cout << "Reading database files from " << db_path << endl;
-    vector<TriMesh*> db_meshes;
-    int num_meshes = read_db_mesh_batch(db_path, db_meshes);
+    DB_Meshes db_meshes;
+    int num_meshes = db_meshes.read_from_path(db_path);
     cout << "Total no. meshes: " << num_meshes << endl << endl;
 
     cout << "Loading DB structure from " << grid_filename << endl;
     Struct_DB s_db;
-    s_db.read(grid_filename, db_meshes);
+    s_db.read(grid_filename, &db_meshes);
 
     int num_cells = s_db.get_total_cells_count();
     cout << "Total no. cells: " << num_cells << endl << endl;
@@ -40,12 +40,13 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < num_cells; i++) {
 
-        auto e = entries[i];
-
-        ////////////////////////// Toggle_1 /////////////////////////////////////
         ++bar;
         bar.display();
 
+        auto e = entries[i];
+
+        ////////////////////////// Toggle_1 /////////////////////////////////////
+        // TODO: avoid fail
         int box_min[INDEX_DIM], box_max[INDEX_DIM];
         e->get_index_box(box_min, box_max);
         
