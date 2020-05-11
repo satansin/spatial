@@ -92,20 +92,20 @@ int main(int argc, char** argv) {
 	srand(time(NULL));
 
 	if (argc < 5) {
-		cerr << "Usage: " << argv[0] << " db_filename window_x1 window_x2 window_y1 window_y2 window_z1 window_z2 noise_lvl output_filename [-snoise]" << endl;
+		cerr << "Usage: " << argv[0] << " db_filename window_x1 window_x2 window_y1 window_y2 window_z1 window_z2 noise_lvl output_filename [-noise_unit=s|m|l]" << endl;
 		cerr << "or" << endl;
-		cerr << "Usage: " << argv[0] << " db_path noise_lvl output_filename -batch [-snoise]" << endl;
+		cerr << "Usage: " << argv[0] << " db_path noise_lvl output_filename -batch [-noise_unit=s|m|l]" << endl;
 		exit(1);
 	}
 
 	bool batch = false;
-	bool snoise = false;
+	char noise_unit = 'l';
     for (int i = 0; i < argc; i++) {
         string argv_str(argv[i]);
         if (argv_str == "-batch")
             batch = true;
-        else if (argv_str == "-snoise")
-        	snoise = true;
+        else if (argv_str.rfind("-noise_unit", 0) == 0)
+        	noise_unit = argv_str[12];
     }
 
 	int argi = 0;
@@ -199,11 +199,17 @@ int main(int argc, char** argv) {
 
 	    // sigma = max_dim_range * 0.0001 * noise_lvl;
 
-	    if (snoise) {
-	    	sigma = 0.1 * noise_lvl;
-	    } else {
-	    	sigma = (float) noise_lvl;
-	    }
+    	switch (noise_unit) {
+    	case 's':
+    		sigma = 0.1 * noise_lvl;
+    		break;
+    	case 'm':
+    		sigma = 0.3 * noise_lvl;
+    		break;
+    	case 'l':
+    	default:
+    		sigma = (float) noise_lvl;
+    	}
     }
 
     const gsl_rng_type* RNG_TYPE;

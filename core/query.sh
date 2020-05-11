@@ -9,34 +9,127 @@ source ../common/config/dir_loc.sh
 # rm $STATF
 # for w in 12 24 36 48 60
 # do
-# 	echo -en "$w\t" >> "$DIR_STAT"/01_tuning_w_r/tuning_w_new.dat
+# 	echo -en "$w\t" >> $STATF
 # 	./out/query.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.0"$w".120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01/q_01.0.ply 100 -stat=$STATF
 # 	./out/query.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.0"$w".120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01/q_01.1.ply 1000 -stat=$STATF
 # 	./out/query.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.0"$w".120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01/q_01.2.ply 2000 -stat=$STATF
 # 	./out/query.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.0"$w".120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01/q_01.3.ply 4000 -stat=$STATF
 # 	./out/query.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.0"$w".120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01/q_01.4.ply 8000 -stat=$STATF
-# 	echo -en "\n" >> test.dat
+# 	echo -en "\n" >> $STATF
 # done
 
+# ./out/query_det.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.120.grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_5/q_01.0.ply 1
+# ./out/query_det.out "$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.000.200.grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_6/q_01.0.ply 5
+
+./out/query_prob.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.000.080.grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_1/q_01.0.ply 100 0.5 -force_cell=20559
+# gdb -ex 'file ./out/query_prob.out' -ex 'run /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_1/ /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_1/comp_1.000.080.grid /rwproject/kdd-db/hliubs/10_data_spatial/3dor/query/indoor_scans_pro_noise/comp_1/q_01.0.ply 100 0.5 -force_cell=20559'
 
 ## tuning r
+
+# STATF="$DIR_STAT"/1_pcr_adv/tuning_r.dat
+# rm $STATF
+# for r in 030 060 090 120 150 180 240 300
+# do
+# 	echo -en "$r\t" >> $STATF
+# 	./out/query_prob.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000."$r".grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_5/q_01.1.ply 200 0.5 -stat=$STATF
+# 	echo -en "\n" >> $STATF
+# done
 
 # STATF="$DIR_STAT"/01_tuning_w_r/tuning_r_new.dat
 # rm $STATF
 # for r in 060 120 180 240 300
 # do
-# 	echo -en "$r\t" >> "$DIR_STAT"/01_tuning_w_r/tuning_r_new.dat
+# 	echo -en "$r\t" >> $STATF
 # 	./out/query.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024."$r".grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.0.ply 100 -stat=$STATF
 # 	./out/query.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024."$r".grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.1.ply 1000 -stat=$STATF
 # 	./out/query.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024."$r".grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.2.ply 2000 -stat=$STATF
 # 	./out/query.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024."$r".grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.3.ply 4000 -stat=$STATF
 # 	./out/query.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024."$r".grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.4.ply 8000 -stat=$STATF
-# 	echo -en "\n" >> "$DIR_STAT"/01_tuning_w_r/tuning_r_new.dat
+# 	echo -en "\n" >> $STATF
 # done
 
-## varied n
+## indoor - det - varied n
 
-STATF="$DIR_STAT"/02_indoors/01_varied_n/
+# ./out/query_det.out "$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.000.200.grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_6/q_01.0.ply 2
+
+# STATF="$DIR_STAT"/2_delta_sim_scene/11_det_varied_n/pcr_adv.dat
+# rm $STATF
+# DELTA=5
+# echo -en "1\t" >> $STATF
+# ./out/query_det.out "$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.000.300.grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_7/q_01.0.ply $DELTA -stat=$STATF
+# echo -en "\n" >> $STATF
+# echo -en "2\t" >> $STATF
+# ./out/query_det.out "$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.000.200.grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_6/q_01.0.ply $DELTA -stat=$STATF
+# echo -en "\n" >> $STATF
+# echo -en "3\t" >> $STATF
+# ./out/query_det.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.120.grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_5/q_01.0.ply $DELTA -stat=$STATF
+# echo -en "\n" >> $STATF
+# echo -en "4\t" >> $STATF
+# ./out/query_det.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.000.080.grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_1/q_01.0.ply $DELTA -stat=$STATF
+# echo -en "\n" >> $STATF
+
+## indoor - det - varied m
+
+
+
+# STATF="$DIR_STAT"/02_indoors/01_varied_n/no_noise_pcr_adv.dat
+# rm $STATF
+# echo -en "1\t" >> $STATF
+# ./out/query3_acc.out	"$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid "$DIR_QUERY"/indoor_scans/comp_7/q_01.0.ply 100 -stat=$STATF
+# ./out/query6_acc.out	"$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid "$DIR_QUERY"/indoor_scans/comp_7/q_01.0.ply 100 -stat=$STATF
+# ./out/query3.out		"$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid "$DIR_QUERY"/indoor_scans/comp_7/q_01.0.ply 100 -stat=$STATF
+# ./out/query6.out		"$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid "$DIR_QUERY"/indoor_scans/comp_7/q_01.0.ply 100 -stat=$STATF
+# echo -en "\n" >> $STATF
+# echo -en "2\t" >> $STATF
+# ./out/query3_acc.out	"$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.040.200.grid "$DIR_QUERY"/indoor_scans/comp_6/q_01.0.ply 100 -stat=$STATF
+# ./out/query6_acc.out	"$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.040.200.grid "$DIR_QUERY"/indoor_scans/comp_6/q_01.0.ply 100 -stat=$STATF
+# ./out/query3.out		"$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.040.200.grid "$DIR_QUERY"/indoor_scans/comp_6/q_01.0.ply 100 -stat=$STATF
+# ./out/query6.out		"$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.040.200.grid "$DIR_QUERY"/indoor_scans/comp_6/q_01.0.ply 100 -stat=$STATF
+# echo -en "\n" >> $STATF
+# echo -en "3\t" >> $STATF
+# ./out/query3_acc.out	"$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.0.ply 100 -stat=$STATF
+# ./out/query6_acc.out	"$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.0.ply 100 -stat=$STATF
+# ./out/query3.out		"$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.0.ply 100 -stat=$STATF
+# ./out/query6.out		"$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.0.ply 100 -stat=$STATF
+# echo -en "\n" >> $STATF
+# echo -en "4\t" >> $STATF
+# ./out/query3_acc.out	"$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid "$DIR_QUERY"/indoor_scans/comp_1/q_01.0.ply 100 -stat=$STATF
+# ./out/query6_acc.out	"$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid "$DIR_QUERY"/indoor_scans/comp_1/q_01.0.ply 100 -stat=$STATF
+# ./out/query3.out		"$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid "$DIR_QUERY"/indoor_scans/comp_1/q_01.0.ply 100 -stat=$STATF
+# ./out/query6.out		"$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid "$DIR_QUERY"/indoor_scans/comp_1/q_01.0.ply 100 -stat=$STATF
+# echo -en "\n" >> $STATF
+
+## indoor - varied n - noise_lvl = 1
+
+# STATF="$DIR_STAT"/02_indoors/01_varied_n/noise_1_pcr_adv.dat
+# rm $STATF
+# echo -en "1\t" >> $STATF
+# ./out/query3_acc.out	"$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid "$DIR_QUERY"/indoor_scans/comp_7/q_01.1.ply 500 -stat=$STATF
+# ./out/query6_acc.out	"$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid "$DIR_QUERY"/indoor_scans/comp_7/q_01.1.ply 500 -stat=$STATF
+# ./out/query3.out		"$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid "$DIR_QUERY"/indoor_scans/comp_7/q_01.1.ply 500 -stat=$STATF
+# ./out/query6.out		"$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid "$DIR_QUERY"/indoor_scans/comp_7/q_01.1.ply 500 -stat=$STATF
+# echo -en "\n" >> $STATF
+# echo -en "2\t" >> $STATF
+# ./out/query3_acc.out	"$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.040.200.grid "$DIR_QUERY"/indoor_scans/comp_6/q_01.1.ply 5000 -stat=$STATF
+# ./out/query6_acc.out	"$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.040.200.grid "$DIR_QUERY"/indoor_scans/comp_6/q_01.1.ply 5000 -stat=$STATF
+# ./out/query3.out		"$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.040.200.grid "$DIR_QUERY"/indoor_scans/comp_6/q_01.1.ply 5000 -stat=$STATF
+# ./out/query6.out		"$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.040.200.grid "$DIR_QUERY"/indoor_scans/comp_6/q_01.1.ply 5000 -stat=$STATF
+# echo -en "\n" >> $STATF
+# echo -en "3\t" >> $STATF
+# ./out/query3_acc.out	"$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.1.ply 5000 -stat=$STATF
+# ./out/query6_acc.out	"$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.1.ply 5000 -stat=$STATF
+# ./out/query3.out		"$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.1.ply 5000 -stat=$STATF
+# ./out/query6.out		"$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.1.ply 5000 -stat=$STATF
+# echo -en "\n" >> $STATF
+# echo -en "4\t" >> $STATF
+# ./out/query3_acc.out	"$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid "$DIR_QUERY"/indoor_scans/comp_1/q_01.1.ply 5000 -stat=$STATF
+# ./out/query6_acc.out	"$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid "$DIR_QUERY"/indoor_scans/comp_1/q_01.1.ply 5000 -stat=$STATF
+# ./out/query3.out		"$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid "$DIR_QUERY"/indoor_scans/comp_1/q_01.1.ply 5000 -stat=$STATF
+# ./out/query6.out		"$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid "$DIR_QUERY"/indoor_scans/comp_1/q_01.1.ply 5000 -stat=$STATF
+# echo -en "\n" >> $STATF
+
+# ./out/query6.out		"$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid "$DIR_QUERY"/indoor_scans/comp_7/q_01.0.ply 100 -force_cell=25
+# ./out/query3.out		"$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid "$DIR_QUERY"/indoor_scans/comp_7/q_01.0.ply 100 -force_cell=25
 
 # ./out/query.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.120.grid "$DIR_QUERY"/indoor_scans/comp_5/q_01.1.ply 1000 #-verbose=1 -test -force_cell=38 -force_pt=976
 
@@ -47,7 +140,7 @@ STATF="$DIR_STAT"/02_indoors/01_varied_n/
 # ./out/query.out "$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid "$DIR_QUERY"/indoor_scans/comp_7/q_01.0.ply 100
 
 # ./out/query.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid "$DIR_QUERY"/indoor_scans/comp_1/q_01.0.ply 100 #-test
-./out/query3_acc.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid "$DIR_QUERY"/indoor_scans/comp_1/q_01.1.ply 4000 #-verbose=0 #-test
+# ./out/query3_acc.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid "$DIR_QUERY"/indoor_scans/comp_1/q_01.1.ply 4000 #-verbose=0 #-test
 
 
 

@@ -1,0 +1,351 @@
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_1/
+Total no. meshes: 3
+
+Reading database R-trees...
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_1/recon_bedroom_1.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_1/recon_boardroom_1.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_1/recon_loft_1.ply
+
+Total no. pts: 10251033
+
+Total I/- time: 19.9507(s)
+Processing mesh #0
+
+Processing mesh #1
+
+Processing mesh #2
+
+Total # of failed cells: 2456
+
+Total user time: 3369.26(s)
+
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Reading database R-trees...
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_bedroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_boardroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_loft_5.ply
+
+Total no. pts: 1028297
+
+Total I/- time: 2.06271(s)
+Processing mesh #0
+
+Processing mesh #1
+
+Processing mesh #2
+
+Total # of failed cells: 0
+
+Total user time: 160.714(s)
+
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Reading database R-trees...
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_bedroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_boardroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_loft_5.ply
+
+Total no. pts: 1028297
+
+Total I/- time: 2.00162(s)
+Processing mesh #0
+
+Processing mesh #1
+
+Processing mesh #2
+
+Total # of failed cells: 0
+
+Total user time: 174.894(s)
+
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Reading database R-trees...
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_bedroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_boardroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_loft_5.ply
+
+Total no. pts: 1028297
+
+Total I/- time: 1.99399(s)
+Processing mesh #0
+
+Processing mesh #1
+
+Processing mesh #2
+
+Total # of failed cells: 0
+
+Total user time: 192.552(s)
+
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Reading database R-trees...
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_bedroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_boardroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_loft_5.ply
+
+Total no. pts: 1028297
+
+Total I/- time: 2.01493(s)
+Processing mesh #0
+
+Processing mesh #1
+
+Processing mesh #2
+
+Total # of failed cells: 0
+
+Total user time: 209.741(s)
+
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Reading database R-trees...
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_bedroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_boardroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_loft_5.ply
+
+Total no. pts: 1028297
+
+Total I/- time: 1.99665(s)
+Processing mesh #0
+
+Processing mesh #1
+
+Processing mesh #2
+
+Total # of failed cells: 0
+
+Total user time: 228.904(s)
+
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Reading database R-trees...
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_bedroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_boardroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_loft_5.ply
+
+Total no. pts: 1028297
+
+Total I/- time: 2.03355(s)
+Processing mesh #0
+
+Processing mesh #1
+
+Processing mesh #2
+
+Total # of failed cells: 0
+
+Total user time: 246.962(s)
+
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Reading database R-trees...
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_bedroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_boardroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_loft_5.ply
+
+Total no. pts: 1028297
+
+Total I/- time: 2.03272(s)
+Processing mesh #0
+
+Processing mesh #1
+
+Processing mesh #2
+
+Total # of failed cells: 0
+
+Total user time: 285.723(s)
+
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Reading database R-trees...
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_bedroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_boardroom_5.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/recon_loft_5.ply
+
+Total no. pts: 1028297
+
+Total I/- time: 2.01811(s)
+Processing mesh #0
+
+Processing mesh #1
+
+Processing mesh #2
+
+Total # of failed cells: 0
+
+Total user time: 329.593(s)
+
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_6/
+Total no. meshes: 3
+
+Reading database R-trees...
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_6/recon_bedroom_6.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_6/recon_boardroom_6.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_6/recon_loft_6.ply
+
+Total no. pts: 104631
+
+Total I/- time: 0.211312(s)
+Processing mesh #0
+
+Processing mesh #1
+
+Processing mesh #2
+
+Total # of failed cells: 0
+
+Total user time: 13.5315(s)
+
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_7/
+Total no. meshes: 3
+
+Reading database R-trees...
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_7/recon_bedroom_7.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_7/recon_boardroom_7.ply
+Reading R-tree for /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_7/recon_loft_7.ply
+
+Total no. pts: 10786
+
+Total I/- time: 0.021573(s)
+Processing mesh #0
+
+Processing mesh #1
+
+Processing mesh #2
+
+Total # of failed cells: 0
+
+Total user time: 0.892085(s)
+
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_1/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_1/comp_1.000.080.grid
+Total no. cells: 10251033
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_1/comp_1.000.080.grid.idx.s3
+Index built and saved in 318.609(s)
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.030.grid
+Total no. cells: 1028297
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.030.grid.idx.s3
+Index built and saved in 28.1155(s)
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.060.grid
+Total no. cells: 1028297
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.060.grid.idx.s3
+Index built and saved in 28.2987(s)
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.090.grid
+Total no. cells: 1028297
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.090.grid.idx.s3
+Index built and saved in 28.1382(s)
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.120.grid
+Total no. cells: 1028297
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.120.grid.idx.s3
+Index built and saved in 28.0348(s)
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.150.grid
+Total no. cells: 1028297
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.150.grid.idx.s3
+Index built and saved in 27.9614(s)
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.180.grid
+Total no. cells: 1028297
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.180.grid.idx.s3
+Index built and saved in 27.7902(s)
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.240.grid
+Total no. cells: 1028297
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.240.grid.idx.s3
+Index built and saved in 27.994(s)
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.300.grid
+Total no. cells: 1028297
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.300.grid.idx.s3
+Index built and saved in 28.0676(s)
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_6/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_6/comp_6.000.200.grid
+Total no. cells: 104631
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_6/comp_6.000.200.grid.idx.s3
+Index built and saved in 2.38612(s)
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_7/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_7/comp_7.000.300.grid
+Total no. cells: 10786
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_7/comp_7.000.300.grid.idx.s3
+Index built and saved in 0.20132(s)
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_1/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_1/comp_1.000.080.grid
+Total no. cells: 10251033
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_1/comp_1.000.080.grid.idx.s6
+Index built and saved in 774.363(s)
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_5/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.120.grid
+Total no. cells: 1028297
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_5/comp_5.000.120.grid.idx.s6
+Index built and saved in 67.8129(s)
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_6/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_6/comp_6.000.200.grid
+Total no. cells: 104631
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_6/comp_6.000.200.grid.idx.s6
+Index built and saved in 5.82935(s)
+Reading database files from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_7/
+Total no. meshes: 3
+
+Loading DB structure from /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_7/comp_7.000.300.grid
+Total no. cells: 10786
+
+Saving the index to /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_7/comp_7.000.300.grid.idx.s6
+Index built and saved in 0.490203(s)

@@ -13,13 +13,16 @@ SRC=src
 OBJ=obj
 OUT=out
 
-all: clean filter extract_query pre_index batch_sel test
+all: clean filter extract_query extract_query_pro pre_index batch_sel test
 
 filter:
 	$(CXX) $(INC) $(USE_TM) $(SRC)/filter.cpp -o $(OUT)/filter.out -ltrimesh -lgluit -fopenmp
 
 extract_query:
 	$(CXX) $(INC) $(USE_TM) $(USE_GSL) $(SRC)/extract_query.cpp -o $(OUT)/extract_query.out -ltrimesh -lgluit -fopenmp -lgsl -lgslcblas -lm
+
+extract_query_pro:
+	$(CXX) $(INC) $(USE_TM) $(USE_GSL) $(SRC)/extract_query_pro.cpp -o $(OUT)/extract_query_pro.out -ltrimesh -lgluit -fopenmp -lgsl -lgslcblas -lm
 
 pre_index:
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/pre_index.cpp -o $(OUT)/pre_index.out -ltrimesh -lgluit -fopenmp

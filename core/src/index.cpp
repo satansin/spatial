@@ -6,9 +6,16 @@
 using namespace std;
 
 int main(int argc, char **argv) {
+
     if (argc < 3) {
-        cerr << "Usage: " << argv[0] << " database_path grid_filename" << endl;
+        cerr << "Usage: " << argv[0] << " database_path grid_filename [-show_prog_bar]" << endl;
         exit(1);
+    }
+
+    bool show_prog_bar = false;
+    for (int i = 0; i < argc; i++) {
+        if (string(argv[i]) == "-show_prog_bar")
+            show_prog_bar = true;
     }
 
     int argi = 0;
@@ -27,6 +34,8 @@ int main(int argc, char **argv) {
     int num_cells = s_db.get_total_cells_count();
     cout << "Total no. cells: " << num_cells << endl << endl;
 
+    timer_start();
+
     auto entries = s_db.get_entries();
 
     ////////////////////////// Toggle_1 /////////////////////////////////////
@@ -40,8 +49,10 @@ int main(int argc, char **argv) {
 
     for (int i = 0; i < num_cells; i++) {
 
-        ++bar;
-        bar.display();
+        if (show_prog_bar) {
+            ++bar;
+            bar.display();
+        }
 
         auto e = entries[i];
 
@@ -63,15 +74,18 @@ int main(int argc, char **argv) {
     }
 
     ////////////////////////// Toggle_1 /////////////////////////////////////
-    bar.done();
+    if (show_prog_bar) {
+        bar.done();
+    }
 
     tree.SortDim0();
 
     string outidx_filename = get_idx_filename(grid_filename);
+
     cout << "Saving the index to " << outidx_filename << endl;
-    timer_start();
     tree.Save(outidx_filename.c_str());
-	cout << "Index saved in " << timer_end(SECOND) << "(s)" << endl;
+
+	cout << "Index built and saved in " << timer_end(SECOND) << "(s)" << endl;
     ////////////////////////// Toggle_1 /////////////////////////////////////
 
     ////////////////////////// Toggle_2 /////////////////////////////////////

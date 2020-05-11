@@ -6,7 +6,7 @@ source ../common/config/dir_loc.sh
 
 ## Generate grids by grid-size and radius - indoor_scans
 
-# mkdir -p "$DIR_INDEX"/indoor_scans/comp_1/
+mkdir -p "$DIR_INDEX"/indoor_scans/comp_1/
 
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_1/   4  80 "$DIR_INDEX"/indoor_scans/comp_1/comp_1.004.080.grid -show_prog_bar
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_1/   8  80 "$DIR_INDEX"/indoor_scans/comp_1/comp_1.008.080.grid -show_prog_bar
@@ -16,12 +16,15 @@ source ../common/config/dir_loc.sh
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_1/  20  80 "$DIR_INDEX"/indoor_scans/comp_1/comp_1.020.080.grid -show_prog_bar
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_1/  24  80 "$DIR_INDEX"/indoor_scans/comp_1/comp_1.024.080.grid -show_prog_bar
 
-# mkdir -p "$DIR_INDEX"/indoor_scans/comp_5/
+./out/grid_nogrid.out "$DIR_DB"/indoor_scans/comp_1/ 80 "$DIR_INDEX"/indoor_scans/comp_1/comp_1.000.080.grid >> zz_indoor.log
+
+mkdir -p "$DIR_INDEX"/indoor_scans/comp_5/
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_5/   12 120 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.012.120.grid -show_prog_bar
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_5/   24 120 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.120.grid -show_prog_bar
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_5/   36 120 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.036.120.grid -show_prog_bar
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_5/   48 120 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.048.120.grid -show_prog_bar
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_5/   60 120 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.060.120.grid -show_prog_bar
+
 
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_5/   24  30 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.030.grid -show_prog_bar
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_5/   24  60 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.060.grid -show_prog_bar
@@ -31,11 +34,24 @@ source ../common/config/dir_loc.sh
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_5/   24 240 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.240.grid -show_prog_bar
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_5/   24 300 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.300.grid -show_prog_bar
 
-# mkdir -p "$DIR_INDEX"/indoor_scans/comp_6/
+./out/grid_nogrid.out "$DIR_DB"/indoor_scans/comp_5/  30 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.030.grid >> zz_indoor.log
+./out/grid_nogrid.out "$DIR_DB"/indoor_scans/comp_5/  60 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.060.grid >> zz_indoor.log
+./out/grid_nogrid.out "$DIR_DB"/indoor_scans/comp_5/  90 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.090.grid >> zz_indoor.log
+./out/grid_nogrid.out "$DIR_DB"/indoor_scans/comp_5/ 120 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.120.grid >> zz_indoor.log
+./out/grid_nogrid.out "$DIR_DB"/indoor_scans/comp_5/ 150 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.150.grid >> zz_indoor.log
+./out/grid_nogrid.out "$DIR_DB"/indoor_scans/comp_5/ 180 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.180.grid >> zz_indoor.log
+./out/grid_nogrid.out "$DIR_DB"/indoor_scans/comp_5/ 240 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.240.grid >> zz_indoor.log
+./out/grid_nogrid.out "$DIR_DB"/indoor_scans/comp_5/ 300 "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.300.grid >> zz_indoor.log
+
+mkdir -p "$DIR_INDEX"/indoor_scans/comp_6/
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_6/  40 200 "$DIR_INDEX"/indoor_scans/comp_6/comp_6.040.200.grid -show_prog_bar
 
-# mkdir -p "$DIR_INDEX"/indoor_scans/comp_7/
+./out/grid_nogrid.out "$DIR_DB"/indoor_scans/comp_6/ 200 "$DIR_INDEX"/indoor_scans/comp_6/comp_6.000.200.grid >> zz_indoor.log
+
+mkdir -p "$DIR_INDEX"/indoor_scans/comp_7/
 # ./out/grid.out "$DIR_DB"/indoor_scans/comp_7/  60 300 "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid -show_prog_bar
+
+./out/grid_nogrid.out "$DIR_DB"/indoor_scans/comp_7/ 300 "$DIR_INDEX"/indoor_scans/comp_7/comp_7.000.300.grid >> zz_indoor.log
 
 ## Build R*-tree over the generated grids - indoor_scans
 
@@ -46,6 +62,8 @@ source ../common/config/dir_loc.sh
 # ./out/index3.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.018.090.grid
 # ./out/index3.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.020.080.grid
 # ./out/index3.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.024.080.grid
+
+./out/index3.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.000.080.grid >> zz_indoor.log
 
 # ./out/index3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.012.120.grid
 # ./out/index3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.120.grid
@@ -61,9 +79,22 @@ source ../common/config/dir_loc.sh
 # ./out/index3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.240.grid
 # ./out/index3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.024.300.grid
 
+./out/index3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.030.grid >> zz_indoor.log
+./out/index3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.060.grid >> zz_indoor.log
+./out/index3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.090.grid >> zz_indoor.log
+./out/index3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.120.grid >> zz_indoor.log
+./out/index3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.150.grid >> zz_indoor.log
+./out/index3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.180.grid >> zz_indoor.log
+./out/index3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.240.grid >> zz_indoor.log
+./out/index3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.300.grid >> zz_indoor.log
+
 # ./out/index3.out "$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.040.200.grid
 
+./out/index3.out "$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.000.200.grid >> zz_indoor.log
+
 # ./out/index3.out "$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid
+
+./out/index3.out "$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.000.300.grid >> zz_indoor.log
 
 
 # ./out/index6.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.016.080.grid
@@ -74,6 +105,14 @@ source ../common/config/dir_loc.sh
 
 # ./out/index6.out "$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.060.300.grid
 
+
+./out/index6.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.000.080.grid >> zz_indoor.log
+
+./out/index6.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.120.grid >> zz_indoor.log
+
+./out/index6.out "$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.000.200.grid >> zz_indoor.log
+
+./out/index6.out "$DIR_DB"/indoor_scans/comp_7/ "$DIR_INDEX"/indoor_scans/comp_7/comp_7.000.300.grid >> zz_indoor.log
 
 
 

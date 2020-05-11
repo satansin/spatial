@@ -266,7 +266,7 @@ bool check_congr(const Entry* e, const Entry* f, double err) {
         return false;
     }
 #else
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < INDEX_DIM; i++) {
         if (abs(e->sides[i] - f->sides[i]) > err) {
             return false;
         }
@@ -289,21 +289,23 @@ int retrieve_congr_entry(vector<Entry*>& e_list, double epsilon, IndexTree* tree
 
     int total_nhits = 0;
 
-    for (auto &e: e_list) {
+    int index = 0;
 
-#if VERBOSE > 0
-    	cout << "For entry:" << endl << e->to_str(10) << endl;
-#endif
+    for (auto &e: e_list) {
 
         ////////////////////////// Toggle_1 /////////////////////////////////////
         vector<int> rr_ret;
-        window_query(tree, e, corr_err, rr_ret);
+        int rr_num = window_query(tree, e, corr_err, rr_ret);
         ////////////////////////// Toggle_1 /////////////////////////////////////
 
         ////////////////////////// Toggle_2 /////////////////////////////////////
         // vector<RangeReturn_type*> rr_ret;
     	// total_nhits += window_query(tree, r_info, e->sides, corr_epsilon, rr_ret, page_accessed);
         ////////////////////////// Toggle_2 /////////////////////////////////////
+
+#if VERBOSE > 4
+        cout << "For entry #" << index << ", get " << rr_num << " window query results" << endl;
+#endif
 
 	    for (auto &hit: rr_ret) {
             ////////////////////////// Toggle_1 /////////////////////////////////////
@@ -325,6 +327,8 @@ int retrieve_congr_entry(vector<Entry*>& e_list, double epsilon, IndexTree* tree
 #endif
             }
 	    }
+
+        index++;
     }
 
     return total_nhits;
@@ -583,9 +587,9 @@ int main(int argc, char **argv) {
 	    // }
 	    // cout << endl;
 
-#ifdef TEST_MODE
-        test_verification(&s_q, &s_db, false);
-#endif
+// #ifdef TEST_MODE
+//         test_verification(&s_q, &s_db, false);
+// #endif
 
         bool find_accept = false;
 	    const int k_m = 10;
@@ -624,14 +628,15 @@ int main(int argc, char **argv) {
                     continue;
 #endif
 	            
+                double ann_min = s_db.get_ann_min();
 #if VERBOSE > 0
-	            cout << endl << "Calculating entry list for query pt #" << q.id << endl;
+	            cout << endl << "Calculating entry list for query pt #" << q.id << " with min=" << ann_min << endl;
 #endif
 
 	            timer_start();
 
 	            vector<Entry*> v_entries;
-	            int num_entries = cal_entries(q, s_db.get_ann_min(), &s_q, &mesh_q, &query_rtree, v_entries);
+	            int num_entries = cal_entries(q, ann_min, &s_q, &mesh_q, &query_rtree, v_entries);
 
                 double time_incre_p1 = timer_end(SECOND);
                 time_p1 += time_incre_p1;
@@ -640,9 +645,9 @@ int main(int argc, char **argv) {
 	            cout << endl << "Size of the entry list for query pt #" << q.id << ": " << num_entries << endl;
 
     #if VERBOSE > 4
-                cout << endl;
                 for (auto &e: v_entries)
                     cout << e->to_str(10) << endl;
+                cout << endl;
     #endif
 
 #endif
@@ -745,13 +750,20 @@ int main(int argc, char **argv) {
     if (write_stat) {
         ofstream stat_ofs;
         stat_ofs.open(stat_filename, ofstream::out | ofstream::app);
-        stat_ofs << /*left << setw(12) << setfill(' ') <<*/ aver_user_time << "\t";
-        stat_ofs << /*left << setw(12) << setfill(' ') <<*/ aver_prop_time << "\t";
-        stat_ofs << /*left << setw(12) << setfill(' ') <<*/ aver_veri_time << "\t";
-        stat_ofs << /*left << setw(12) << setfill(' ') <<*/ aver_retr_time << "\t";
-        stat_ofs << /*left << setw(12) << setfill(' ') <<*/ aver_veri_num << "\t";
-        stat_ofs << /*left << setw(12) << setfill(' ') <<*/ exec_num_fail << "\t";
-        stat_ofs << /*left << setw(12) << setfill(' ') <<*/ exec_i_time << "\t";
+        stat_ofs /*<< left << setw(12) << setfill(' ')*/
+            << aver_user_time << "\t";
+        stat_ofs /*<< left << setw(12) << setfill(' ')*/
+            << aver_prop_time << "\t";
+        stat_ofs /*<< left << setw(12) << setfill(' ')*/
+            << aver_veri_time << "\t";
+        stat_ofs /*<< left << setw(12) << setfill(' ')*/
+            << aver_retr_time << "\t";
+        stat_ofs /*<< left << setw(12) << setfill(' ')*/
+            << aver_veri_num << "\t";
+        stat_ofs /*<< left << setw(12) << setfill(' ')*/
+            << exec_num_fail << "\t";
+        stat_ofs /*<< left << setw(12) << setfill(' ')*/
+            << exec_i_time << "\t";
         stat_ofs.close();
     }
 

@@ -585,8 +585,10 @@ public:
 		return entries;
 	}
 
-	void read(string filename, DB_Meshes* db_meshes) {
+	bool read(string filename, DB_Meshes* db_meshes) {
 	    ifstream ifs(filename);
+	    if (!ifs.is_open())
+	    	return false;
 
 	    int num_grids;
 	    ifs >> w >> ann_min >> ann_max >> num_grids >> total_cells_count;
@@ -636,6 +638,8 @@ public:
 	    }
 
 	    ifs.close();
+
+	    return true;
 	}
 
 	Entry* get_entry(int key) const {
@@ -690,6 +694,7 @@ struct Entry_Pair {
 	Entry* e_database;
 	int id_db;
 	Trans xf;
+	double init_dist;
 
 	Entry_Pair(Entry* q, Entry* p, int id_db) {
 		this->e_query = q;

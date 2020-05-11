@@ -22,16 +22,28 @@ OUT=out
 #     add $(USE_TM)
 #     add the following (!!in the end!!): -ltrimesh -lgluit -fopenmp
 
-all: query6 query3 query6_acc query3_acc index6 index3 super4pcs superg4pcs grid # analyze test
+all: grid_nogrid index6 index3 \
+	 query_det query_det_eps query_det_icp query_det_nar query_prob query_prob6 \
+	 super4pcs_det super4pcs_prob superg4pcs_det superg4pcs_prob \
+	 goicp # analyze
 
-super4pcs: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/super4pcs.cpp $(OBJ)/* -o $(OUT)/super4pcs.out -ltrimesh -lgluit -fopenmp #-g
+super4pcs_det: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/super4pcs.cpp $(OBJ)/* -o $(OUT)/super4pcs_det.out -ltrimesh -lgluit -fopenmp -DDET #-g
 
-superg4pcs: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/superg4pcs.cpp $(OBJ)/* -o $(OUT)/superg4pcs.out -ltrimesh -lgluit -fopenmp #-g
+super4pcs_prob: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/super4pcs.cpp $(OBJ)/* -o $(OUT)/super4pcs_prob.out -ltrimesh -lgluit -fopenmp #-g
+
+superg4pcs_det: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/super4pcs.cpp $(OBJ)/* -o $(OUT)/superg4pcs_det.out -ltrimesh -lgluit -fopenmp -DGEN -DDET #-g
+
+superg4pcs_prob: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/super4pcs.cpp $(OBJ)/* -o $(OUT)/superg4pcs_prob.out -ltrimesh -lgluit -fopenmp -DGEN #-g
 
 grid: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/grid.cpp $(OBJ)/* -o $(OUT)/grid.out -ltrimesh -lgluit -fopenmp
+
+grid_nogrid: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/grid_nogrid.cpp $(OBJ)/* -o $(OUT)/grid_nogrid.out -ltrimesh -lgluit -fopenmp
 
 index6: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/index.cpp $(OBJ)/* -o $(OUT)/index6.out -ltrimesh -lgluit -fopenmp
@@ -39,23 +51,29 @@ index6: build_obj
 index3: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/index.cpp $(OBJ)/* -o $(OUT)/index3.out -ltrimesh -lgluit -fopenmp -DIDX_3
 
-query6: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query6.out -ltrimesh -lgluit -fopenmp -g
+query_det: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query_nogrid.cpp $(OBJ)/* -o $(OUT)/query_det.out -ltrimesh -lgluit -fopenmp -DIDX_3 -DVERBOSE=1 -DTEST_MODE
 
-query3: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query3.out -ltrimesh -lgluit -fopenmp -DIDX_3
+query_det_eps: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query_nogrid.cpp $(OBJ)/* -o $(OUT)/query_det_eps.out -ltrimesh -lgluit -fopenmp -DIDX_3 -DPROB #-DTEST_MODE -DVERBOSE=5
 
-query6_acc: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query6_acc.out -ltrimesh -lgluit -fopenmp -DACC
+query_det_icp: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query_nogrid.cpp $(OBJ)/* -o $(OUT)/query_det_icp.out -ltrimesh -lgluit -fopenmp -DIDX_3 -DICPONLY #-DTEST_MODE -DVERBOSE=5
 
-query3_acc: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query3_acc.out -ltrimesh -lgluit -fopenmp -DIDX_3 -DACC
+query_det_nar: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query_nogrid.cpp $(OBJ)/* -o $(OUT)/query_det_nar.out -ltrimesh -lgluit -fopenmp -DIDX_3 -DACC #-DTEST_MODE -DVERBOSE=5
+
+query_prob: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query_nogrid.cpp $(OBJ)/* -o $(OUT)/query_prob.out -ltrimesh -lgluit -fopenmp -DIDX_3 -DPROB -DICPONLY -DACC -DVERBOSE=5 -DTEST_MODE -g
+
+query_prob6: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query_nogrid.cpp $(OBJ)/* -o $(OUT)/query_prob6.out -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC #-DTEST_MODE -DVERBOSE=5
 
 analyze: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/analyze.cpp $(OBJ)/* -o $(OUT)/analyze.out -ltrimesh -lgluit -fopenmp
 
-test: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/test.cpp $(OBJ)/* -o $(OUT)/test.out -ltrimesh -lgluit -fopenmp #-g
+goicp: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/goicp.cpp $(OBJ)/* -o $(OUT)/goicp.out -ltrimesh -lgluit -fopenmp #-g
 
 build_obj: clean trans.o tetra_meas.o c_rtree.o mesh.o util.o
 

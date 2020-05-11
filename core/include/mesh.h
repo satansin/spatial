@@ -5,6 +5,7 @@
 #include <fstream>
 #include <cassert>
 #include <limits>
+#include <unordered_set>
 
 #include "TriMesh.h"
 #include "Vec.h"
@@ -90,7 +91,14 @@ public:
 	// 	return m_db_kds[id];
 	// }
 	
-	double cal_corr_err(Mesh* mesh_q, int id, Trans* xf, double stop_at = std::numeric_limits<double>::max());
+	// it returns SSE
+	double cal_corr_err(Mesh* mesh_q, int id, Trans* xf = NULL, double stop_at = std::numeric_limits<double>::max());
+	// it returns SSE, and will calculate the transformed box (cube)
+	double cal_corr_err(Mesh* mesh_q, int id, Trans* xf, double box_min[3], double box_max[3]);
+	// it returns error for single point (not squared error!!)
+	double cal_corr_err(double x, double y, double z, int id);
+
+	void retrieve(Mesh* mesh_q, int id, std::unordered_set<int>& ret, Trans* xf = NULL);
 
 };
 

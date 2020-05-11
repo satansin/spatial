@@ -134,7 +134,12 @@ double DB_Meshes::cal_corr_err(Mesh* mesh_q, int id, Trans* xf, double stop_at) 
 
     double err = 0.0;
     for (auto &v: mesh_q->m_mesh->vertices) {
-        Pt3D xf_q = trans_pt(xf, Mesh::pt(v));
+    	Pt3D xf_q;
+    	if (xf != NULL) {
+        	xf_q = trans_pt(xf, Mesh::pt(v));
+        } else {
+        	xf_q = Mesh::pt(v);
+        }
         float pt_arr[3] = { (float) xf_q.x, (float) xf_q.y, (float) xf_q.z };
         auto nn = m_db_kds[id]->closest_to_pt(pt_arr);
         // std::cout << nn << std::endl;
@@ -148,4 +153,36 @@ double DB_Meshes::cal_corr_err(Mesh* mesh_q, int id, Trans* xf, double stop_at) 
         }
     }
     return err;
+}
+
+double DB_Meshes::cal_corr_err(double x, double y, double z, int id) {
+	assert(id >= 0 && id < m_size);
+
+	float pt_arr[3] = { (float) x, (float) y, (float) z };
+	auto nn = m_db_kds[id]->closest_to_pt(pt_arr);
+    if (!nn)
+        return 0.0;
+
+    return eucl_dist(nn, pt_arr);
+}
+
+void DB_Meshes::retrieve(Mesh* mesh_q, int id, std::unordered_set<int>& ret, Trans* xf) {
+	assert(id >= 0 && id < m_size);
+
+	for (auto &v: mesh_q->m_mesh->vertices) {
+		Pt3D xf_q;
+    	if (xf != NULL) {
+        	xf_q = trans_pt(xf, Mesh::pt(v));
+        } else {
+        	xf_q = Mesh::pt(v);
+        }
+        float pt_arr[3] = { (float) xf_q.x, (float) xf_q.y, (float) xf_q.z };
+        auto nn = m_db_kds[id]->closest_to_pt(pt_arr);
+        if (!nn)
+            continue;
+
+        int db_pt_id = distance((const float *) &m_db_meshes[id].m_mesh->vertices[0], nn) / 3;
+
+        ret.insert(db_pt_id);
+    }
 }
