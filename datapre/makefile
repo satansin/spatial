@@ -13,7 +13,7 @@ SRC=src
 OBJ=obj
 OUT=out
 
-all: clean filter extract_query extract_query_pro pre_index batch_sel test
+all: clean filter extract_query extract_query_pro pre_index obj_batch_sel test obj_gen
 
 filter:
 	$(CXX) $(INC) $(USE_TM) $(SRC)/filter.cpp -o $(OUT)/filter.out -ltrimesh -lgluit -fopenmp
@@ -27,8 +27,11 @@ extract_query_pro:
 pre_index:
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/pre_index.cpp -o $(OUT)/pre_index.out -ltrimesh -lgluit -fopenmp
 
-batch_sel:
-	$(CXX) $(INC) $(SRC)/batch_sel.cpp -o $(OUT)/batch_sel.out
+obj_gen:
+	$(CXX) $(INC) $(USE_TM) $(USE_GSL) $(SRC)/obj_gen.cpp -o $(OUT)/obj_gen.out -ltrimesh -lgluit -fopenmp -lgsl -lgslcblas -lm
+
+obj_batch_sel:
+	$(CXX) $(INC) $(SRC)/obj_batch_sel.cpp -o $(OUT)/obj_batch_sel.out
 
 test:
 	$(CXX) $(INC) $(USE_TM) $(SRC)/test.cpp -o $(OUT)/test.out -ltrimesh -lgluit -fopenmp

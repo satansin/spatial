@@ -3,18 +3,11 @@
 #include <ctime>
 #include <fstream>
 #include "TriMesh.h"
+
+#include "util.h"
+
 using namespace std;
 using namespace trimesh;
-
-string get_foldername(string path) {
-	string ret;
-	if (path[path.length() - 1] != '/') {
-		ret = path + "/";
-	} else {
-		ret = path;
-	}
-	return ret;
-}
 
 bool process_single(string input_filename, string output_filename, double scale_val) {
 

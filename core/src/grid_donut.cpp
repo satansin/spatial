@@ -17,124 +17,122 @@
 
 using namespace std;
 
-void cal_index_entry(PtwID* p, double min, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, Entry* prem_entry) {
+struct Entry_Stat {
+	int global_id;
+	Entry_Stat(int id) {
+		global_id = id;
+	}
+	
+	double nn_dist[3];
+};
 
-	PtwID a, b, c, h;
+double donut_nn(Pt3D* o, Pt3D* n, double r, PtwID* p, Mesh* mesh_p, C_RTree* r_p, PtwID& ret) {
+
+    vector<int> donut_nn_cand;
+    r_p->range_sphere_min_max(o, r * 0.9, r * 1.1, donut_nn_cand, { p->id }); // exclude p, do not need to exclude a here since a will definitely be pruned next
+    // cout << donut_nn_cand.size() << endl;
+
+    double sq_r = sq(r);
+
+    int donut_nn_i;
+    double sq_d_min = numeric_limits<double>::max();
+    for (auto &i: donut_nn_cand) {
+        if (i < 0 || i >= mesh_p->size()) {
+            continue;
+        }
+    	auto i_pt = PtwID(i, mesh_p);
+
+    	auto pi = *i_pt.pt - *p->pt;
+    	if (cos_theta(n, &pi) > 0.5) {
+    		continue;
+    	}
+
+    	double sq_a = sq_dist(i_pt.pt, o);
+    	double sq_n = n->sq_mode();
+    	double lambda = (dot_prd(o, n) - dot_prd(i_pt.pt, n)) / sq_n;
+    	double sq_h = sq(lambda) * sq_n;
+
+    	double sq_d = sq_a + sq_r - 2.0 * r * sqrt(sq_a - sq_h);
+
+    	if (sq_d < sq_d_min) {
+    		sq_d_min = sq_d;
+    		donut_nn_i = i;
+    		ret = i_pt;
+    	}
+    }
+
+    return sqrt(sq_d_min);
+
+}
+
+void cal_donut_entry(PtwID* p, double min, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, Entry* prem_entry, Entry_Stat& es) {
+
+	PtwID a, b, c;
 
     if (debug_mode) cout << TAB << "Pt #" << p->id << endl;
 
     // start looking for the first subsidiary pt a
-    // if (debug_mode) timer_start();
+    if (debug_mode) timer_start();
 
     int nn_a;
     auto nn_d_a = r_p->nn_sphere(p->pt, min, &nn_a);
 
-    // if (debug_mode) cout << TABTAB << "First pt #" << nn_a << " dist=" << nn_d_a << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
+    if (debug_mode) cout << TABTAB << "First pt #" << nn_a << " dist=" << nn_d_a << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
     if (nn_a >= 0) {
      	a.set(nn_a, mesh_p);
+     	es.nn_dist[0] = nn_d_a;
     } else {
     	return;
     }
 
-    // start looking for the help pt h
-    // if (debug_mode) timer_start();
+    // start looking for the second pt b
+    if (debug_mode) timer_start();
 
     Pt3D m; middle_pt(p->pt, a.pt, m);
+    auto pa = *p->pt - *a.pt;
 
     double d_pm = eucl_dist(p->pt, &m);
-    int nn_h;
-    auto nn_d_h = r_p->nn_sphere(&m, d_pm, &nn_h, { p->id, a.id });
 
-    // if (debug_mode) cout << TABTAB << "Help pt #" << nn_h << " dist=" << nn_d_h << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
+    double r_donut = d_pm * 1.73205080757;
+    double donut_nn_dist = donut_nn(&m, &pa, r_donut, p, mesh_p, r_p, b);
+    es.nn_dist[1] = donut_nn_dist;
 
-    if (nn_h >= 0) {
-     	h = PtwID(nn_h, mesh_p);
-    } else {
-    	return;
+    if (!b.pt) {
+        return;
     }
 
-    // if (debug_mode) { cout << TABTAB; printf("hp=%f, ha=%f\n", eucl_dist(h.pt, p->pt), eucl_dist(h.pt, a.pt)); }
+    if (debug_mode) cout << TABTAB << "Second pt #" << b.id << " dist=" << donut_nn_dist << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
-    // start looking for the rest two pts b and c
-    // if (debug_mode) timer_start();
+    // start looking for the third pt c
+    if (debug_mode) timer_start();
 
-    Pt3D b_est, c_est;
-    auto got_b_c = get_est_b_c(&m, a.pt, h.pt, b_est, c_est);
+    Pt3D b_est, c_est; // but b_est will not be used
+    auto got_b_c = get_est_b_c(&m, a.pt, b.pt, b_est, c_est);
     if (!got_b_c) {
     	return;
     }
 
-    int nn_b;
-    auto nn_d_b = r_p->nn_sphere(&b_est, 0.0, &nn_b, { p->id, a.id });
-    if (nn_b >= 0) {
-     	b = PtwID(nn_b, mesh_p);
-    } else {
-    	return;
-    }
-
-    int nn_c;
+    int nn_c = -1;
     auto nn_d_c = r_p->nn_sphere(&c_est, 0.0, &nn_c, { p->id, a.id, b.id });
-    if (nn_c >= 0) {
+    if (nn_c >= 0 && nn_c < mesh_p->size()) {
      	c = PtwID(nn_c, mesh_p);
+    	es.nn_dist[2] = nn_d_c;
     } else {
     	return;
     }
 
-    // if (debug_mode) cout << TABTAB << "Second pt #" << nn_b << " dist=" << nn_d_b
-    // 	<< ", third pt #" << nn_c << " dist=" << nn_d_c << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
+    if (debug_mode) cout << TABTAB << "Third pt #" << nn_c << " dist=" << nn_d_c << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
     // get the ratio set
     auto ratio_set = get_ratio_set_vol(p->pt, a.pt, b.pt, c.pt);
 
     if (ratio_set.ratio - prem_entry->meas > 0) {
-    	prem_entry->set(p, &a, &b, &c, ratio_set.volume, ratio_set.ratio, &h);
+    	prem_entry->set(p, &a, &b, &c, ratio_set.volume, ratio_set.ratio);
     	prem_entry->fail = false;
     }
 
 }
-
-// void performance_test(TriMesh *mesh, int n, KDtree *kd, node_type *r_root, rtree_info* aInfo) {
-//     srand(time(NULL));
-//     R_TYPE *query;
-//     query = (R_TYPE *) malloc(sizeof(R_TYPE) * aInfo->dim);
-//     for (int i = 0; i < 100; ++i) {
-//         auto test_pt = mesh->vertices[rand() % n];
-//         for (int j = 0; j < aInfo->dim; j++) {
-//             query[j] = test_pt[j];
-//         }
-//         timer_start();
-//         auto nn_kd = kd->closest_to_pt(test_pt);
-//         auto t_kd = timer_end(MILLISECOND);
-
-//         NN_type *NNresult;
-//         timer_start();
-//         k_NN_search(r_root, query, 1, &NNresult, aInfo);
-//         auto t_r = timer_end(MILLISECOND);
-
-//         cout << t_kd << " v.s. " << t_r << endl;
-//     }
-// }
-
-// void gridify_test(double w, DB_Meshes* db_meshes) {
-//     double delta = 0.3 * w;
-//     int num_trials = 11;
-//     Grid g;
-
-//     for (int counter = 0; counter < num_trials; counter++) {
-//         double trial_w = w + counter * delta;
-//         g.set_width(trial_w);
-//         cout << "\nTest gridify the point cloud in 10 random runs..." << endl;
-//         for (int i = 0; i < 10; i++) {
-//             auto mesh = db_meshes->get_mesh(rand() % db_meshes->size());
-//             g.gridify(mesh);
-
-//             cout << "\tGrid size: " << trial_w << endl;
-//             cout << "\tTotal # cells: " << g.cells_map.size() << endl;
-//             cout << "\tAvg # pts per cell: " << ((double) mesh->size()) / ((double) g.cells_map.size()) << endl;
-//         }
-//     }
-// }
 
 int main(int argc, char **argv) {
 
@@ -199,6 +197,8 @@ int main(int argc, char **argv) {
 
     ofstream ofs(outgrid_filename);
 
+    vector<Entry_Stat> v_es;
+
     // write grid headers
     ofs << w << " " << ann_min << " " << ann_mid << " " << ann_max << " " << ang_min << " " << num_meshes << " " << db_meshes.total() << endl;
 
@@ -230,7 +230,9 @@ int main(int argc, char **argv) {
             auto prem_entry = new Entry();
             prem_entry->fail = true;
 
-            cal_index_entry(&p, ann_min, mesh_p, &r_p, debug_mode, prem_entry);
+            Entry_Stat es(global_cell_id);
+
+            cal_donut_entry(&p, ann_min, mesh_p, &r_p, debug_mode, prem_entry, es);
 
             if (prem_entry->fail) {
                 if (debug_mode) cout << TAB << "Fail in finding prem entry" << endl;
@@ -250,7 +252,13 @@ int main(int argc, char **argv) {
             ofs << mesh_id << " " << i << " " << global_cell_id << " 0 0 0 1 " << i << endl;
             ofs << mesh_id << " " << prem_entry->to_str(12) << endl;
 
+            v_es.push_back(es);
+
             global_cell_id++;
+
+            if (debug_mode && i >= 20) {
+                break;
+            }
 
         }
 
@@ -277,6 +285,14 @@ int main(int argc, char **argv) {
     ofs_stat << "num_fail = " << fail_count << endl;
     ofs_stat << "I_time = " << i_time << endl;
     ofs_stat << "user_time = " << user_time << endl;
+
+    // for (auto &es: v_es) {
+    //     ofs_stat << es.global_id;
+    //     for (int j = 0; j < 3; j++) {
+    //         ofs_stat << " " << es.nn_dist[j];
+    //     }
+    //     ofs_stat << endl;
+    // }
 
     ofs_stat.close();
 

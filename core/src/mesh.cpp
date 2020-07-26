@@ -14,15 +14,24 @@ void Mesh::read_from_path(const string s_file) {
 	m_filename = s_file;
 	m_mesh = TriMesh::read(s_file);
 	m_size = m_mesh->vertices.size();
+
+    m_pt_list.clear();
+    m_pt_list.reserve(m_size);
+    for (int i = 0; i < m_size; i++) {
+        Pt3D t_pt;
+        pt(m_mesh->vertices[i], t_pt);
+        m_pt_list.push_back(t_pt);
+    }
+    m_pt_list.shrink_to_fit();
 }
 
 int Mesh::size() const {
 	return m_size;
 }
 
-Pt3D Mesh::get_pt(int idx) const {
+Pt3D* Mesh::get_pt(int idx) {
 	assert(idx >= 0 && idx < m_size);
-	return pt(m_mesh->vertices[idx]);
+	return &(m_pt_list[idx]);
 }
 
 const string Mesh::get_filename() const {
@@ -36,6 +45,13 @@ void Mesh::build_bbox() {
 	}
 }
 
+void Mesh::build_bsphere() {
+    if (!m_bsphere_built) {
+        m_mesh->need_bsphere();
+        m_bsphere_built = true;
+    }
+}
+
 double Mesh::get_box_min(int i) {
 	build_bbox();
 	return m_mesh->bbox.min[i];
@@ -44,6 +60,16 @@ double Mesh::get_box_min(int i) {
 double Mesh::get_box_max(int i) {
 	build_bbox();
 	return m_mesh->bbox.max[i];
+}
+
+double Mesh::get_bsphere_r() {
+    build_bsphere();
+    return m_mesh->bsphere.r;
+}
+
+double Mesh::get_bsphere_d() {
+    build_bsphere();
+    return 2.0 * m_mesh->bsphere.r;
 }
 
 void Mesh::centralize() {
@@ -134,11 +160,12 @@ double DB_Meshes::cal_corr_err(Mesh* mesh_q, int id, Trans* xf, double stop_at) 
 
     double err = 0.0;
     for (auto &v: mesh_q->m_mesh->vertices) {
+        Pt3D q; Mesh::pt(v, q);
     	Pt3D xf_q;
     	if (xf != NULL) {
-        	xf_q = trans_pt(xf, Mesh::pt(v));
+        	trans_pt(xf, &q, xf_q);
         } else {
-        	xf_q = Mesh::pt(v);
+        	xf_q = q;
         }
         float pt_arr[3] = { (float) xf_q.x, (float) xf_q.y, (float) xf_q.z };
         auto nn = m_db_kds[id]->closest_to_pt(pt_arr);
@@ -170,11 +197,12 @@ void DB_Meshes::retrieve(Mesh* mesh_q, int id, std::unordered_set<int>& ret, Tra
 	assert(id >= 0 && id < m_size);
 
 	for (auto &v: mesh_q->m_mesh->vertices) {
-		Pt3D xf_q;
-    	if (xf != NULL) {
-        	xf_q = trans_pt(xf, Mesh::pt(v));
+        Pt3D q; Mesh::pt(v, q);
+        Pt3D xf_q;
+        if (xf != NULL) {
+            trans_pt(xf, &q, xf_q);
         } else {
-        	xf_q = Mesh::pt(v);
+            xf_q = q;
         }
         float pt_arr[3] = { (float) xf_q.x, (float) xf_q.y, (float) xf_q.z };
         auto nn = m_db_kds[id]->closest_to_pt(pt_arr);

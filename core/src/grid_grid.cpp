@@ -141,8 +141,8 @@ int main(int argc, char **argv) {
 
     srand(time(0));
 
-    if (argc < 4) {
-        cerr << "Usage: " << argv[0] << " database_path ann_min output_grid_filename [-no_grid] [-show_prog_bar] [-debug]" << endl;
+    if (argc < 5) {
+        cerr << "Usage: " << argv[0] << " database_path w ann_min output_grid_filename [-show_prog_bar] [-debug]" << endl;
         exit(1);
     }
 
@@ -156,7 +156,7 @@ int main(int argc, char **argv) {
 
     int argi = 0;
     string db_path = argv[++argi];
-    // double w = atof(argv[++argi]);
+    double w = atof(argv[++argi]);
     double ann_min = atof(argv[++argi]);
     // double ann_max = atof(argv[++argi]);
     double ann_max = 0.0;
@@ -180,78 +180,74 @@ int main(int argc, char **argv) {
     cout << "Total no. pts: " << n << endl << endl;
     cout << "Total I/- time: " << timer_end(SECOND) << "(s)" << endl;
 
+    // performance_test(mesh_p, n, kd_p, root, &db_rtree_info);
+
+    // gridify_test(w, db_meshes);
+
     timer_start();
 
-    // Struct_DB s_db;
-    // s_db.set_w(w);
-    // s_db.set_ann(ann_min, ann_max);
+    Struct_DB s_db;
+    s_db.set_w(w);
+    s_db.set_ann(ann_min, ann_max);
 
-    // cout << "\nGridify the point cloud..." << endl;
-    // timer_start();
+    cout << "\nGridify the point cloud..." << endl;
+    timer_start();
 
-    // for (int mesh_id = 0; mesh_id < num_meshes; mesh_id++) {
-    //     Grid* g = new Grid(w);
-    //     g->gridify(db_meshes.get_mesh(mesh_id));
-    //     s_db.append_grid(g);
-    // }
-
-    // cout << "Gridify finished in " << timer_end(SECOND) << "(s)" << endl;
-
-    // int num_cells = s_db.get_total_cells_count();
-
-    // cout << "Grid size: " << w << endl;
-    // cout << "Total # cells: " << num_cells << endl;
-    // cout << "Avg # pts per cell: " << ((double) n) / ((double) num_cells) << endl << endl;
-
-    ofstream ofs(outgrid_filename);
-
-    // write grid headers
-    ofs << 0 << " " << ann_min << " " << ann_max << " " << num_meshes << " " << db_meshes.total() << endl;
-
-    for (int i = 0; i < num_meshes; i++) {
-        ofs << i << " 0 0 0 0 0 0" << endl;
+    for (int mesh_id = 0; mesh_id < num_meshes; mesh_id++) {
+        Grid* g = new Grid(w);
+        g->gridify(db_meshes.get_mesh(mesh_id));
+        s_db.append_grid(g);
     }
+
+    cout << "Gridify finished in " << timer_end(SECOND) << "(s)" << endl;
+
+    int num_cells = s_db.get_total_cells_count();
+
+    cout << "Grid size: " << w << endl;
+    cout << "Total # cells: " << num_cells << endl;
+    cout << "Avg # pts per cell: " << ((double) n) / ((double) num_cells) << endl << endl;
 
     int fail_count = 0;
     int global_cell_id = 0;
 
     cout << setiosflags(ios::fixed) << setprecision(2);
 
-    // auto db_grids = s_db.get_grids();
-    for (int mesh_id = 0; mesh_id < db_meshes.size(); mesh_id++) {
-        // auto g = db_grids[mesh_id];
+    auto db_grids = s_db.get_grids();
+    for (int mesh_id = 0; mesh_id < db_grids.size(); mesh_id++) {
+        auto g = db_grids[mesh_id];
         auto mesh_p = db_meshes.get_mesh(mesh_id);
         auto r_p = db_rtrees[mesh_id];
 
         cout << "Processing mesh #" << mesh_id << endl << endl;
 
-        ProgressBar bar(mesh_p->size(), 70);
+        ProgressBar bar(g->cells_map.size(), 70);
 
-        // for (auto it = g->cells_map.begin(); it != g->cells_map.end(); it++) {
-        for (int i = 0; i < mesh_p->size(); i++) {
+        for (auto it = g->cells_map.begin(); it != g->cells_map.end(); it++) {
             if (show_prog_bar) {
                 ++bar;
                 bar.display();
             }
 
-            // if (global_cell_id >= num_cells) {
-            //     cout << "Iteration of mesh #" << mesh_id << " terminated due to global cell id exceeding total no. cells" << endl;
-            //     break;
-            // }
+            if (global_cell_id >= num_cells) {
+                cout << "Iteration of mesh #" << mesh_id << " terminated due to global cell id exceeding total no. cells" << endl;
+                break;
+            }
 
-            // auto c = it->second;
-            // c->set_global_id(global_cell_id);
+            auto c = it->second;
+            c->set_global_id(global_cell_id);
 
-            // if (debug_mode) {
-            //     printf("Processing cell #%d (%d, %d, %d) with %d pts\n", global_cell_id, c->x, c->y, c->z, c->list.size());
-            // }
-
-            PtwID p = PtwID(i, mesh_p);
+            if (debug_mode) {
+                printf("Processing cell #%d (%d, %d, %d) with %d pts\n", global_cell_id, c->x, c->y, c->z, c->list.size());
+            }
 
             auto prem_entry = new Entry();
             prem_entry->fail = true;
 
-            cal_index_entry(&p, ann_min, mesh_p, &r_p, debug_mode, prem_entry);
+            // if (global_cell_id < 50) { // uncomment it for testing
+            for (auto &p: c->list) {
+                cal_index_entry(&p, ann_min, mesh_p, &r_p, debug_mode, prem_entry);
+            }
+            // } // uncomment it for testing
 
             if (prem_entry->fail) {
                 if (debug_mode) cout << TAB << "Fail in finding prem entry" << endl;
@@ -261,13 +257,10 @@ int main(int argc, char **argv) {
 
                 // for edge index
                 prem_entry->fill_sides();
-                // prem_entry->sort_sides();
+                prem_entry->sort_sides();
             }
 
-            // s_db.append_entry(prem_entry);
-
-            ofs << mesh_id << " " << i << " " << global_cell_id << " 0 0 0 1 " << i << endl;
-            ofs << mesh_id << " " << prem_entry->to_str(12) << endl;
+            s_db.append_entry(prem_entry);
 
             global_cell_id++;
 
@@ -284,4 +277,13 @@ int main(int argc, char **argv) {
 
     cout << "Total user time: " << timer_end(SECOND) << "(s)" << endl << endl;
 
+    timer_start();
+
+    if (!debug_mode) {
+    	timer_start();
+        s_db.save(outgrid_filename);
+        cout << "Grid saved in " << timer_end(SECOND) << "(s)" << endl;
+    }
+
+    cout << "Total -/O time: " << timer_end(SECOND) << "(s)" << endl << endl;
 }

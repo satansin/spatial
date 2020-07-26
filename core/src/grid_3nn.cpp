@@ -17,142 +17,136 @@
 
 using namespace std;
 
-void cal_index_entry(PtwID* p, double min, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, Entry* prem_entry) {
-
-	PtwID a, b, c, h;
-
-    if (debug_mode) cout << TAB << "Pt #" << p->id << endl;
-
-    // start looking for the first subsidiary pt a
-    // if (debug_mode) timer_start();
-
-    int nn_a;
-    auto nn_d_a = r_p->nn_sphere(p->pt, min, &nn_a);
-
-    // if (debug_mode) cout << TABTAB << "First pt #" << nn_a << " dist=" << nn_d_a << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
-
-    if (nn_a >= 0) {
-     	a.set(nn_a, mesh_p);
-    } else {
-    	return;
+struct Entry_Stat {
+    int global_id;
+    Entry_Stat(int id) {
+        global_id = id;
     }
 
-    // start looking for the help pt h
-    // if (debug_mode) timer_start();
+	int num_discarded;
+	double nn_dist[3];
+};
 
-    Pt3D m; middle_pt(p->pt, a.pt, m);
+bool verify_angle(vector<Pt3D>& accepted_pa, Pt3D* pb, double cos_min_ang) {
+    for (auto &pa: accepted_pa) {
+        double ct = cos_theta(&pa, pb);
+        if (ct > cos_min_ang) {
+            return false;
+        }
+    }
+    return true;
+}
 
-    double d_pm = eucl_dist(p->pt, &m);
-    int nn_h;
-    auto nn_d_h = r_p->nn_sphere(&m, d_pm, &nn_h, { p->id, a.id });
+void cal_3nn_entry(PtwID* p, double min, double cos_min_ang, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, Entry* prem_entry, Entry_Stat& es) {
 
-    // if (debug_mode) cout << TABTAB << "Help pt #" << nn_h << " dist=" << nn_d_h << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
+	const int TENT = 40;
 
-    if (nn_h >= 0) {
-     	h = PtwID(nn_h, mesh_p);
-    } else {
-    	return;
+    int nn[TENT];
+    r_p->nn_sphere(p->pt, min, nn, {}, TENT);
+
+    PtwID a, b, c;
+
+    int accepted = 0, discarded = 0;
+    vector<Pt3D> accepted_pa;
+
+    a = PtwID(nn[0], mesh_p);
+    accepted++;
+    accepted_pa.push_back(*a.pt - *p->pt);
+
+    for (int i = 1; i < TENT; i++) {
+        if (accepted >= 3) {
+            break;
+        }
+        PtwID t = PtwID(nn[i], mesh_p);
+        auto pt = *t.pt - *p->pt;
+        if (verify_angle(accepted_pa, &pt, cos_min_ang)) {
+            switch (accepted) {
+            case 1:
+                b = t;
+                accepted++;
+                accepted_pa.push_back(pt);
+                break;
+            case 2:
+                c = t;
+                accepted++;
+                accepted_pa.push_back(pt);
+                break;
+            default:
+                break;
+            }
+        } else {
+            discarded++;
+        }
     }
 
-    // if (debug_mode) { cout << TABTAB; printf("hp=%f, ha=%f\n", eucl_dist(h.pt, p->pt), eucl_dist(h.pt, a.pt)); }
+    // cout << "# accepted: " << accepted << endl;
+    // cout << "# discarded: " << discarded << endl;
 
-    // start looking for the rest two pts b and c
-    // if (debug_mode) timer_start();
+    // cout << "pa = " << accepted_pa[0].mode() << endl;
+    // cout << "pb = " << accepted_pa[1].mode() << endl;
+    // cout << "pc = " << accepted_pa[2].mode() << endl;
 
-    Pt3D b_est, c_est;
-    auto got_b_c = get_est_b_c(&m, a.pt, h.pt, b_est, c_est);
-    if (!got_b_c) {
-    	return;
+    // auto cos_a0pa1 = dot_prd(&pa0, &pa1) / (pa0_mode * pa1_mode);
+    // auto cos_a0pa2 = dot_prd(&pa0, &pa2) / (pa0_mode * pa2_mode);
+    // auto cos_a1pa2 = dot_prd(&pa1, &pa2) / (pa1_mode * pa2_mode);
+
+    // cout << "cos_a0pa1 = " << cos_a0pa1 << endl;
+    // cout << "cos_a0pa2 = " << cos_a0pa2 << endl;
+    // cout << "cos_a1pa2 = " << cos_a1pa2 << endl;
+
+
+    if (accepted >= 3) {
+        // get the ratio set
+        auto ratio_set = get_ratio_set_vol(p->pt, a.pt, b.pt, c.pt);
+        prem_entry->set(p, &a, &b, &c, ratio_set.volume, ratio_set.ratio);
+        prem_entry->fail = false;
     }
 
-    int nn_b;
-    auto nn_d_b = r_p->nn_sphere(&b_est, 0.0, &nn_b, { p->id, a.id });
-    if (nn_b >= 0) {
-     	b = PtwID(nn_b, mesh_p);
-    } else {
-    	return;
-    }
-
-    int nn_c;
-    auto nn_d_c = r_p->nn_sphere(&c_est, 0.0, &nn_c, { p->id, a.id, b.id });
-    if (nn_c >= 0) {
-     	c = PtwID(nn_c, mesh_p);
-    } else {
-    	return;
-    }
-
-    // if (debug_mode) cout << TABTAB << "Second pt #" << nn_b << " dist=" << nn_d_b
-    // 	<< ", third pt #" << nn_c << " dist=" << nn_d_c << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
-
-    // get the ratio set
-    auto ratio_set = get_ratio_set_vol(p->pt, a.pt, b.pt, c.pt);
-
-    if (ratio_set.ratio - prem_entry->meas > 0) {
-    	prem_entry->set(p, &a, &b, &c, ratio_set.volume, ratio_set.ratio, &h);
-    	prem_entry->fail = false;
+    es.num_discarded = discarded;
+    for (int i = 0; i < 3; i++) {
+        if (i < accepted_pa.size()) {
+            es.nn_dist[i] = accepted_pa[i].mode();
+        } else {
+            es.nn_dist[i] = 0;
+        }
     }
 
 }
 
-// void performance_test(TriMesh *mesh, int n, KDtree *kd, node_type *r_root, rtree_info* aInfo) {
-//     srand(time(NULL));
-//     R_TYPE *query;
-//     query = (R_TYPE *) malloc(sizeof(R_TYPE) * aInfo->dim);
-//     for (int i = 0; i < 100; ++i) {
-//         auto test_pt = mesh->vertices[rand() % n];
-//         for (int j = 0; j < aInfo->dim; j++) {
-//             query[j] = test_pt[j];
-//         }
-//         timer_start();
-//         auto nn_kd = kd->closest_to_pt(test_pt);
-//         auto t_kd = timer_end(MILLISECOND);
+void cal_3nn_entry_sim(PtwID* p, double min, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, Entry* prem_entry, Entry_Stat& es) {
 
-//         NN_type *NNresult;
-//         timer_start();
-//         k_NN_search(r_root, query, 1, &NNresult, aInfo);
-//         auto t_r = timer_end(MILLISECOND);
+    int nn[3];
+    r_p->nn_sphere(p->pt, min, nn, {}, 3);
 
-//         cout << t_kd << " v.s. " << t_r << endl;
-//     }
-// }
+    PtwID a, b, c;
+    a = PtwID(nn[0], mesh_p);
+    b = PtwID(nn[1], mesh_p);
+    c = PtwID(nn[2], mesh_p);
 
-// void gridify_test(double w, DB_Meshes* db_meshes) {
-//     double delta = 0.3 * w;
-//     int num_trials = 11;
-//     Grid g;
+    // get the ratio set
+    auto ratio_set = get_ratio_set_vol(p->pt, a.pt, b.pt, c.pt);
+    prem_entry->set(p, &a, &b, &c, ratio_set.volume, ratio_set.ratio);
+    prem_entry->fail = false;
 
-//     for (int counter = 0; counter < num_trials; counter++) {
-//         double trial_w = w + counter * delta;
-//         g.set_width(trial_w);
-//         cout << "\nTest gridify the point cloud in 10 random runs..." << endl;
-//         for (int i = 0; i < 10; i++) {
-//             auto mesh = db_meshes->get_mesh(rand() % db_meshes->size());
-//             g.gridify(mesh);
-
-//             cout << "\tGrid size: " << trial_w << endl;
-//             cout << "\tTotal # cells: " << g.cells_map.size() << endl;
-//             cout << "\tAvg # pts per cell: " << ((double) mesh->size()) / ((double) g.cells_map.size()) << endl;
-//         }
-//     }
-// }
+}
 
 int main(int argc, char **argv) {
 
     srand(time(0));
 
     if (argc < 4) {
-        cerr << "Usage: " << argv[0] << " database_path ann_min output_grid_filename [-sort_entry] [-show_prog_bar] [-debug]" << endl;
+        cerr << "Usage: " << argv[0] << " database_path ann_min (ang_min) output_grid_filename [-simple] [-show_prog_bar] [-debug]" << endl;
         exit(1);
     }
 
-    bool show_prog_bar = false, debug_mode = false, sort_entry = false;
+    bool show_prog_bar = false, debug_mode = false, simple = false;
     for (int i = 0; i < argc; i++) {
         if (string(argv[i]) == "-show_prog_bar")
             show_prog_bar = true;
         else if (string(argv[i]) == "-debug")
             debug_mode = true;
-        else if (string(argv[i]) == "-sort_entry")
-            sort_entry = true;
+        else if (string(argv[i]) == "-simple")
+            simple = true;
     }
 
     int argi = 0;
@@ -162,6 +156,9 @@ int main(int argc, char **argv) {
     double ann_mid = 0.0;
     double ann_max = 0.0;
     double ang_min = 0.0;
+    if (!simple) {
+        ang_min = atof(argv[++argi]);
+    }
     string outgrid_filename = argv[++argi];
 
     cout << "Parameters:" << endl;
@@ -199,6 +196,8 @@ int main(int argc, char **argv) {
 
     ofstream ofs(outgrid_filename);
 
+    vector<Entry_Stat> v_es;
+
     // write grid headers
     ofs << w << " " << ann_min << " " << ann_mid << " " << ann_max << " " << ang_min << " " << num_meshes << " " << db_meshes.total() << endl;
 
@@ -210,6 +209,8 @@ int main(int argc, char **argv) {
     int global_cell_id = 0;
 
     cout << setiosflags(ios::fixed) << setprecision(2);
+
+    const double cos_phi = cos(ang_min * PI / 180.0);
 
     for (int mesh_id = 0; mesh_id < db_meshes.size(); mesh_id++) {
         auto mesh_p = db_meshes.get_mesh(mesh_id);
@@ -230,7 +231,13 @@ int main(int argc, char **argv) {
             auto prem_entry = new Entry();
             prem_entry->fail = true;
 
-            cal_index_entry(&p, ann_min, mesh_p, &r_p, debug_mode, prem_entry);
+            Entry_Stat es(global_cell_id);
+
+            if (simple) {
+                cal_3nn_entry_sim(&p, ann_min, mesh_p, &r_p, debug_mode, prem_entry, es);
+            } else {
+                cal_3nn_entry(&p, ann_min, cos_phi, mesh_p, &r_p, debug_mode, prem_entry, es);
+            }
 
             if (prem_entry->fail) {
                 if (debug_mode) cout << TAB << "Fail in finding prem entry" << endl;
@@ -240,15 +247,14 @@ int main(int argc, char **argv) {
 
                 // for edge index
                 prem_entry->fill_sides();
-                if (sort_entry) {
-                    prem_entry->sort_sides();
-                }
             }
 
             // s_db.append_entry(prem_entry);
 
             ofs << mesh_id << " " << i << " " << global_cell_id << " 0 0 0 1 " << i << endl;
             ofs << mesh_id << " " << prem_entry->to_str(12) << endl;
+
+            v_es.push_back(es);
 
             global_cell_id++;
 
@@ -267,7 +273,7 @@ int main(int argc, char **argv) {
 
     cout << "Total # of failed cells: " << fail_count << endl << endl;
 
-    cout << "Total user time: " << timer_end(SECOND) << "(s)" << endl << endl;
+    cout << "Total user time: " << user_time << "(s)" << endl << endl;
 
 
     string outgrid_stat_filename = outgrid_filename + ".gstat";
@@ -277,6 +283,15 @@ int main(int argc, char **argv) {
     ofs_stat << "num_fail = " << fail_count << endl;
     ofs_stat << "I_time = " << i_time << endl;
     ofs_stat << "user_time = " << user_time << endl;
+
+    // for (auto &es: v_es) {
+    //     ofs_stat << es.global_id;
+    //     ofs_stat << " " << es.num_discarded;
+    //     for (int j = 0; j < 3; j++) {
+    //         ofs_stat << " " << es.nn_dist[j];
+    //     }
+    //     ofs_stat << endl;
+    // }
 
     ofs_stat.close();
 

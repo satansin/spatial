@@ -1,6 +1,8 @@
 #include "TriMesh.h"
 #include "TriMesh_algo.h"
 #include "KDtree.h"
+#include "util.h"
+
 #include <gsl/gsl_cdf.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
@@ -11,6 +13,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <limits>
+
 using namespace std;
 using namespace trimesh;
 
@@ -46,16 +49,6 @@ point rand_pt(double x1, double x2, double y1, double y2, double z1, double z2) 
 	return point(rand_double_in_range(x1, x2), rand_double_in_range(y1, y2), rand_double_in_range(z1, z2));
 }
 
-string get_foldername(const string path) {
-	string ret;
-	if (path[path.length() - 1] != '/') {
-		ret = path + "/";
-	} else {
-		ret = path;
-	}
-	return ret;
-}
-
 int read_random_db_mesh(const string path, TriMesh*& db_mesh) {
 	auto db_folder = get_foldername(path);
 	ifstream ifs(db_folder + "meta.txt");
@@ -88,71 +81,57 @@ int read_random_db_mesh(const string path, TriMesh*& db_mesh) {
     return rand_id;
 }
 
+int read_db_meshes(const string path, vector<TriMesh*>& db_meshes) {
+	auto db_folder = get_foldername(path);
+	ifstream ifs(db_folder + "meta.txt");
+
+	if (!ifs) {
+		cerr << "Fail reading meta info" << endl;
+		exit(1);
+	} else {
+		cout << "Reading meta.txt..." << endl;
+	}
+
+	int num;
+    ifs >> num;
+
+	int id;
+	string s_file;
+
+    for (int i = 0; i < num; i++) {
+        ifs >> id >> s_file;
+    	db_meshes.push_back(TriMesh::read(s_file));
+    	cout << "Reading mesh #" << id << ": " << s_file << endl;
+    }
+
+    ifs.close();
+
+    return num;
+}
+
 int main(int argc, char** argv) {
 	srand(time(NULL));
 
 	if (argc < 5) {
-		cerr << "Usage: " << argv[0] << " db_filename window_x1 window_x2 window_y1 window_y2 window_z1 window_z2 noise_lvl output_filename [-noise_unit=s|m|l]" << endl;
-		cerr << "or" << endl;
-		cerr << "Usage: " << argv[0] << " db_path noise_lvl output_filename -batch [-noise_unit=s|m|l]" << endl;
+		cerr << "Usage: " << argv[0] << " db_path diam num_rand output_path" << endl;
 		exit(1);
 	}
 
-	bool batch = false;
-	char noise_unit = 'l';
-    for (int i = 0; i < argc; i++) {
-        string argv_str(argv[i]);
-        if (argv_str == "-batch")
-            batch = true;
-        else if (argv_str.rfind("-noise_unit", 0) == 0)
-        	noise_unit = argv_str[12];
-    }
-
 	int argi = 0;
 	const string db_path = argv[(++argi)];
+	const double diam = atof(argv[(++argi)]);
+	const int num_rand = atoi(argv[(++argi)]);
+	const string output_path = argv[(++argi)];
 
-	double r_x1, r_x2, r_y1, r_y2, r_z1, r_z2;
-	if (batch) {
-		r_x1 = std::numeric_limits<double>::min();
-		r_y1 = std::numeric_limits<double>::min();
-		r_z1 = std::numeric_limits<double>::min();
-		r_x2 = std::numeric_limits<double>::max();
-		r_y2 = std::numeric_limits<double>::max();
-		r_z2 = std::numeric_limits<double>::max();
-	} else {
-		r_x1 = atof(argv[(++argi)]);
-		r_x2 = atof(argv[(++argi)]);
-		r_y1 = atof(argv[(++argi)]);
-		r_y2 = atof(argv[(++argi)]);
-		r_z1 = atof(argv[(++argi)]);
-		r_z2 = atof(argv[(++argi)]);
+	vector<TriMesh*> db_meshes;
+	int num_meshes = read_db_meshes(db_path, db_meshes);
+
+	vector<KDtree*> db_kds;
+	for (auto &m: db_meshes) {
+		db_kds.push_back(new KDtree(m->vertices));
 	}
 
-	// const double epsilon = atof(argv[(++argi)]);
-	// const double eta = atof(argv[(++argi)]);
-
-	const int noise_lvl = atoi(argv[(++argi)]);
-
-	const string output_filename = argv[(++argi)];
-
-	cout << endl;
-
-    TriMesh* db_mesh = NULL;
-    int db_mesh_id = 0;
-
-    if (batch) {
-    	db_mesh_id = read_random_db_mesh(db_path, db_mesh);
-    } else {
-    	db_mesh = TriMesh::read(db_path);
-    }
-
-    if (!db_mesh) {
-    	cerr << "Fail reading DB mesh" << endl;
-    	exit(1);
-    }
-
-
-    KDtree* db_kd = new KDtree(db_mesh->vertices);
+    // KDtree* db_kd = new KDtree(db_mesh->vertices);
 
 	TriMesh* query_mesh = new TriMesh;
 	vector<int> idmap;

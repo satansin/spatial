@@ -2,6 +2,142 @@
 
 source ../common/config/dir_loc.sh
 
+OUT=out_tmp
+
+rs_range=( 7 ) #6 )
+qi_range=( 01 ) #02 03 04 05 06 07 08 )
+nl_range=( 0 1 ) #2 3 4 5 )
+r_range=( 200 250 300 ) #050 100 150 200 250 300 350 400 450 500 )
+a_range=( 015 ) #030 )
+t_range=( 030 015 )
+e_range=( 05 10 ) #2.0 3.0 4.0 )
+MSE=( 001 032 060 100 120 140 )
+pcr_adv_alg=(
+	prob3 prob3_cpq
+	donut_prob3 donut_prob3_cpq
+	3nn_prob3 3nn_prob3_cpq
+	3lnn_prob3 3nn_sim_prob3
+)
+pcr_adv_idx=(
+	gt gt
+	donut donut
+	3nn 3nn
+	3lnn 3nn_sim
+)
+pcr_adv_eid=( 0 1 2 3 4 5 ) #6 7 )
+
+mkdir -p "$DIR_RESULT"
+
+
+## 1 indoor (sim)
+
+CURR_DS="$DIR_RESULT"/indoor_scans
+mkdir -p "$CURR_DS"
+
+for rs in "${rs_range[@]}"; do
+
+	DB_F="$DIR_DB"/indoor_scans/comp_"$rs"/
+	CURR_DB="$CURR_DS"/comp_"$rs"
+	mkdir -p "$CURR_DB"
+
+	for qi in "${qi_range[@]}"; do
+
+		for nl in "${nl_range[@]}"; do
+
+			Q_PLY="$DIR_QUERY"/indoor_scans_pro_noise/comp_"$rs"/q_"$qi"."$nl".ply
+			CURR_NL="$CURR_DB"/q_"$qi"_"$nl"
+			mkdir -p "$CURR_NL"
+
+			## 1.1 pcr_adv
+
+			CURR_FW="$CURR_NL"/pcr_adv
+			mkdir -p "$CURR_FW"
+
+			for al_id in "${pcr_adv_eid[@]}"; do
+
+				CURR_AL="$CURR_FW"/"${pcr_adv_alg[al_id]}"
+				# rm -rf "$CURR_AL"
+				mkdir -p "$CURR_AL"
+
+				if (( $al_id < 4 )); then
+
+					## for donut and gt
+					for r in "${r_range[@]}"; do
+						for e in "${e_range[@]}"; do
+							./"$OUT"/query_"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_INDEX"/indoor_scans_"${pcr_adv_idx[al_id]}"/comp_"$rs"/comp_"$rs"."$r".grid "$Q_PLY" "${MSE[nl]}" "$e" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."${MSE[nl]}"."$e".dat
+						done
+					done
+
+				elif (( $al_id < 6 )); then
+				
+					## for 3nn
+					for r in "${r_range[@]}"; do
+						for a in "${a_range[@]}"; do
+							for e in "${e_range[@]}"; do
+								./"$OUT"/query_"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_INDEX"/indoor_scans_"${pcr_adv_idx[al_id]}"/comp_"$rs"/comp_"$rs"."$r"."$a".grid "$Q_PLY" "${MSE[nl]}" "$e" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$a"."${MSE[nl]}"."$e".dat
+							done
+						done
+					done
+
+				elif (( $al_id < 7 )); then
+
+					## for 3lnn
+					for r in "${r_range[@]}"; do
+						for t in "${t_range[@]}"; do
+							for a in "${a_range[@]}"; do
+								for e in "${e_range[@]}"; do
+									./"$OUT"/query_"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_INDEX"/indoor_scans_"${pcr_adv_idx[al_id]}"/comp_"$rs"/comp_"$rs"."$r"."$t"."$a".grid "$Q_PLY" "${MSE[nl]}" "$e" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$t"."$a"."${MSE[nl]}"."$e".dat
+								done
+							done
+						done
+					done
+
+				else
+
+					## for 3nn-sim
+					for r in "${r_range[@]}"; do
+						for e in "${e_range[@]}"; do
+							./"$OUT"/query_3nn_prob3.out "$DB_F" "$DIR_INDEX"/indoor_scans_"${pcr_adv_idx[al_id]}"/comp_"$rs"/comp_"$rs"."$r".grid "$Q_PLY" "${MSE[nl]}" "$e" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."${MSE[nl]}"."$e".dat -simple
+						done
+					done
+
+				fi
+
+			done
+
+		done
+
+	done
+
+done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## tuning w
 
@@ -21,17 +157,18 @@ source ../common/config/dir_loc.sh
 # ./out/query_det.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000.120.grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_5/q_01.0.ply 1
 # ./out/query_det.out "$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans/comp_6/comp_6.000.200.grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_6/q_01.0.ply 5
 
-./out/query_prob.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.000.080.grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_1/q_01.0.ply 100 0.5 -force_cell=20559
+# ./out/query_prob6.out "$DIR_DB"/indoor_scans/comp_1/ "$DIR_INDEX"/indoor_scans/comp_1/comp_1.000.080.grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_1/q_01.0.ply 100 5 #-force_cell=20559
+# ./out/query_prob6_cpq.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_gt/comp_5/comp_5.000.150.grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_5/q_01.0.ply 100 1 -force_cell=483
 # gdb -ex 'file ./out/query_prob.out' -ex 'run /rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/indoor_scans/comp_1/ /rwproject/kdd-db/hliubs/10_data_spatial/3dor/index/indoor_scans/comp_1/comp_1.000.080.grid /rwproject/kdd-db/hliubs/10_data_spatial/3dor/query/indoor_scans_pro_noise/comp_1/q_01.0.ply 100 0.5 -force_cell=20559'
 
 ## tuning r
 
-# STATF="$DIR_STAT"/1_pcr_adv/tuning_r.dat
+# STATF="$DIR_STAT"/1_pcr_adv/tuning_r_comp_5.dat
 # rm $STATF
-# for r in 030 060 090 120 150 180 240 300
+# for r in 030 060 090 120 150 180 210 240 270 300
 # do
 # 	echo -en "$r\t" >> $STATF
-# 	./out/query_prob.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans/comp_5/comp_5.000."$r".grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_5/q_01.1.ply 200 0.5 -stat=$STATF
+# 	./out/query_prob6.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_gt/comp_5/comp_5.000."$r".grid "$DIR_QUERY"/indoor_scans_pro_noise/comp_5/q_01.1.ply 200 0.5 -stat=$STATF
 # 	echo -en "\n" >> $STATF
 # done
 

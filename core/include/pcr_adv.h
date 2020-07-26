@@ -21,30 +21,40 @@ using namespace std;
 
 const int RSTREE_SCALE = 1e5;
 
+const double PI = 3.14159265;
+
 #ifdef IDX_3
-const int INDEX_DIM = 3;
+	const int INDEX_DIM = 3;
 #else
-const int INDEX_DIM = 6;
+	const int INDEX_DIM = 6;
 #endif
 
 typedef RTree<int, int, INDEX_DIM, double, 36> IndexTree;
 typedef RTree<int, int, INDEX_DIM, double, 6> AuxTree;
 
+typedef RTree<int, int, 3, double, 6> CollTree;
+
 struct PtwID {
 	int id;
-	Pt3D pt;
-	void set(int id, Pt3D pt) {
+	Pt3D* pt;
+	void set(int id, Pt3D* pt) {
 		this->id = id;
 		this->pt = pt;
 	}
-	PtwID() {
-		set(-1, Pt3D());
+	void set(int id, Mesh* mesh) {
+		set(id, mesh->get_pt(id));
 	}
-	PtwID(int id, Pt3D pt) {
+	PtwID() {
+		this->id = -1;
+	}
+	PtwID(int id, Pt3D* pt) {
 		set(id, pt);
 	}
-	PtwID(int id, const Mesh* mesh) {
-		set(id, mesh->get_pt(id));
+	PtwID(int id, Mesh* mesh) {
+		set(id, mesh);
+	}
+	PtwID(PtwID* from) {
+		set(from->id, from->pt);
 	}
 };
 
@@ -129,7 +139,7 @@ struct Box3D_Int {
 struct Cell {
 	int global_id;
 	int x, y, z;
-	vector<PtwID> list;
+	vector<int> list;
 	Cell() {}
 	Cell(int x, int y, int z) {
 		this->x = x;
@@ -139,24 +149,27 @@ struct Cell {
 	void set_global_id(int global_id) {
 		this->global_id = global_id;
 	}
-	void add_pt(PtwID p) {
-		list.push_back(p);
+	// void add_pt(PtwID p) {
+	// 	list.push_back(p);
+	// }
+	// void add_pt(int id, Pt3D pt) {
+	// 	list.push_back(PtwID(id, pt));
+	// }
+	void add_pt(int id) {
+		list.push_back(id);
 	}
-	void add_pt(int id, Pt3D pt) {
-		list.push_back(PtwID(id, pt));
-	}
-	PtwID find_nn(Pt3D q) const {
-		PtwID nn;
-		double nn_dist = numeric_limits<double>::max();
-		for (auto &p: list) {
-			double tmp_dist = eucl_dist(&p.pt, &q);
-			if (tmp_dist - nn_dist < 0) {
-				nn = p;
-				nn_dist = tmp_dist;
-			}
-		}
-		return nn;
-	}
+	// PtwID find_nn(Pt3D* q) const {
+	// 	PtwID nn;
+	// 	double nn_dist = numeric_limits<double>::max();
+	// 	for (auto &p: list) {
+	// 		double tmp_dist = eucl_dist(p.pt, q);
+	// 		if (tmp_dist - nn_dist < 0) {
+	// 			nn = p;
+	// 			nn_dist = tmp_dist;
+	// 		}
+	// 	}
+	// 	return nn;
+	// }
 	string to_str() const {
 		string s =
 			to_string(global_id) + " " +
@@ -165,7 +178,7 @@ struct Cell {
 			to_string(z) + " " +
 			to_string(list.size());
 		for (auto &p: list) {
-		 	s = s + " " + to_string(p.id);
+		 	s = s + " " + to_string(p);
 		}
 		return s;
 	}
@@ -229,7 +242,7 @@ double max_dist(Pt3D p, Box3D b) {
 }
 
 int get_cell_id(double val, double w) {
-    return (int) floor(val / w);
+   	return (int) floor(val / w);
 }
 
 const int* get_cell_id(Pt3D pt, double w) {
@@ -271,29 +284,29 @@ struct Grid {
         	return nullptr;
         }
     }
-    void gridify(Mesh* mesh) {
-    	int n = mesh->size();
-    	for (int i = 0; i < 3; i++) {
-            cells_box->min_id[i] = get_cell_id(mesh->get_box_min(i), w);
-            cells_box->max_id[i] = get_cell_id(mesh->get_box_max(i), w);
-        }
-    	cells_map.clear();
-        for (int i = 0; i < n; i++) {
-        	auto pt3d = mesh->get_pt(i);
-            auto cell_id = get_cell_id(pt3d, w);
-            int key = get_cell_key(cell_id, cells_box);
-            auto it = cells_map.find(key);
-            if (it != cells_map.end()) {
-                // cell already exists
-                it->second->add_pt(i, pt3d);
-            } else {
-                Cell* new_cell = new Cell(cell_id[0], cell_id[1], cell_id[2]);
-                new_cell->add_pt(i, pt3d);
-                cells_map[key] = new_cell;
-            }
-        }
-        // cells_count = cells_map.size();
-    }
+    // void gridify(Mesh* mesh) {
+    // 	int n = mesh->size();
+    // 	for (int i = 0; i < 3; i++) {
+    //         cells_box->min_id[i] = get_cell_id(mesh->get_box_min(i), w);
+    //         cells_box->max_id[i] = get_cell_id(mesh->get_box_max(i), w);
+    //     }
+    // 	cells_map.clear();
+    //     for (int i = 0; i < n; i++) {
+    //     	auto pt3d = mesh->get_pt(i);
+    //         auto cell_id = get_cell_id(pt3d, w);
+    //         int key = get_cell_key(cell_id, cells_box);
+    //         auto it = cells_map.find(key);
+    //         if (it != cells_map.end()) {
+    //             // cell already exists
+    //             it->second->add_pt(i, pt3d);
+    //         } else {
+    //             Cell* new_cell = new Cell(cell_id[0], cell_id[1], cell_id[2]);
+    //             new_cell->add_pt(i, pt3d);
+    //             cells_map[key] = new_cell;
+    //         }
+    //     }
+    //     // cells_count = cells_map.size();
+    // }
 	Box3D_Int get_outer_box(double min_x, double min_y, double min_z, double max_x, double max_y, double max_z) const {
 		return Box3D_Int{
 	        get_cell_id(min_x, w),
@@ -305,16 +318,16 @@ struct Grid {
 	        false // default non-empty
 		};
 	}
-	PtwID relocate(const double* pt) const {
-		Pt3D pt3d = { pt[0], pt[1], pt[2] };
-		auto cell_id = get_cell_id(pt3d, w);
-		auto cell_found = find_cell(cell_id);
-		if (cell_found) {
-			return cell_found->find_nn(pt3d);
-		} else {
-			return {-1, Pt3D()};
-		}
-	}
+	// PtwID relocate(const double* pt) const {
+	// 	Pt3D pt3d = { pt[0], pt[1], pt[2] };
+	// 	auto cell_id = get_cell_id(pt3d, w);
+	// 	auto cell_found = find_cell(cell_id);
+	// 	if (cell_found) {
+	// 		return cell_found->find_nn(pt3d);
+	// 	} else {
+	// 		return {-1, Pt3D()};
+	// 	}
+	// }
     // PtwID get_nn(Pt3D q) {
     //     int cell_id[3] = {
     //         get_cell_id(q.x, w),
@@ -345,103 +358,131 @@ struct Grid {
 };
 
 struct Entry {
-	PtwID* repre;
-	PtwID* remai[3];
+	PtwID* repre; // p or q
+	PtwID* remai[3]; // a, b, c
 	double vol;
 	double meas;
 	bool fail;
-	PtwID* help;
-	double sides[6];
-	// make it compatible with old method
-	void set(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, double vol, double meas) {
-		*(this->repre) = repre;
-		*(this->remai[0]) = remai_0;
-		*(this->remai[1]) = remai_1;
-		*(this->remai[2]) = remai_2;
+	PtwID* help; // h
+	double sides[6]; // pa, pb, pc, ab, ac, bc
+
+	void set(PtwID* repre, PtwID* remai_0, PtwID* remai_1, PtwID* remai_2, double vol, double meas) {
+		this->repre = new PtwID(repre);
+		this->remai[0] = new PtwID(remai_0);
+		this->remai[1] = new PtwID(remai_1);
+		this->remai[2] = new PtwID(remai_2);
 		this->vol = vol;
 		this->meas = meas;
 	}
-	void set(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, double vol, double meas, PtwID help) {
-		*(this->repre) = repre;
-		*(this->remai[0]) = remai_0;
-		*(this->remai[1]) = remai_1;
-		*(this->remai[2]) = remai_2;
+	void set(PtwID* help) {
+		this->help = new PtwID(help);
+	}
+	void set(PtwID* repre, PtwID* remai_0, PtwID* remai_1, PtwID* remai_2, double vol, double meas, PtwID* help) {
+		set(repre, remai_0, remai_1, remai_2, vol, meas);
+		set(help);
+	}
+	void set(int repre, int remai_0, int remai_1, int remai_2, double vol, double meas, Mesh* mesh) {
+		this->repre = new PtwID(repre, mesh);
+		this->remai[0] = new PtwID(remai_0, mesh);
+		this->remai[1] = new PtwID(remai_1, mesh);
+		this->remai[2] = new PtwID(remai_2, mesh);
 		this->vol = vol;
 		this->meas = meas;
-		*(this->help) = help;
+	}
+	void set(int help, Mesh* mesh) {
+		this->help = new PtwID(help, mesh);
+	}
+	void set(int repre, int remai_0, int remai_1, int remai_2, double vol, double meas, int help, Mesh* mesh) {
+		set(repre, remai_0, remai_1, remai_2, vol, meas, mesh);
+		set(help, mesh);
 	}
 	Entry() {
-        mem_alloc();
+		this->repre = new PtwID();
+		this->remai[0] = new PtwID();
+		this->remai[1] = new PtwID();
+		this->remai[2] = new PtwID();
         vol = -1;
     	meas = -1;
+		this->help = new PtwID();
     	fail = false;
     	for (int i = 0; i < 6; i++) {
     		sides[i] = 0;
     	}
 	}
-	Entry(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, double vol, double meas, PtwID help) {
-        mem_alloc();
+	Entry(PtwID* repre, PtwID* remai_0, PtwID* remai_1, PtwID* remai_2, double vol, double meas, PtwID* help) {
 		set(repre, remai_0, remai_1, remai_2, vol, meas, help);
 		fail = false;
 	}
-	Entry(PtwID repre, PtwID remai_0, PtwID remai_1, PtwID remai_2, PtwID help) {
-        mem_alloc();
+	Entry(PtwID* repre, PtwID* remai_0, PtwID* remai_1, PtwID* remai_2, PtwID* help) {
 		set(repre, remai_0, remai_1, remai_2, -1, -1, help);
 		fail = false;
 	}
-	void read_from(istream& is, Mesh* mesh_db) {
+	Entry(PtwID* repre, PtwID* remai_0, PtwID* remai_1, PtwID* remai_2) {
+		set(repre, remai_0, remai_1, remai_2, -1, -1);
+		this->help = new PtwID();
+		fail = false;
+	}
+	Entry(istream& is, Mesh* mesh_db) {
 		int repre_id, help_id;
 		int remai_id[3];
 	    double vol, meas;
-	    bool fail;
+	    bool l_fail;
 		is >> repre_id;
 		for (int i = 0; i < 3; i++) {
 			is >> remai_id[i];
 		}
-		is >> vol >> meas >> fail >> help_id;
-		if (!fail) {
-		    set(
-		    	PtwID(repre_id, mesh_db),
-		    	PtwID(remai_id[0], mesh_db),
-		    	PtwID(remai_id[1], mesh_db),
-		    	PtwID(remai_id[2], mesh_db),
-	            vol, meas,
-	            PtwID(help_id, mesh_db)
-	        );
+		is >> vol >> meas >> l_fail >> help_id;
+		if (!l_fail) {
+			if (help_id < 0) {
+				set(repre_id, remai_id[0], remai_id[1], remai_id[2], vol, meas, mesh_db);
+				this->help = new PtwID;
+			} else {
+				set(repre_id, remai_id[0], remai_id[1], remai_id[2], vol, meas, help_id, mesh_db);
+			}
 		}
-	    fail = fail;
+	    this->fail = l_fail;
 
 		for (int i = 0; i < 6; i++) {
 			is >> sides[i];
 		}
 	}
 	void get_index_box(double err, int box_min[INDEX_DIM], int box_max[INDEX_DIM]) {
-#ifdef IDX_3
-        // use 3-side length as index keys
-        box_min[0] = (int) ((sides[0] - err) * RSTREE_SCALE);
-        box_max[0] = (int) ((sides[0] + err) * RSTREE_SCALE);
-        box_min[1] = (int) ((sides[3] - err) * RSTREE_SCALE);
-        box_max[1] = (int) ((sides[3] + err) * RSTREE_SCALE);
-        box_min[2] = (int) ((sides[4] - err) * RSTREE_SCALE);
-        box_max[2] = (int) ((sides[4] + err) * RSTREE_SCALE);
-#else
-        // use 6-side length as index keys
-        for (int i = 0; i < INDEX_DIM; i++) {
-            box_min[i] = (int) ((sides[i] - err) * RSTREE_SCALE);
-            box_max[i] = (int) ((sides[i] + err) * RSTREE_SCALE);
-        }
-#endif
+		#ifdef IDX_3
+			// #ifdef _3NN
+				// use 3-side length as index keys
+				box_min[0] = (int) ((sides[3] - err) * RSTREE_SCALE);
+				box_max[0] = (int) ((sides[3] + err) * RSTREE_SCALE);
+				box_min[1] = (int) ((sides[4] - err) * RSTREE_SCALE);
+				box_max[1] = (int) ((sides[4] + err) * RSTREE_SCALE);
+				box_min[2] = (int) ((sides[5] - err) * RSTREE_SCALE);
+				box_max[2] = (int) ((sides[5] + err) * RSTREE_SCALE);
+			// #else
+			// 	// use 3-side length as index keys
+			// 	box_min[0] = (int) ((sides[0] - err) * RSTREE_SCALE);
+			// 	box_max[0] = (int) ((sides[0] + err) * RSTREE_SCALE);
+			// 	box_min[1] = (int) ((sides[3] - err) * RSTREE_SCALE);
+			// 	box_max[1] = (int) ((sides[3] + err) * RSTREE_SCALE);
+			// 	box_min[2] = (int) ((sides[4] - err) * RSTREE_SCALE);
+			// 	box_max[2] = (int) ((sides[4] + err) * RSTREE_SCALE);
+			// #endif
+		#else
+			// use 6-side length as index keys
+			for (int i = 0; i < INDEX_DIM; i++) {
+				box_min[i] = (int) ((sides[i] - err) * RSTREE_SCALE);
+				box_max[i] = (int) ((sides[i] + err) * RSTREE_SCALE);
+			}
+		#endif
 	}
 	void get_index_box(int box_min[INDEX_DIM], int box_max[INDEX_DIM]) {
 		get_index_box(0.0, box_min, box_max);
 	}
 	void fill_sides() {
-		sides[0] = eucl_dist(&repre->pt, &remai[0]->pt);
-		sides[1] = eucl_dist(&repre->pt, &remai[1]->pt);
-		sides[2] = eucl_dist(&repre->pt, &remai[2]->pt);
-		sides[3] = eucl_dist(&remai[0]->pt, &remai[1]->pt);
-		sides[4] = eucl_dist(&remai[0]->pt, &remai[2]->pt);
-		sides[5] = eucl_dist(&remai[1]->pt, &remai[2]->pt);
+		sides[0] = eucl_dist(repre->pt, remai[0]->pt);
+		sides[1] = eucl_dist(repre->pt, remai[1]->pt);
+		sides[2] = eucl_dist(repre->pt, remai[2]->pt);
+		sides[3] = eucl_dist(remai[0]->pt, remai[1]->pt);
+		sides[4] = eucl_dist(remai[0]->pt, remai[2]->pt);
+		sides[5] = eucl_dist(remai[1]->pt, remai[2]->pt);
 	}
 	void sort_sides() {
 		int prim = primary_remai();
@@ -450,11 +491,10 @@ struct Entry {
 			swap(sides[0], sides[prim]);
 			swap(sides[5], sides[5 - prim]);
 		}
-
-		auto pa = remai[0]->pt - repre->pt;
-		auto pb = remai[1]->pt - repre->pt;
-		auto pc = remai[2]->pt - repre->pt;
-		auto pb_cross_pc = cross_prd(&pb, &pc);
+		auto pa = *remai[0]->pt - *repre->pt;
+		auto pb = *remai[1]->pt - *repre->pt;
+		auto pc = *remai[2]->pt - *repre->pt;
+		Pt3D pb_cross_pc; cross_prd(&pb, &pc, pb_cross_pc);
 		double dec = dot_prd(&pa, &pb_cross_pc);
 		if (dec > 0) {
 			swap(remai[1], remai[2]);
@@ -462,6 +502,24 @@ struct Entry {
 			swap(sides[3], sides[4]);
 		}
 	}
+	// // depr: not needed:
+	// void sort_sides_3nn() {
+	// 	if (sides[4] < sides[3]) {
+	// 		swap(remai[1], remai[2]);
+	// 		swap(sides[1], sides[2]);
+	// 		swap(sides[3], sides[4]);
+	// 	}
+	// 	if (sides[5] < sides[4]) {
+	// 		swap(remai[0], remai[1]);
+	// 		swap(sides[0], sides[1]);
+	// 		swap(sides[4], sides[5]);
+	// 		if (sides[4] < sides[3]) {
+	// 			swap(remai[1], remai[2]);
+	// 			swap(sides[1], sides[2]);
+	// 			swap(sides[3], sides[4]);
+	// 		}
+	// 	}
+	// }
 	string to_str(int precision = 6) const {
 		stringstream ss;
 		ss << setprecision(precision);
@@ -501,69 +559,61 @@ private:
 			else
 				return 2;
 	}
-	void mem_alloc() {
-        repre = new PtwID;
-        for (int i = 0; i < 3; i++) {
-        	remai[i] = new PtwID;
-        }
-    	help = new PtwID;
-	}
+	// // bad design! not used, but as a reference
+	// int primary_remai_3nn() const {
+	// 	if (sides[3] <= sides[4])
+	// 		if (sides[3] <= sides[5])
+	// 			return 2; // sides[3] (ab) is the shortest -> remai[2] (c) is primary
+	// 		else
+	// 			return 0; // sides[5] (bc) is the shortest -> remai[0] (a) is primary
+	// 	else
+	// 		if (sides[4] <= sides[5])
+	// 			return 1; // sides[4] ac is the shortest -> remai[1] (b) is primary
+	// 		else
+	// 			return 0; // sides[5] (bc) is the shortest -> remai[0] (a) is primary
+	// }
 };
 
-void sort_remai(Entry& e) {
-    double bc = eucl_dist(&e.remai[0]->pt, &e.remai[1]->pt);
-    double bd = eucl_dist(&e.remai[0]->pt, &e.remai[2]->pt);
-    double cd = eucl_dist(&e.remai[1]->pt, &e.remai[2]->pt);
-    if (cd < bd) {
-        swap(e.remai[0], e.remai[1]);
-        swap(cd, bd);
-    }
-    if (bc > cd) {
-        swap(e.remai[0], e.remai[2]);
-        swap(e.remai[1], e.remai[2]);
-    } else if (bc > bd) {
-        swap(e.remai[1], e.remai[2]);
-    }
-}
+// // depr: not used?
+// void sort_remai(Entry& e) {
+//     double bc = eucl_dist(&e.remai[0]->pt, &e.remai[1]->pt);
+//     double bd = eucl_dist(&e.remai[0]->pt, &e.remai[2]->pt);
+//     double cd = eucl_dist(&e.remai[1]->pt, &e.remai[2]->pt);
+//     if (cd < bd) {
+//         swap(e.remai[0], e.remai[1]);
+//         swap(cd, bd);
+//     }
+//     if (bc > cd) {
+//         swap(e.remai[0], e.remai[2]);
+//         swap(e.remai[1], e.remai[2]);
+//     } else if (bc > bd) {
+//         swap(e.remai[1], e.remai[2]);
+//     }
+// }
 
 struct Struct_DB {
-private:
+
 	vector<Grid*> grids;
 
 	double w;
 	double ann_min;
+	double ann_mid;
 	double ann_max;
+	double ang_min;
 
 	vector<Entry*> entries;
-
-	vector<unordered_map<int, int>> reverse_entries_maps;
-	vector<unordered_set<int>> repre_id_sets;
 
 	vector<int> global_id_map;
 
 	int total_cells_count; // accumulative
 
-public:
+	#ifdef TEST_MODE
+		vector<unordered_map<int, int>> reverse_entries_maps;
+		vector<unordered_set<int>> repre_id_sets;
+	#endif
+
 	Struct_DB() {
 		total_cells_count = 0;
-	}
-
-	void set_w(double w) {
-		this->w = w;
-	}
-	double get_w() const {
-		return w;
-	}
-
-	void set_ann(double min, double max) {
-		ann_min = min;
-		ann_max = max;
-	}
-	double get_ann_min() const {
-		return ann_min;
-	}
-	double get_ann_max() const {
-		return ann_max;
 	}
 
 	int get_total_cells_count() const {
@@ -591,7 +641,7 @@ public:
 	    	return false;
 
 	    int num_grids;
-	    ifs >> w >> ann_min >> ann_max >> num_grids >> total_cells_count;
+	    ifs >> w >> ann_min >> ann_mid >> ann_max >> ang_min >> num_grids >> total_cells_count;
 
 	    grids.reserve(num_grids);
 	    for (int i = 0; i < num_grids; i++) {
@@ -606,8 +656,10 @@ public:
 	    }
 	    grids.shrink_to_fit();
 
-	    reverse_entries_maps.resize(num_grids);
-	    repre_id_sets.resize(num_grids);
+	    #ifdef TEST_MODE
+		    reverse_entries_maps.resize(num_grids);
+		    repre_id_sets.resize(num_grids);
+	    #endif
 
 	    for (int i = 0; i < total_cells_count; i++) {
 	        int grid_id, key, cell_id, x, y, z, list_size;
@@ -621,20 +673,23 @@ public:
 	        for (int j = 0; j < list_size; j++) {
 	            int pt_id;
 	            ifs >> pt_id;
-	            c->add_pt(pt_id, db_meshes->get_mesh(grid_id)->get_pt(pt_id));
+	            // Pt3D pt = *(db_meshes->get_mesh(grid_id)->get_pt(pt_id));
+	            // c->add_pt(pt_id, pt);
+	            c->add_pt(pt_id);
 	        }
 	        grids[grid_id]->cells_map[key] = c;
 
 	        ifs >> grid_id; // another grid_id has been saved
-	        Entry *e = new Entry;
-	        e->read_from(ifs, db_meshes->get_mesh(grid_id));
+	        Entry *e = new Entry(ifs, db_meshes->get_mesh(grid_id));
 
 	        entries.push_back(e);
 
-	        repre_id_sets[grid_id].insert(e->repre->id);
-	        reverse_entries_maps[grid_id][e->repre->id] = cell_id;
-
 	        global_id_map.push_back(grid_id);
+
+	        #ifdef TEST_MODE
+		        repre_id_sets[grid_id].insert(e->repre->id);
+		        reverse_entries_maps[grid_id][e->repre->id] = cell_id;
+	        #endif
 	    }
 
 	    ifs.close();
@@ -650,6 +705,7 @@ public:
 		return global_id_map[global_cell_id];
 	}
 
+	#ifdef TEST_MODE
 	bool look_up_repre_index(int repre_id, int mesh_id) const {
 	    auto got = repre_id_sets[mesh_id].find(repre_id);
 	    if (got != repre_id_sets[mesh_id].end()) {
@@ -665,12 +721,17 @@ public:
 	int get_help_id(int repre_id, int mesh_id) const {
 		return entries[reverse_entries_maps[mesh_id].at(repre_id)]->help->id;
 	}
+	#endif
 
 	void save(string filename) const {
 		ofstream ofs(filename);
 
-		// write grid headers
-		ofs << w << " " << ann_min << " " << ann_max << " " << grids.size() << " " << total_cells_count << endl;
+		// write grid headers TODO: if _3NN?
+		#ifdef _3NN
+			ofs << w << " " << ann_min << " " << ang_min << " " << grids.size() << " " << total_cells_count << endl;
+		#else
+			ofs << w << " " << ann_min << " " << ann_max << " " << grids.size() << " " << total_cells_count << endl;
+		#endif
 
 		for (int i = 0; i < grids.size(); i++) {
 			ofs << i << " ";
@@ -707,7 +768,8 @@ struct Entry_Pair {
 	}
 
 	void cal_xf() {
-		Pt3D q_array[4], p_array[4];
+		Pt3D* q_array[4];
+		Pt3D* p_array[4];
 		q_array[0] = e_query->repre->pt;
 		q_array[1] = e_query->remai[0]->pt;
 		q_array[2] = e_query->remai[1]->pt;
@@ -716,7 +778,7 @@ struct Entry_Pair {
 		p_array[1] = e_database->remai[0]->pt;
 		p_array[2] = e_database->remai[1]->pt;
 		p_array[3] = e_database->remai[2]->pt;
-		xf = cal_trans(q_array, p_array, 4);
+		cal_trans(q_array, p_array, 4, xf);
 	}
 };
 
@@ -769,20 +831,19 @@ inline bool get_est_b_c(Pt3D* m_ptr, Pt3D* a_ptr, Pt3D* h_ptr, Pt3D& b_est, Pt3D
     b_est = m + uh * (r / uh.mode());
     auto mb_est = b_est - m;
     auto e = m + mb_est / 3.0;
-    auto cross = cross_prd(&ma, &mb_est);
+    Pt3D cross; cross_prd(&ma, &mb_est, cross);
 
     c_est = e + cross * (0.942809041 * mb_est.mode() / cross.mode());
     
     return true;
-
 }
 
 inline string get_idx_filename(string grid_filename) {
-#ifdef IDX_3
-	return (grid_filename + ".idx.s3");
-#else
-	return (grid_filename + ".idx.s6");
-#endif
+	#ifdef IDX_3
+		return (grid_filename + ".idx.s3");
+	#else
+		return (grid_filename + ".idx.s6");
+	#endif
 }
 
 #endif

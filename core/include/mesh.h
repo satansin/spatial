@@ -24,11 +24,15 @@ private:
 	int m_size;
 	std::string m_filename;
 
+	std::vector<Pt3D> m_pt_list;
+
 	friend class DB_Meshes;
 
 	bool m_bbox_built;
+	bool m_bsphere_built;
 
 	void build_bbox();
+	void build_bsphere();
 
 public:
 	Mesh(int id);
@@ -39,12 +43,15 @@ public:
 
 	int size() const;
 
-	Pt3D get_pt(int idx) const;
+	Pt3D* get_pt(int idx);
 
 	const std::string get_filename() const;
 
 	double get_box_min(int i); 
 	double get_box_max(int i);
+
+	double get_bsphere_r();
+	double get_bsphere_d();
 
 	void centralize();
 
@@ -53,8 +60,10 @@ public:
 	void scale_by(double s);
 
 private:
-	static Pt3D pt(trimesh::point p) {
-		return {p[0], p[1], p[2]};
+	static void pt(trimesh::point p, Pt3D& ret) {
+		ret.x = p[0];
+		ret.y = p[1];
+		ret.z = p[2];
 	}
 };
 

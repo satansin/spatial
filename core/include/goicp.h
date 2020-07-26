@@ -651,9 +651,9 @@ void GoICP::printParams() {
 void loadPointCloud(Mesh* mesh, POINT3D** p) {
 	*p = (POINT3D *) malloc(sizeof(POINT3D) * mesh->size());
 	for (int i = 0; i < mesh->size(); i++) {
-		(*p)[i].x = mesh->get_pt(i).x;
-		(*p)[i].y = mesh->get_pt(i).y;
-		(*p)[i].z = mesh->get_pt(i).z;
+		(*p)[i].x = mesh->get_pt(i)->x;
+		(*p)[i].y = mesh->get_pt(i)->y;
+		(*p)[i].z = mesh->get_pt(i)->z;
 	}
 }
 

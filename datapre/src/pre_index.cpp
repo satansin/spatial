@@ -6,6 +6,9 @@
 extern "C" {
     #include "rtree.h"
 }
+
+#include "util.h"
+
 using namespace std;
 using namespace trimesh;
 
@@ -17,110 +20,110 @@ rtree_info read_rstree_info(string filename) {
 	return ret;
 }
 
-string get_foldername(string path) {
-    string ret;
-    if (path[path.length() - 1] != '/') {
-        ret = path + "/";
-    } else {
-        ret = path;
+void read_db_mesh_batch(vector<string>& db_filenames, int batch_i, int batch_size, vector<TriMesh*>& db_meshes) {
+    for (int i = 0; i < batch_size; i++) {
+    	int real_i = batch_i * batch_size + i;
+    	db_meshes.push_back(TriMesh::read(db_filenames[real_i]));
     }
-    return ret;
 }
 
-int read_db_mesh_batch(string db_path, vector<TriMesh*>& db_meshes, vector<string>& db_filenames) {
-    string db_folder = get_foldername(db_path);
-    string meta_filename = db_folder + "meta.txt";
-
-    ifstream ifs(db_folder + "meta.txt");
-    if (!ifs) {
-    	cerr << "Fail reading meta file " << meta_filename << endl;
-    	return 0;
+void build_rtree(TriMesh* mesh, vector<rtree_info>& info, int n, string realname) {
+	R_TYPE** data = (R_TYPE **) malloc(sizeof(R_TYPE *) * n);
+    for (int k = 0; k < n; k++) {
+        data[k] = (R_TYPE *) malloc(sizeof(R_TYPE) * 3);
+        for (int l = 0; l < 3; l++) {
+            data[k][l] = (int) (mesh->vertices[k][l] * 1e5);
+        }
     }
+	node_type* root;
+	for (int k = 0; k < info.size(); k++) {
+		// build R-tree for mesh points
+	    // cout << "Start building R-tree for mesh #" << id << " of info #" << k << "..." << endl;
+	    build_tree(&root, data, n, &info[k]);
 
-    int num;
-    ifs >> num;
+	    // save R-tree
+	    string realname_idx(realname + "." + to_string(k));
+	    save_rtree(root, realname_idx.c_str(), &info[k]);
+	    cout << "Save R-tree to " << realname_idx << endl;
 
-    int id;
-    string s_file;
-    for (int i = 0; i < num; i++) {
-        ifs >> id >> s_file;
-        db_meshes.push_back(TriMesh::read(s_file));
-        db_filenames.push_back(s_file);
-    }
-
-    ifs.close();
-
-    return num;
+	    free_tree(root, &info[k]);
+	    // cout << "R-tree freed" << endl;
+	}
+	for (int k = 0; k < n; k++) {
+		free(data[k]);
+	}
+	free(data);
 }
 
 int main(int argc, char* argv[]) {
 
 	if (argc < 2) {
-		cerr << "Usage: " << argv[0] << " input_filename [-batch]" << endl;
+		cerr << "Usage: " << argv[0] << " input_filename batch_id [-batch] [-nb=...]" << endl;
 		exit(1);
 	}
 
 	bool batch_mode = false;
+	int num_batches = 1;
     for (int i = 0; i < argc; i++) {
         if (string(argv[i]) == "-batch") {
             batch_mode = true;
+        } else if (string(argv[i]).rfind("-nb", 0) == 0) {
+        	num_batches = stoi(argv[i] + 4);
         }
     }
 
+    int batch_id = 0;
 	string input_filename = argv[1];
+	if (batch_mode) {
+		batch_id = stoi(argv[2]);
+	}
 
-    vector<TriMesh*> db_meshes;
+	int num_meshes = 1;
     vector<string> db_filenames;
 
+    int batch_size = 1;
+
     if (batch_mode) {
-        cout << "Num of meshes for batch: " << read_db_mesh_batch(input_filename, db_meshes, db_filenames) << endl;
+		string db_folder = get_foldername(input_filename);
+		string meta_filename = db_folder + "meta.txt";
+		ifstream meta_ifs(meta_filename);
+	    if (!meta_ifs) {
+	    	cerr << "Fail reading meta file " << meta_filename << endl;
+	    	exit(1);
+	    }
+
+	    meta_ifs >> num_meshes;
+	    int id;
+	    string s_file;
+	    for (int i = 0; i < num_meshes; i++) {
+	        meta_ifs >> id >> s_file;
+	        db_filenames.push_back(s_file);
+	    }
+
+	    meta_ifs.close();
+
+	    batch_size = num_meshes / num_batches;
     } else {
-        db_meshes.push_back(TriMesh::read(input_filename));
+        db_filenames.push_back(input_filename);
     }
 
 	vector<rtree_info> info;
 	info.push_back(read_rstree_info("../common/config/rstree.pcd.config"));
 
-	int id, n;
-	TriMesh* mesh;
-	R_TYPE** data;
-	node_type* root;
-	string realname;
-	for (id = 0; id < db_meshes.size(); id++) {
-		mesh = db_meshes[id];
-		n = mesh->vertices.size();
+    vector<TriMesh*> db_meshes;
 
-		data = (R_TYPE **) malloc(sizeof(R_TYPE *) * n);
-	    for (int i = 0; i < n; i++) {
-	        data[i] = (R_TYPE *) malloc(sizeof(R_TYPE) * 3);
-	        for (int j = 0; j < 3; j++) {
-	            data[i][j] = (int) (mesh->vertices[i][j] * 1e5);
-	        }
-	    }
+	cout << "Process batch #" << batch_id << endl;
 
-	    if (batch_mode) {
-	    	realname = db_filenames[id] + ".rst";
-	    } else {
-	    	realname = input_filename + ".rst";
-	    }
+	db_meshes.clear();
+	read_db_mesh_batch(db_filenames, batch_id, batch_size, db_meshes);
 
-		for (int i = 0; i < info.size(); i++) {
-			// build R-tree for mesh points
-		    cout << "Start building R-tree for mesh #" << id << " of info #" << i << "..." << endl;
-		    // timer_start();
-		    build_tree(&root, data, n, &info[i]);
-		    // cout << "Build R-tree in " << timer_end(SECOND) << "(s)" << endl;
+	for (int i = 0; i < batch_size; i++) {
+		TriMesh* mesh = db_meshes[i];
+		int n = mesh->vertices.size();
+	    string realname = db_filenames[batch_id * batch_size + i] + ".rst";
+		build_rtree(mesh, info, n, realname);
 
-		    // save R-tree
-		    // timer_start();
-		    string realname_idx(realname + "." + to_string(i));
-		    save_rtree(root, realname_idx.c_str(), &info[i]);
-		    cout << "Save R-tree to " << realname_idx /*<< " in " << timer_end(SECOND) << "(s)"*/ << endl;
-
-		    free_tree(root, &info[i]);
-		    cout << "R-tree freed" << endl;
-		}
-
+		delete mesh;
 	}
 
 }

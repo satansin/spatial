@@ -36,20 +36,18 @@ Trans* create_trans(double al, double be, double ga, double tx, double ty, doubl
 	return ret;
 }
 
-Pt3D trans_pt(const Trans* t, Pt3D p) {
-	Pt3D t_p = {0.0};
-	t_p.x = t->r11 * p.x + t->r12 * p.y + t->r13 * p.z + t->tx;
-	t_p.y = t->r21 * p.x + t->r22 * p.y + t->r23 * p.z + t->ty;
-	t_p.z = t->r31 * p.x + t->r32 * p.y + t->r33 * p.z + t->tz;
-	return t_p;
+void trans_pt(const Trans* t, Pt3D* p, Pt3D& t_p) {
+	t_p.x = t->r11 * p->x + t->r12 * p->y + t->r13 * p->z + t->tx;
+	t_p.y = t->r21 * p->x + t->r22 * p->y + t->r23 * p->z + t->ty;
+	t_p.z = t->r31 * p->x + t->r32 * p->y + t->r33 * p->z + t->tz;
 }
 
-Trans cal_trans(const Pt3D* q, const Pt3D* p, int num) {
+void cal_trans(Pt3D** q, Pt3D** p, int num, Trans& ret) {
 	Vector3d vq[num], vp[num];
 	Vector3d sum_q(0, 0, 0), sum_p(0, 0, 0);
 	for (int i = 0; i < num; i++) {
-		vq[i] << q[i].x, q[i].y, q[i].z;
-		vp[i] << p[i].x, p[i].y, p[i].z;
+		vq[i] << q[i]->x, q[i]->y, q[i]->z;
+		vp[i] << p[i]->x, p[i]->y, p[i]->z;
 		sum_q += vq[i];
 		sum_p += vp[i];
 	}
@@ -73,7 +71,7 @@ Trans cal_trans(const Pt3D* q, const Pt3D* p, int num) {
 	Matrix3d r = svd.matrixV() * svd.matrixU().transpose();
 	Vector3d t = vp_bar - r * vq_bar;
 
-	return {
+	ret = {
 		r(0, 0), r(0, 1), r(0, 2),
 		r(1, 0), r(1, 1), r(1, 2),
 		r(2, 0), r(2, 1), r(2, 2),

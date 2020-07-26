@@ -11,10 +11,6 @@
 #include <ctime>
 #include <cstdlib>
 #include <limits>
-#include <unordered_set>
-
-#include "util.h"
-
 using namespace std;
 using namespace trimesh;
 
@@ -41,8 +37,23 @@ double nn_dist(point p, trimesh::KDtree* kdtree_p) {
 	return eucl_dist(nn_p, p);
 }
 
+double rand_double_in_range(double low, double high) {
+	double r = static_cast <double> (rand()) / static_cast <double> (RAND_MAX);
+	return (low + r * (high - low));
+}
+
 point rand_pt(double x1, double x2, double y1, double y2, double z1, double z2) {
 	return point(rand_double_in_range(x1, x2), rand_double_in_range(y1, y2), rand_double_in_range(z1, z2));
+}
+
+string get_foldername(const string path) {
+	string ret;
+	if (path[path.length() - 1] != '/') {
+		ret = path + "/";
+	} else {
+		ret = path;
+	}
+	return ret;
 }
 
 int read_random_db_mesh(const string path, TriMesh*& db_mesh) {
@@ -80,48 +91,19 @@ int read_random_db_mesh(const string path, TriMesh*& db_mesh) {
 int main(int argc, char** argv) {
 	srand(time(NULL));
 
-	if (argc < 5) {
-		cerr << "Usage: " << argv[0] << " db_filename window_x1 window_x2 window_y1 window_y2 window_z1 window_z2 noise_lvl output_filename [-noise_unit=s|m|l]" << endl;
-		cerr << "or" << endl;
-		cerr << "Usage: " << argv[0] << " db_path noise_lvl output_filename -batch [-noise_unit=s|m|l]" << endl;
+	if (argc < 9) {
+		cerr << "Usage: " << argv[0] << " db_path window_x1 window_x2 window_y1 window_y2 window_z1 window_z2 output_filename" << endl;
 		exit(1);
 	}
 
-	bool batch = false;
-	char noise_unit = 'l';
-    for (int i = 0; i < argc; i++) {
-        string argv_str(argv[i]);
-        if (argv_str == "-batch")
-            batch = true;
-        else if (argv_str.rfind("-noise_unit", 0) == 0)
-        	noise_unit = argv_str[12];
-    }
-
 	int argi = 0;
 	const string db_path = argv[(++argi)];
-
-	double r_x1, r_x2, r_y1, r_y2, r_z1, r_z2;
-	if (batch) {
-		r_x1 = std::numeric_limits<double>::min();
-		r_y1 = std::numeric_limits<double>::min();
-		r_z1 = std::numeric_limits<double>::min();
-		r_x2 = std::numeric_limits<double>::max();
-		r_y2 = std::numeric_limits<double>::max();
-		r_z2 = std::numeric_limits<double>::max();
-	} else {
-		r_x1 = atof(argv[(++argi)]);
-		r_x2 = atof(argv[(++argi)]);
-		r_y1 = atof(argv[(++argi)]);
-		r_y2 = atof(argv[(++argi)]);
-		r_z1 = atof(argv[(++argi)]);
-		r_z2 = atof(argv[(++argi)]);
-	}
-
-	// const double epsilon = atof(argv[(++argi)]);
-	// const double eta = atof(argv[(++argi)]);
-
-	const int noise_lvl = atoi(argv[(++argi)]);
-
+	const double r_x1 = atof(argv[(++argi)]);
+	const double r_x2 = atof(argv[(++argi)]);
+	const double r_y1 = atof(argv[(++argi)]);
+	const double r_y2 = atof(argv[(++argi)]);
+	const double r_z1 = atof(argv[(++argi)]);
+	const double r_z2 = atof(argv[(++argi)]);
 	const string output_filename = argv[(++argi)];
 
 	cout << endl;
@@ -166,95 +148,86 @@ int main(int argc, char** argv) {
 	int m = query_mesh->vertices.size();
 	printf("Found %d pts in range\n", m);
 
-	double ground_truth_err_linear = 0.0;
-	double ground_truth_err_quadratic = 0.0;
-	float sigma;
+    // // rounding eta and epsilon
+    // double real_eta = min(eta, 0.99999);
+    // double real_epsilon = max(epsilon, 0.00001);
+    // double sigma = real_epsilon / gsl_cdf_ugaussian_Qinv((1.0 - real_eta) / 2.0);
+
+    float sigma = 0.0;
 
     if (noise_lvl > 0) {
 
-	    query_mesh->need_bsphere();
-	    float bsphere_diam = query_mesh->bsphere.r * 2.0;
+	    // query_mesh->need_bbox();
+	    // auto query_bbox = query_mesh->bbox;
+	    // double max_dim_range = -1.0;
+	    // double dim_range;
+	    // for (int i = 0; i < 3; i++) {
+	    // 	dim_range = query_bbox.max[i] - query_bbox.min[i];
+	    // 	if (dim_range > max_dim_range) {
+	    // 		max_dim_range = dim_range;
+	    // 	}
+	    // }
 
-	    sigma = bsphere_diam * 0.005;
+	    // sigma = max_dim_range * 0.0001 * noise_lvl;
 
     	switch (noise_unit) {
     	case 's':
-    		sigma = 0.1 * sigma;
+    		sigma = 0.1 * noise_lvl;
     		break;
     	case 'm':
-    		sigma = 0.3 * sigma;
+    		sigma = 0.3 * noise_lvl;
     		break;
     	case 'l':
     	default:
-    		break;
+    		sigma = (float) noise_lvl;
     	}
+    }
 
-		cout << "sigma = " << sigma << endl;
+    const gsl_rng_type* RNG_TYPE;
+    gsl_rng* rng;
 
-    	const gsl_rng_type* RNG_TYPE;
-    	gsl_rng* rng;
+	gsl_rng_env_setup();
 
-		gsl_rng_env_setup();
+	RNG_TYPE = gsl_rng_default;
+	rng = gsl_rng_alloc(RNG_TYPE);
 
-		RNG_TYPE = gsl_rng_default;
-		rng = gsl_rng_alloc(RNG_TYPE);
+	// // for test
+	// for (int i = 0; i < 100; i++) {
+	// 	cout << gsl_ran_gaussian(rng, sigma) << endl;
+	// }
 
-		// // for test
-		// for (int i = 0; i < 100; i++) {
-		// 	cout << gsl_ran_gaussian(rng, sigma) << endl;
-		// }
+	// int real_inlier_count = 0;
+	double ground_truth_err_linear = 0.0;
+	double ground_truth_err_quadratic = 0.0;
 
-		float pro = 0.1 * noise_lvl;
-		cout << "prop = " << pro << endl;
-
-		unordered_set<int> pro_selected_set;
-
-		while (abs((float) pro_selected_set.size() / (float) m - pro) > 0.02 &&
-			   abs(pro_selected_set.size() - (int) ((float) m * pro)) > 2) {
-			pro_selected_set.clear();
-			for (int i = 0; i < m; i++) {
-				if (static_cast <double> (rand()) / static_cast <double> (RAND_MAX) <= pro) {
-					pro_selected_set.insert(i);
-				}
-			}
-		}
-
-		for (int i = 0; i < m; i++) {
-			if (pro_selected_set.find(i) == pro_selected_set.end()) {
-				// not selected, thus no noise added
-				driftmap.push_back(0.0);
-			} else {
-				// double target_drifting_dist = rand_double_in_range(0.0, epsilon);
-				double target_drifting_dist = abs(gsl_ran_gaussian(rng, sigma));
-				driftmap.push_back(target_drifting_dist);
-
-				double a = rand_double_in_range(0.0, 1.0) - 0.5,
-					   b = rand_double_in_range(0.0, 1.0) - 0.5,
-					   c = rand_double_in_range(0.0, 1.0) - 0.5;
-				double norm = sqrt(a * a + b * b + c * c);
-				double ran_scale = target_drifting_dist / norm;
-				a *= ran_scale; b *= ran_scale; c *= ran_scale;
-
-				query_mesh->vertices[i][0] += a;
-				query_mesh->vertices[i][1] += b;
-				query_mesh->vertices[i][2] += c;
-
-				double dist = nn_dist(query_mesh->vertices[i], db_kd);
-				ground_truth_err_linear += dist;
-				ground_truth_err_quadratic += dist * dist;
-			}
-		}
-	} else {
-		for (int i = 0; i < m; i++) {
+	for (int i = 0; i < query_mesh->vertices.size(); i++) {
+		if (noise_lvl == 0) {
 			driftmap.push_back(0.0);
+		} else {
+			// double target_drifting_dist = rand_double_in_range(0.0, epsilon);
+			double target_drifting_dist = abs(gsl_ran_gaussian(rng, sigma));
+			driftmap.push_back(target_drifting_dist);
+
+			double a = rand_double_in_range(0.0, 1.0) - 0.5,
+				   b = rand_double_in_range(0.0, 1.0) - 0.5,
+				   c = rand_double_in_range(0.0, 1.0) - 0.5;
+			double norm = sqrt(a * a + b * b + c * c);
+			double ran_scale = target_drifting_dist / norm;
+			a *= ran_scale; b *= ran_scale; c *= ran_scale;
+
+			query_mesh->vertices[i][0] += a;
+			query_mesh->vertices[i][1] += b;
+			query_mesh->vertices[i][2] += c;
+
+			double dist = nn_dist(query_mesh->vertices[i], db_kd);
+			ground_truth_err_linear += dist;
+			ground_truth_err_quadratic += dist * dist;
 		}
 	}
 
 	rot(query_mesh, rand_double_in_range(0, 2 * PI),
 		vec(rand_double_in_range(-1, 1), rand_double_in_range(-1, 1), rand_double_in_range(-1, 1)));
-	// trans(query_mesh, -mesh_center_of_mass(query_mesh));
-	query_mesh->need_bbox();
-	trans(query_mesh, -(query_mesh->bbox.center()));
+	trans(query_mesh, -mesh_center_of_mass(query_mesh));
 
 	// cout << "Real inlier rate: " << ((double) real_inlier_count / m) << endl; 
 

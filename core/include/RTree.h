@@ -130,6 +130,8 @@ public:
   /// \return Returns the number of entries found
   int Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::vector<DATATYPE>& a_searchResult) const;
 
+  bool YoNSearch(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS]) const;
+
   int Search(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], const Node* node, std::vector<DATATYPE>& a_searchResult) const;
 
   int NodeSearch(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS], std::vector<Node*>& ret, int stop_level) const;
@@ -400,6 +402,7 @@ protected:
   bool Overlap(const Rect* a_rectA, const Rect* a_rectB) const;
   void ReInsert(Node* a_node, ListNode** a_listNode);
   bool Search(Node* a_node, Rect* a_rect, int& a_foundCount, std::vector<DATATYPE>& ret) const;
+  bool YoNSearch(Node* a_node, Rect* a_rect) const;
   bool NodeSearch(Node* a_node, Rect* a_rect, int& a_foundCount, std::vector<Node*>& ret, int stop_level) const;
   void RemoveAllRec(Node* a_node);
   void Reset();
@@ -614,6 +617,27 @@ RTREE_TEMPLATE
 void RTREE_QUAL::SortDim0()
 {
   SortDim0Node(m_root);
+}
+
+RTREE_TEMPLATE
+bool RTREE_QUAL::YoNSearch(const ELEMTYPE a_min[NUMDIMS], const ELEMTYPE a_max[NUMDIMS]) const
+{
+#ifdef _DEBUG
+  for(int index=0; index<NUMDIMS; ++index)
+  {
+    ASSERT(a_min[index] <= a_max[index]);
+  }
+#endif //_DEBUG
+
+  Rect rect;
+  
+  for(int axis=0; axis<NUMDIMS; ++axis)
+  {
+    rect.m_min[axis] = a_min[axis];
+    rect.m_max[axis] = a_max[axis];
+  }
+
+  return YoNSearch(m_root, &rect);
 }
 
 RTREE_TEMPLATE
@@ -1763,6 +1787,52 @@ void RTREE_QUAL::ReInsert(Node* a_node, ListNode** a_listNode)
   *a_listNode = newListNode;
 }
 
+
+// Search in an index tree or subtree for all data retangles that overlap the argument rectangle.
+// return true if it contains at least one result, false otherwise
+RTREE_TEMPLATE
+bool RTREE_QUAL::YoNSearch(Node* a_node, Rect* a_rect) const
+{
+  ASSERT(a_node);
+  ASSERT(a_node->m_level >= 0);
+  ASSERT(a_rect);
+
+  if(a_node->IsInternalNode())
+  {
+    // This is an internal node in the tree
+    for(int index=0; index < a_node->m_count; ++index)
+    {
+      if(a_node->m_branch[index].m_rect.m_min[0] > a_rect->m_max[0])
+      {
+        break;
+      }
+      if(Overlap(a_rect, &a_node->m_branch[index].m_rect))
+      {
+        if(YoNSearch(a_node->m_branch[index].m_child, a_rect))
+        {
+          return true;
+        }
+      }
+    }
+  }
+  else
+  {
+    // This is a leaf node
+    for(int index=0; index < a_node->m_count; ++index)
+    {
+      if(a_node->m_branch[index].m_rect.m_min[0] > a_rect->m_max[0])
+      {
+        break;
+      }
+      if(Overlap(a_rect, &a_node->m_branch[index].m_rect))
+      {
+        return true;
+      }
+    }
+  }
+
+  return false; // Not found
+}
 
 // Search in an index tree or subtree for all data retangles that overlap the argument rectangle.
 RTREE_TEMPLATE

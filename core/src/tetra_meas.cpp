@@ -18,11 +18,11 @@ double area_3d(double a, double b, double c){
 
 Pt3D circumcenter_3d(Pt3D* a, Pt3D* b, Pt3D* c, Pt3D* d) {
 	Pt3D ab = *b - *a;
-	Pt3D e = middle_pt(a, b);
+	Pt3D e; middle_pt(a, b, e);
 	Pt3D ac = *c - *a;
-	Pt3D f = middle_pt(a, c);
+	Pt3D f; middle_pt(a, c, f);
 	Pt3D ad = *d - *a;
-	Pt3D g = middle_pt(a, d);
+	Pt3D g; middle_pt(a, d, g);
 	Matrix3d m;
 	m << ab.x, ab.y, ab.z, ac.x, ac.y, ac.z, ad.x, ad.y, ad.z;
 	Vector3d p(
@@ -72,7 +72,8 @@ Ratio_set_vol get_ratio_set_vol(Pt3D* a, Pt3D* b, Pt3D* c, Pt3D* d) {
 Ratio_set_area get_ratio_set_area(Pt3D* a, Pt3D* b, Pt3D* c) {
 	Ratio_set_area ret;
 	auto ab = *b - *a, ac = *c - *a, bc = *c - *b;
-	double a_cross_mode = cross_prd(&ab, &ac).mode();
+	Pt3D cross_ab_ac; cross_prd(&ab, &ac, cross_ab_ac);
+	double a_cross_mode = cross_ab_ac.mode();
 	ret.area = 0.5 * a_cross_mode;
 	double circum_r = 0.5 * ab.mode() * ac.mode() * bc.mode() / a_cross_mode;
 	double circum_area = PI * circum_r * circum_r;
@@ -92,10 +93,14 @@ double circumradi_3d(Pt3D* a, Pt3D* b, Pt3D* c, Pt3D* d) {
 	Pt3D ac = {c->x - a->x, c->y - a->y, c->z - a->z};
 	Pt3D ad = {d->x - a->x, d->y - a->y, d->z - a->z};
 
-	Pt3D fac1 = cross_prd(&ac, &ad) * ab.sq_mode();
-	Pt3D fac2 = cross_prd(&ad, &ab) * ac.sq_mode();
-	Pt3D fac3 = cross_prd(&ab, &ac) * ad.sq_mode();
-	Pt3D ac_cross_ad = cross_prd(&ac, &ad);
+	Pt3D cross_ac_ad; cross_prd(&ac, &ad, cross_ac_ad);
+	Pt3D cross_ad_ab; cross_prd(&ad, &ab, cross_ad_ab);
+	Pt3D cross_ab_ac; cross_prd(&ab, &ac, cross_ab_ac);
+
+	Pt3D fac1 = cross_ac_ad * ab.sq_mode();
+	Pt3D fac2 = cross_ad_ab * ac.sq_mode();
+	Pt3D fac3 = cross_ab_ac * ad.sq_mode();
+	Pt3D ac_cross_ad; cross_prd(&ac, &ad, ac_cross_ad);
 	double vol_by_6 = abs(dot_prd(&ab, &ac_cross_ad));
 
 	double rad = (fac1 + fac2 + fac3).mode();

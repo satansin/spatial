@@ -24,7 +24,7 @@ struct Exec_stat {
     double prop_time;
     double veri_time;
     double retr_time;
-    int veri_size;
+    double veri_size;
     int num_icp_only;
     int num_goicp;
     int num_verified;
@@ -36,6 +36,25 @@ struct Exec_stat {
     double best_olp_rate; // with largest olp rate
     double opt_corr_dist; // with smallest corr dist
     double opt_olp_rate; // with smallest corr dist
+
+    double num_iterations;
+
+    bool success;
+    int num_fail;
+
+    double cal_entries_time;
+    double retrieve_congr_time;
+    double num_entries;
+    double num_db_tetra_matchings;
+
+    double prop_excpq_time;
+    double cpq_total_time;
+    double cpq_prop_time;
+    double cpq_ovh_time;
 };
+
+void print_stat(const Exec_stat& stat);
+void write_stat(const Exec_stat& stat, std::string filename);
+void get_avg_stat(Exec_stat stats[], int exec_times, Exec_stat& ret);
 
 #endif

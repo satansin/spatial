@@ -22,6 +22,11 @@ int main(int argc, char **argv) {
     string db_path = argv[(++argi)];
     string grid_filename = argv[(++argi)];
 
+    cout << "Parameters:" << endl;
+    cout << "db_path = " << db_path << endl;
+    cout << "grid_filename = " << grid_filename << endl;
+    cout << endl;
+
     cout << "Reading database files from " << db_path << endl;
     DB_Meshes db_meshes;
     int num_meshes = db_meshes.read_from_path(db_path);
@@ -33,6 +38,13 @@ int main(int argc, char **argv) {
 
     int num_cells = s_db.get_total_cells_count();
     cout << "Total no. cells: " << num_cells << endl << endl;
+
+    cout << "DB index parameters:" << endl;
+    cout << "w = " << s_db.w << endl;
+    cout << "ann_min = " << s_db.ann_min << endl;
+    cout << "ann_mid = " << s_db.ann_mid << endl;
+    cout << "ann_max = " << s_db.ann_max << endl;
+    cout << "ang_min = " << s_db.ang_min << endl;
 
     timer_start();
 
@@ -47,6 +59,8 @@ int main(int argc, char **argv) {
     // R_TYPE** tree_data = (R_TYPE**) malloc(sizeof(R_TYPE *) * num_cells);
     ////////////////////////// Toggle_2 /////////////////////////////////////
 
+    int insert_count = 0;
+
     for (int i = 0; i < num_cells; i++) {
 
         if (show_prog_bar) {
@@ -55,14 +69,18 @@ int main(int argc, char **argv) {
         }
 
         auto e = entries[i];
+        if (e->fail) {
+            continue;
+        }
 
         ////////////////////////// Toggle_1 /////////////////////////////////////
-        // TODO: avoid fail
         int box_min[INDEX_DIM], box_max[INDEX_DIM];
         e->get_index_box(box_min, box_max);
         
         tree.Insert(box_min, box_max, i);
         ////////////////////////// Toggle_1 /////////////////////////////////////
+
+        insert_count++;
 
         ////////////////////////// Toggle_2 /////////////////////////////////////
         // tree_data[i] = (R_TYPE *) malloc(sizeof(R_TYPE) * INDEX_DIM);
@@ -73,10 +91,11 @@ int main(int argc, char **argv) {
 
     }
 
-    ////////////////////////// Toggle_1 /////////////////////////////////////
     if (show_prog_bar) {
         bar.done();
     }
+
+    ////////////////////////// Toggle_1 /////////////////////////////////////
 
     tree.SortDim0();
 
@@ -85,7 +104,6 @@ int main(int argc, char **argv) {
     cout << "Saving the index to " << outidx_filename << endl;
     tree.Save(outidx_filename.c_str());
 
-	cout << "Index built and saved in " << timer_end(SECOND) << "(s)" << endl;
     ////////////////////////// Toggle_1 /////////////////////////////////////
 
     ////////////////////////// Toggle_2 /////////////////////////////////////
@@ -124,5 +142,17 @@ int main(int argc, char **argv) {
  //    }
  //    free(tree_data);
     ////////////////////////// Toggle_2 /////////////////////////////////////
+
+    double user_time = timer_end(SECOND);
+    cout << "Index built and saved in " << user_time << "(s)" << endl;
+    cout << "In total " << insert_count << " entries inserted" << endl;
+
+    string outidx_stat_filename = outidx_filename + ".istat";
+    ofstream ofs_stat(outidx_stat_filename);
+
+    ofs_stat << "num_insert = " << insert_count << endl;
+    ofs_stat << "user_time = " << user_time << endl;
+
+    ofs_stat.close();
 
 }

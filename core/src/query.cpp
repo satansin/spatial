@@ -7,6 +7,7 @@
 #include "util.h"
 #include "c_rtree.h"
 #include "struct_q.h"
+#include "goicp.h"
 
 #include <cmath>
 #include <iostream>
@@ -18,6 +19,10 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#ifndef NR
+#define NR 1
+#endif
+
 #ifndef VERBOSE
 #define VERBOSE (-1)
 #endif
@@ -25,10 +30,144 @@
 using namespace std;
 using namespace trimesh;
 
-void get_potential_set(const Struct_Q* s_q, Pt3D* q, C_RTree* r_q, double min, double epsilon,
-    vector<int>& ret, int excl_id_list[] = {}, int excl_id_num = 0) {
+#ifdef TEST_MODE
+    const int exec_times = 1;
+#else
+    const int exec_times = 50;
+#endif
 
-    r_q->nn_sphere_range(q, sq(min + 2 * epsilon), 4 * epsilon, ret, excl_id_list, excl_id_num);
+class Query_Context {
+public:
+    int force_cell;
+    unordered_set<int> force_pts;
+    bool write_stat;
+    bool stop_once;
+    string stat_filename;
+    bool sort_entry;
+    bool simple;
+
+    string db_path;
+    string grid_filename;
+    string query_filename;
+    double delta; // TODO: change to MSE
+    double epsilon;
+
+    double cos_phi; // in query this threshold is slightly larger
+
+    void read_param(int argc, char** argv) {
+        force_cell = -1;
+        force_pts.clear();
+        stop_once = false;
+        sort_entry = false;
+        simple = false;
+        write_stat = false;
+        stat_filename = "";
+        for (int i = 0; i < argc; i++) {
+            string argv_str(argv[i]);
+            if (argv_str.rfind("-force_cell", 0) == 0)
+                force_cell = atoi(argv[i] + 12);
+            else if (argv_str.rfind("-force_pt", 0) == 0)
+                force_pts.insert(atoi(argv[i] + 10));
+            else if (argv_str == "-stop_once")
+                stop_once = true;
+            else if (argv_str.rfind("-stat", 0) == 0) {
+                write_stat = true;
+                stat_filename = string(argv[i] + 6);
+            } else if (argv_str == "-sort_entry")
+                sort_entry = true;
+            else if (argv_str == "-simple")
+            	simple = true;
+        }
+
+        int argi = 0;
+
+        db_path = argv[(++argi)];
+        grid_filename = argv[(++argi)];
+        query_filename = argv[(++argi)];
+
+        delta = atof(argv[(++argi)]);
+
+        #ifdef PROB
+            epsilon = atof(argv[(++argi)]);
+        #else
+            epsilon = delta;
+        #endif
+    }
+
+    DB_Meshes db_meshes;
+    Struct_DB s_db;
+    IndexTree tree;
+    Mesh mesh_q;
+    C_RTree r_q;
+    Struct_Q s_q;
+
+    GoICP** goicp;
+
+    bool load() {
+
+        cout << "Reading database files from " << db_path << endl;
+        int num_meshes = db_meshes.read_from_path(db_path);
+        cout << "Total no. meshes: " << num_meshes << endl << endl;
+
+        db_meshes.build_kd();
+
+        // load the DB structure
+        cout << "Loading DB structure from " << grid_filename << endl;
+        if (!s_db.read(grid_filename, &db_meshes)) {
+            cout << "Error loading DB structure" << endl;
+            return false;
+        }
+        cout << "Total no. cells: " << s_db.get_total_cells_count() << endl;
+
+        cos_phi = cos(s_db.ang_min * PI / 180.0);
+
+        string idx_filename = get_idx_filename(grid_filename);
+
+        // load the index entries tree
+        cout << "Loading index entries from " << idx_filename << endl;
+        if (!tree.Load(idx_filename.c_str())) {
+            cout << "Error loading index entries tree" << endl;
+            return false;
+        }
+
+        cout << endl;
+
+        cout << "Reading query mesh from " << query_filename << endl;
+        mesh_q.read_from_path(query_filename);
+
+        // cout << "Diameter of query mesh: " << mesh_q.get_bsphere_d() << endl;
+
+        delta *= (double) mesh_q.size();
+
+        // load the query R-tree
+        r_q.read_from_mesh(query_filename);
+
+        // load the query structure
+        if (!s_q.read(query_filename + ".info")) {
+            cout << "Error loading query structure" << endl;
+            return false;
+        }
+
+        goicp = new GoICP*[num_meshes];
+        for (int i = 0; i < num_meshes; i++) {
+            goicp[i] = new GoICP;
+            loadGoICP(db_meshes.get_mesh(i), &mesh_q, delta, *goicp[i]);
+
+            // Build Distance Transform
+            // cout << endl << "Building Distance Transform of #" << i << "..." << endl;
+            // goicp[i]->BuildDT();
+
+            goicp[i]->Initialize();
+        }
+        cout << endl;
+
+        return true;
+    }
+};
+
+void get_potential_set(Pt3D* q, double rad, Query_Context* qc, vector<int>& ret, int excl_id_list[] = {}, int excl_id_num = 0) {
+
+    qc->r_q.nn_sphere_range(q, sq(rad + 2 * qc->epsilon), 4 * qc->epsilon, ret, excl_id_list, excl_id_num);
 
     unordered_set<int> new_excl_id_set;
     for (int i = 0; i < excl_id_num; i++) {
@@ -38,13 +177,12 @@ void get_potential_set(const Struct_Q* s_q, Pt3D* q, C_RTree* r_q, double min, d
         new_excl_id_set.insert(v);
     }
 
-    r_q->range_sphere_min_max(q, min - 2 * epsilon, min + 6 * epsilon, ret, new_excl_id_set);
+    qc->r_q.range_sphere_min_max(q, rad - 2 * qc->epsilon, qc->s_db.ann_min + 6 * qc->epsilon, ret, new_excl_id_set);
 }
 
-void get_potential_set_and_show(const Struct_Q* s_q, Pt3D* q, C_RTree* r_q, double min, double epsilon,
-    vector<int>& ret, string nav = "", int excl_id_list[] = {}, int excl_id_num = 0) {
+void get_potential_set_and_show(Pt3D* q, double rad, Query_Context* qc, vector<int>& ret, string nav = "", int excl_id_list[] = {}, int excl_id_num = 0) {
 
-    r_q->nn_sphere_range(q, sq(min + 2 * epsilon), 4 * epsilon, ret, excl_id_list, excl_id_num);
+    qc->r_q.nn_sphere_range(q, sq(rad + 2 * qc->epsilon), 4 * qc->epsilon, ret, excl_id_list, excl_id_num);
 
     unordered_set<int> new_excl_id_set;
     for (int i = 0; i < excl_id_num; i++) {
@@ -54,33 +192,283 @@ void get_potential_set_and_show(const Struct_Q* s_q, Pt3D* q, C_RTree* r_q, doub
         new_excl_id_set.insert(v);
     }
 
-    r_q->range_sphere_min_max(q, min - 2 * epsilon, min + 6 * epsilon, ret, new_excl_id_set);
+    qc->r_q.range_sphere_min_max(q, rad - 2 * qc->epsilon, qc->s_db.ann_min + 6 * qc->epsilon, ret, new_excl_id_set);
 
     cout << nav << "Potential set:";
     for (auto &it: ret) {
         // cout << " " << s_q->id_q_to_str(it.oid) << "=" << (sqrt(it.dist) / RSTREE_SCALE);
-        cout << " " << s_q->id_q_to_str(it);
+        cout << " " << qc->s_q.id_q_to_str(it);
     }
     cout << endl;
 }
 
-void nn_sphere_range(const Struct_Q* s_q, Pt3D* q, C_RTree* r_q, double sq_dist, double err,
-    vector<int>& ret, int excl_id_list[] = {}, int excl_id_num = 0) {
+void nn_sphere_range(Pt3D* q, double sq_dist, double err, Query_Context* qc, vector<int>& ret, int excl_id_list[] = {}, int excl_id_num = 0) {
 
-    r_q->nn_sphere_range(q, sq_dist, err, ret, excl_id_list, excl_id_num);
+    qc->r_q.nn_sphere_range(q, sq_dist, err, ret, excl_id_list, excl_id_num);
 }
 
-void nn_sphere_range_and_show(const Struct_Q* s_q, Pt3D* q, C_RTree* r_q, double sq_dist, double err,
-    vector<int>& ret, string nav = "", int excl_id_list[] = {}, int excl_id_num = 0) {
+void nn_sphere_range_and_show(Pt3D* q, double sq_dist, double err, Query_Context* qc, vector<int>& ret, string nav = "", int excl_id_list[] = {}, int excl_id_num = 0) {
 
-    r_q->nn_sphere_range(q, sq_dist, err, ret, excl_id_list, excl_id_num);
+    qc->r_q.nn_sphere_range(q, sq_dist, err, ret, excl_id_list, excl_id_num);
     
     cout << nav << "nn_sphere_range-------RR:";
     for (auto &it: ret) {
         // cout << " " << s_q->id_q_to_str(it.oid) << "=" << (sqrt(it.dist) / RSTREE_SCALE);
-        cout << " " << s_q->id_q_to_str(it);
+        cout << " " << qc->s_q.id_q_to_str(it);
     }
     cout << endl;
+}
+
+// i < j
+int get_th_index(int L, int i, int j) {
+    int start_index = (2 * L - i - 1) * i / 2;
+    int added_index = j - i - 1;
+    return (start_index + added_index);
+}
+
+// #ifdef TEST_MODE
+// int cal_entries_3nn(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret, vector<int>& cheat_list_id, vector<double>& cheat_list_dist)
+// #else
+int cal_entries_3nn_nonsim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
+// #endif
+{
+
+    v_ret.clear();
+
+    cout.precision(10);
+
+    int ret = 0;
+    double err = qc->epsilon * 2;
+
+    vector<int> range;
+    #if VERBOSE > 0
+        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), err, qc, range);
+    #else
+        nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), err, qc, range);
+    #endif
+
+    int range_size = range.size();
+    if (range.size() < 3) {
+        return 0;
+    }
+
+    vector<PtwID> range_pts;
+    vector<Pt3D> range_qa;
+    for (int &id: range) {
+        auto pt = PtwID(id, &qc->mesh_q);
+        range_pts.push_back(pt);
+        range_qa.push_back(*pt.pt - *q->pt);
+    }
+    vector<double> cos_th;
+    for (int i = 0; i < range_size; i++) {
+        for (int j = i + 1; j < range_size; j++) {
+            cos_th.push_back(cos_theta(&range_qa[i], &range_qa[j]));
+        }
+    }
+
+    // #ifdef TEST_MODE
+    //     Entry* q_entry = new Entry(q, PtwID(cheat_list_id[1], &qc->mesh_q), PtwID(cheat_list_id[2], &qc->mesh_q), PtwID(cheat_list_id[3], &qc->mesh_q));
+    //     q_entry->fill_sides();
+    //     v_ret.push_back(q_entry);
+    // #else
+        // loop for all the 3-combinations
+        for (int i = 0; i < range_size; i++) {
+            for (int j = i + 1; j < range_size; j++) {
+                for (int k = j + 1; k < range_size; k++) {
+
+                    double cos_th_ij = cos_th[get_th_index(range_size, i, j)]; // the angle of i & j
+                    double cos_th_ik = cos_th[get_th_index(range_size, i, k)]; // the angle of i & k
+                    double cos_th_jk = cos_th[get_th_index(range_size, j, k)]; // the angle of j & k
+                    if (cos_th_ij > qc->cos_phi || cos_th_ik > qc->cos_phi || cos_th_jk > qc->cos_phi) {
+                        continue; // if th < phi, skip it
+                    }
+
+                    Entry* q_entry = new Entry(q, &range_pts[i], &range_pts[j], &range_pts[k]);
+                    q_entry->fill_sides();
+
+                    v_ret.push_back(q_entry);
+
+                }
+            }
+        }
+    // #endif
+}
+
+// #ifdef TEST_MODE
+// int cal_entries_3nn_sim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret, vector<int>& cheat_list_id, vector<double>& cheat_list_dist)
+// #else
+int cal_entries_3nn_sim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
+// #endif
+{
+
+    v_ret.clear();
+
+    cout.precision(10);
+
+    int ret = 0;
+    double err = qc->epsilon * 2;
+
+    vector<int> range;
+    #if VERBOSE > 0
+        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), err, qc, range);
+    #else
+        nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), err, qc, range);
+    #endif
+
+    int range_size = range.size();
+    if (range.size() < 3) {
+        return 0;
+    }
+
+    vector<PtwID> range_pts;
+    for (int &id: range) {
+        auto pt = PtwID(id, &qc->mesh_q);
+        range_pts.push_back(pt);
+    }
+
+    // #ifdef TEST_MODE
+    //     Entry* q_entry = new Entry(q, PtwID(cheat_list_id[1], &qc->mesh_q), PtwID(cheat_list_id[2], &qc->mesh_q), PtwID(cheat_list_id[3], &qc->mesh_q));
+    //     q_entry->fill_sides();
+    //     v_ret.push_back(q_entry);
+    // #else
+        // loop for all the 3-combinations
+        for (int i = 0; i < range_size; i++) {
+            for (int j = i + 1; j < range_size; j++) {
+                for (int k = j + 1; k < range_size; k++) {
+
+                    Entry* q_entry = new Entry(q, &range_pts[i], &range_pts[j], &range_pts[k]);
+                    q_entry->fill_sides();
+
+                    v_ret.push_back(q_entry);
+
+                }
+            }
+        }
+    // #endif
+}
+
+int cal_entries_3nn(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
+	if (qc->simple) {
+		return cal_entries_3nn_sim(q, qc, v_ret);
+	} else {
+		return cal_entries_3nn_nonsim(q, qc, v_ret);
+	}
+}
+
+int cal_entries_3lnn_nonsim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
+
+    v_ret.clear();
+
+    cout.precision(10);
+
+    int ret = 0;
+    double err = qc->epsilon * 2;
+
+    vector<int> range_a, range_b, range_c;
+    #if VERBOSE > 0
+        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
+        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_mid - err), err, qc, range_b);
+        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_max - err), err, qc, range_c);
+    #else
+        nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
+        nn_sphere_range(q->pt, sq(qc->s_db.ann_mid - err), err, qc, range_b);
+        nn_sphere_range(q->pt, sq(qc->s_db.ann_max - err), err, qc, range_c);
+    #endif
+
+    vector<PtwID> range_pts_a, range_pts_b, range_pts_c;
+    vector<Pt3D> range_qa, range_qb, range_qc;
+    for (int &id: range_a) {
+        auto pt = PtwID(id, &qc->mesh_q);
+        range_pts_a.push_back(pt);
+        range_qa.push_back(*pt.pt - *q->pt);
+    }
+    for (int &id: range_b) {
+        auto pt = PtwID(id, &qc->mesh_q);
+        range_pts_b.push_back(pt);
+        range_qb.push_back(*pt.pt - *q->pt);
+    }
+    for (int &id: range_c) {
+        auto pt = PtwID(id, &qc->mesh_q);
+        range_pts_c.push_back(pt);
+        range_qc.push_back(*pt.pt - *q->pt);
+    }
+
+    // loop for all the 3-combinations of (a, b, c)
+    for (int i = 0; i < range_a.size(); i++) {
+        for (int j = 0; j < range_b.size(); j++) {
+            for (int k = 0; k < range_c.size(); k++) {
+
+                double cos_th_ij = cos_theta(&range_qa[i], &range_qb[j]); // the angle of i & j
+                double cos_th_ik = cos_theta(&range_qa[i], &range_qc[k]); // the angle of i & k
+                double cos_th_jk = cos_theta(&range_qb[j], &range_qc[k]); // the angle of j & k
+                // cout << cos_th_ij << " " << cos_th_ik << " " << cos_th_jk << endl;
+                if (cos_th_ij > qc->cos_phi || cos_th_ik > qc->cos_phi || cos_th_jk > qc->cos_phi) {
+                    continue; // if th < phi, skip it
+                }
+
+                Entry* q_entry = new Entry(q, &range_pts_a[i], &range_pts_b[j], &range_pts_c[k]);
+                q_entry->fill_sides();
+
+                v_ret.push_back(q_entry);
+            }
+        }
+    }
+}
+
+int cal_entries_3lnn_sim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
+
+    v_ret.clear();
+
+    cout.precision(10);
+
+    int ret = 0;
+    double err = qc->epsilon * 2;
+
+    vector<int> range_a, range_b, range_c;
+    #if VERBOSE > 0
+        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
+        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_mid - err), err, qc, range_b);
+        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_max - err), err, qc, range_c);
+    #else
+        nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
+        nn_sphere_range(q->pt, sq(qc->s_db.ann_mid - err), err, qc, range_b);
+        nn_sphere_range(q->pt, sq(qc->s_db.ann_max - err), err, qc, range_c);
+    #endif
+
+    vector<PtwID> range_pts_a, range_pts_b, range_pts_c;
+    for (int &id: range_a) {
+        auto pt = PtwID(id, &qc->mesh_q);
+        range_pts_a.push_back(pt);
+    }
+    for (int &id: range_b) {
+        auto pt = PtwID(id, &qc->mesh_q);
+        range_pts_b.push_back(pt);
+    }
+    for (int &id: range_c) {
+        auto pt = PtwID(id, &qc->mesh_q);
+        range_pts_c.push_back(pt);
+    }
+
+    // loop for all the 3-combinations of (a, b, c)
+    for (int i = 0; i < range_a.size(); i++) {
+        for (int j = 0; j < range_b.size(); j++) {
+            for (int k = 0; k < range_c.size(); k++) {
+
+                Entry* q_entry = new Entry(q, &range_pts_a[i], &range_pts_b[j], &range_pts_c[k]);
+                q_entry->fill_sides();
+
+                v_ret.push_back(q_entry);
+            }
+        }
+    }
+}
+
+int cal_entries_3lnn(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
+	if (qc->simple) {
+		return cal_entries_3lnn_sim(q, qc, v_ret);
+	} else {
+		return cal_entries_3lnn_nonsim(q, qc, v_ret);
+	}
 }
 
 string get_string_hash(Entry* e) {
@@ -109,10 +497,34 @@ bool insert_entry(Entry* new_entry, vector<Entry*>& v_ret, unordered_set<long lo
     } else {
         return false;
     }
-    
 }
 
-int cal_entries(PtwID q, double min, const Struct_Q* s_q, const Mesh* mesh_q, C_RTree* r_q, vector<Entry*>& v_ret) {
+// // test function TODO
+// double brute_force_nn(vector<int>& list, int cheat, Query_Context* qc, PtwID& ret) {
+
+//     PtwID cheat_pt = PtwID(cheat, &qc->mesh_q);
+
+//     double nn_dist = numeric_limits<double>::max();
+//     for (int i = 0; i < list.size(); i++) {
+//         if (list[i] != cheat) {
+//             PtwID pt = PtwID(list[i], &qc->mesh_q);
+//             double dist = eucl_dist(&pt.pt, &cheat_pt.pt);
+//             if (dist < nn_dist) {
+//                 nn_dist = dist;
+//                 ret = pt;
+//             }
+//         }
+//     }
+
+//     return nn_dist;
+// }
+
+// #ifdef TEST_MODE
+// int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret, vector<int>& cheat_list_id, vector<double>& cheat_list_dist)
+// #else
+int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
+// #endif
+{
 
     v_ret.clear();
     
@@ -121,123 +533,172 @@ int cal_entries(PtwID q, double min, const Struct_Q* s_q, const Mesh* mesh_q, C_
     cout.precision(10);
 
     int ret = 0;
-    double err = s_q->epsilon * 2;
+    double err = qc->epsilon * 2;
 
     vector<int> range_a, range_h, range_b, range_c;
     PtwID ten_a, ten_h, ten_b, ten_c;
 
-#if VERBOSE > 0
-    #ifdef ACC
-    nn_sphere_range_and_show(s_q, &(q.pt), r_q, sq(min - err), err, range_a);
-    #else
-    get_potential_set_and_show(s_q, &(q.pt), r_q, min, s_q->epsilon, range_a);
+    #ifdef TEST_MODE
+        PtwID nn_a, nn_b, nn_c;
     #endif
-#else
-    #ifdef ACC
-    nn_sphere_range(s_q, &(q.pt), r_q, sq(min - err), err, range_a);
+
+    #if VERBOSE > 1
+        #ifdef ACC
+            nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
+        #else
+            get_potential_set_and_show(q->pt, qc->s_db.ann_min, qc, range_a);
+        #endif
     #else
-    get_potential_set(s_q, &(q.pt), r_q, min, s_q->epsilon, range_a);
+        #ifdef ACC
+            nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
+        #else
+            get_potential_set(q->pt, qc->s_db.ann_min, qc, range_a);
+        #endif
     #endif
-#endif
+
+    // #ifdef TEST_MODE // depr, used for identifying the nearest query tetrahedron candidate, and to test the error
+    //     if (cheat_list_id[1] >= 0) {
+    //         double nn_a_dist = brute_force_nn(range_a, cheat_list_id[1], qc, nn_a);
+    //         cout << "The NN of ground-truth a = #" << cheat_list_id[1] << " is recognized: #" << nn_a.id << ", dist = " << nn_a_dist << endl;
+    //     }
+    // #endif
 
     for (auto &it_a: range_a) {
 
         if (it_a < 0)
             continue;
 
-#if VERBOSE > 1
-        cout << endl << "For a = " << s_q->id_q_to_str(it_a) << endl;
-#endif
+        // #ifdef TEST_MODE
+        //     if (it_a != cheat_list_id[1])
+        //         continue;
+        // #endif
 
-        // ten_a = PtwID(it_a.oid, mesh_q);
-        ten_a = PtwID(it_a, mesh_q);
+        // #if VERBOSE > 2
+        //     cout << endl << "For a = " << qc->s_q.id_q_to_str(it_a) << endl;
+        // #endif
 
-        auto m = middle_pt(&q.pt, &ten_a.pt);
-        double d_pm = eucl_dist(&q.pt, &m);
+        ten_a.set(it_a, &qc->mesh_q);
 
-        int excl_qa[2] = { q.id, ten_a.id };
+        Pt3D m;
+        middle_pt(q->pt, ten_a.pt, m);
+        double d_pm = eucl_dist(q->pt, &m);
 
-#if VERBOSE > 1
-    #ifdef ACC
-        nn_sphere_range_and_show(s_q, &m, r_q, sq(d_pm - err), err, range_h, "", excl_qa, 2);
-    #else
-        get_potential_set_and_show(s_q, &m, r_q, d_pm, s_q->epsilon, range_h, "", excl_qa, 2);
-    #endif
-#else
-    #ifdef ACC
-        nn_sphere_range(s_q, &m, r_q, sq(d_pm - err), err, range_h, excl_qa, 2);
-    #else
-        get_potential_set(s_q, &m, r_q, d_pm, s_q->epsilon, range_h, excl_qa, 2);
-    #endif
-#endif
+        int excl_qa[2] = { q->id, ten_a.id };
+
+        #if VERBOSE > 2
+            #ifdef ACC
+                nn_sphere_range_and_show(&m, sq(d_pm - err), err, qc, range_h, "", excl_qa, 2);
+            #else
+                get_potential_set_and_show(&m, d_pm, qc, range_h, "", excl_qa, 2);
+            #endif
+        #else
+            #ifdef ACC
+                nn_sphere_range(&m, sq(d_pm - err), err, qc, range_h, excl_qa, 2);
+            #else
+                get_potential_set(&m, d_pm, qc, range_h, excl_qa, 2);
+            #endif
+        #endif
 
         for (auto &it_h: range_h) {
 
             if (it_h < 0)
                 continue;
 
-#if VERBOSE > 2
-            cout << endl << TAB << "For h = " << s_q->id_q_to_str(it_h) << endl;
-#endif
+			// #ifdef TEST_MODE
+			// 	if (it_h != cheat_list_id[4])
+			// 		continue;
+			// #endif
 
-            ten_h = PtwID(it_h, mesh_q);
+            #if VERBOSE > 3
+                cout << endl << TAB << "For h = " << qc->s_q.id_q_to_str(it_h) << endl;
+            #endif
+
+            ten_h.set(it_h, &qc->mesh_q);
 
             Pt3D ten_b_est, ten_c_est;
-            auto got_b_c = get_est_b_c(&m, &(ten_a.pt), &(ten_h.pt), ten_b_est, ten_c_est);
+            auto got_b_c = get_est_b_c(&m, ten_a.pt, ten_h.pt, ten_b_est, ten_c_est);
             if (!got_b_c) {
                 continue;
             }
 
-#if VERBOSE > 2
-            nn_sphere_range_and_show(s_q, &ten_b_est, r_q, 0.0, err, range_b, TAB, excl_qa, 2);
-#else
-            nn_sphere_range(s_q, &ten_b_est, r_q, 0.0, err, range_b, excl_qa, 2);
-#endif
+            #if VERBOSE > 3
+                nn_sphere_range_and_show(&ten_b_est, 0.0, err, qc, range_b, TAB, excl_qa, 2);
+            #else
+                nn_sphere_range(&ten_b_est, 0.0, err, qc, range_b, excl_qa, 2);
+            #endif
+
+            // #ifdef TEST_MODE // depr, used for identifying the nearest query tetrahedron candidate, and to test the error
+            //     if (cheat_list_id[2] >= 0) {
+            //         double nn_b_dist = brute_force_nn(range_b, cheat_list_id[2], qc, nn_b);
+            //         cout << "The NN of ground-truth b = #" << cheat_list_id[2] << " is recognized: #" << nn_b.id << ", dist = " << nn_b_dist << endl;
+            //     }
+            // #endif
 
             for (auto &it_b: range_b) {
 
                 if (it_b < 0)
                     continue;
 
-#if VERBOSE > 3
-                cout << endl << TABTAB << "For b = " << s_q->id_q_to_str(it_b) << endl;
-#endif
+                // #ifdef TEST_MODE
+                //     if (it_b != cheat_list_id[2])
+                //         continue;
+                // #endif
 
-                ten_b = PtwID(it_b, mesh_q);
+                #if VERBOSE > 4
+                    cout << endl << TABTAB << "For b = " << qc->s_q.id_q_to_str(it_b) << endl;
+                #endif
 
-                int excl_qab[3] = { q.id, ten_a.id, ten_b.id };
+                ten_b.set(it_b, &qc->mesh_q);
 
-#if VERBOSE > 3
-                nn_sphere_range_and_show(s_q, &ten_c_est, r_q, 0.0, err, range_c, TABTAB, excl_qab, 3);
-#else
-                nn_sphere_range(s_q, &ten_c_est, r_q, 0.0, err, range_c, excl_qab, 3);
-#endif
+                int excl_qab[3] = { q->id, ten_a.id, ten_b.id };
+
+                #if VERBOSE > 4
+                    nn_sphere_range_and_show(&ten_c_est, 0.0, err, qc, range_c, TABTAB, excl_qab, 3);
+                #else
+                    nn_sphere_range(&ten_c_est, 0.0, err, qc, range_c, excl_qab, 3);
+                #endif
+
+                // #ifdef TEST_MODE // depr, used for identifying the nearest query tetrahedron candidate, and to test the error
+                //     if (cheat_list_id[3] >= 0) {
+                //     	double nn_c_dist = brute_force_nn(range_c, cheat_list_id[3], qc, nn_c);
+                //     	cout << "The NN of ground-truth c = #" << cheat_list_id[3] << " is recognized: #" << nn_c.id << ", dist = " << nn_c_dist << endl;
+                //     }
+                // #endif
 
                 for (auto &it_c: range_c) {
 
                     if (it_c < 0)
                         continue;
 
-#if VERBOSE > 4
-                    cout << endl << TABTABTAB << "For c = " << s_q->id_q_to_str(it_c) << endl;
-#endif
+                    // #ifdef TEST_MODE
+                    //     if (it_c != cheat_list_id[3])
+                    //         continue;
+                    // #endif
 
-                    ten_c = PtwID(it_c, mesh_q);
+                    #if VERBOSE > 5
+                        cout << endl << TABTABTAB << "For c = " << qc->s_q.id_q_to_str(it_c) << endl;
+                    #endif
 
-                    // currently the ratio set (including the volume and volume ratio) is not required
-                    // since the indexing key are the side length
-                    // auto ratio_set = get_ratio_set_vol(q.pt, ten_a.pt, ten_b.pt, ten_c.pt);
-                    // Entry* q_entry = new Entry(q, ten_a, ten_b, ten_c, ratio_set.volume, ratio_set.ratio, ten_h);
-                    
-                    Entry* q_entry = new Entry(q, ten_a, ten_b, ten_c, ten_h);
+                    ten_c = PtwID(it_c, &qc->mesh_q);
+
+                    // // currently the ratio set (including the volume and volume ratio) is not required
+                    // // since the indexing key are the side length
+                    // auto ratio_set = get_ratio_set_vol(q->pt, ten_a.pt, ten_b.pt, ten_c.pt);
+                    // Entry* q_entry = new Entry(*q, ten_a, ten_b, ten_c, ratio_set.volume, ratio_set.ratio, ten_h);
+
+                    Entry* q_entry = new Entry(q, &ten_a, &ten_b, &ten_c, &ten_h);
 
                     if (insert_entry(q_entry, v_ret, hash_ret)) {
-#if VERBOSE > 4
-                        cout << TABTABTAB << "Include query entry: " << q_entry->to_str(10) << endl;
-#endif
+                        #if VERBOSE > 5
+                            cout << TABTABTAB << "Include query entry: " << q_entry->to_str(10) << endl;
+                        #endif
 
 						q_entry->fill_sides();
-						q_entry->sort_sides();
+
+                        // // no need to sort_entry anymore
+                        // if (qc->sort_entry) {
+                        //     q_entry->sort_sides();
+                        // }
 
                         ret++;
                     }
@@ -250,42 +711,231 @@ int cal_entries(PtwID q, double min, const Struct_Q* s_q, const Mesh* mesh_q, C_
     }
     range_a.clear();
 
+    // #ifdef TEST_MODE // depr, used for identifying the nearest query tetrahedron candidate, and to test the error
+    //     Entry* nn_entry = new Entry(*q, nn_a, nn_b, nn_c, PtwID());
+    //     nn_entry->fill_sides();
+    //     insert_entry(nn_entry, v_ret, hash_ret);
+    //     cout << endl << "Include the NN entry: " << nn_entry->to_str(10) << endl;
+    // #endif
+
     return ret;
 }
 
-bool check_congr(const Entry* e, const Entry* f, double err) {
+void prob_donut_range(Pt3D* o, Pt3D* n, double r/*?*/, PtwID* q, double err, Query_Context* qc, vector<int>& ret) {
 
-#ifdef IDX_3
-    if (abs(e->sides[1] - f->sides[1]) > err) {
-        return false;
-    }
-    if (abs(e->sides[2] - f->sides[2]) > err) {
-        return false;
-    }
-    if (abs(e->sides[5] - f->sides[5]) > err) {
-        return false;
-    }
-#else
-    for (int i = 0; i < INDEX_DIM; i++) {
-        if (abs(e->sides[i] - f->sides[i]) > err) {
-            return false;
+    vector<int> donut_range_cand;
+    qc->r_q.range_sphere_min_max(o, 0.001, r * 2.0, donut_range_cand, { q->id }); // exclude q, do not need to exclude a here since a will definitely be pruned next
+
+    double sq_r = sq(r);
+
+    double sq_d_min = numeric_limits<double>::max();
+    vector<double> v_d;
+    for (auto &i: donut_range_cand) {
+        auto i_pt = PtwID(i, &qc->mesh_q);
+        // cout << i << endl;
+
+        auto pi = *(i_pt.pt) - *(q->pt);
+        if (cos_theta(n, &pi) > 0.5) {
+            v_d.push_back(numeric_limits<double>::max());
+            continue;
+        }
+
+        double sq_a = sq_dist(i_pt.pt, o);
+        double sq_n = n->sq_mode();
+        double lambda = (dot_prd(o, n) - dot_prd(i_pt.pt, n)) / sq_n;
+        double sq_h = sq(lambda) * sq_n;
+
+        double sq_d = sq_a + sq_r - 2.0 * r * sqrt(sq_a - sq_h);
+
+        v_d.push_back(sqrt(sq_d));
+
+        if (sq_d < sq_d_min) {
+            sq_d_min = sq_d;
         }
     }
-#endif
+
+    double d_min = sqrt(sq_d_min);
+    // cout << "d_min = " << d_min << endl;
+
+    for (int i = 0; i < donut_range_cand.size(); i++) {
+        if (v_d[i] - d_min <= err * 2.0) {
+            ret.push_back(donut_range_cand[i]);
+        }
+    }
+}
+
+void prob_donut_range_and_show(Pt3D* o, Pt3D* n, double r/*?*/, PtwID* q, double err, Query_Context* qc, vector<int>& ret, string nav = "") {
+
+    prob_donut_range(o, n, r, q, err, qc, ret);
+    
+    cout << nav << "donut_range-------RR:";
+    for (auto &it: ret) {
+        // cout << " " << s_q->id_q_to_str(it.oid) << "=" << (sqrt(it.dist) / RSTREE_SCALE);
+        cout << " " << qc->s_q.id_q_to_str(it);
+    }
+    cout << endl;
+}
+
+void detm_donut_range() {
+
+}
+
+void detm_donut_range_and_show() {
+
+}
+
+int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
+
+    v_ret.clear();
+    
+    cout.precision(10);
+
+    int ret = 0;
+    double err = qc->epsilon * 2;
+
+    vector<int> range_a, range_b, range_c;
+    PtwID ten_a, ten_b, ten_c;
+
+    #if VERBOSE > 1
+        #ifdef ACC
+            nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
+        #else
+            get_potential_set_and_show(q->pt, qc->s_db.ann_min, qc, range_a);
+        #endif
+    #else
+        #ifdef ACC
+            nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
+        #else
+            get_potential_set(q->pt, qc->s_db.ann_min, qc, range_a);
+        #endif
+    #endif
+
+    for (auto &it_a: range_a) {
+
+        if (it_a < 0)
+            continue;
+
+        #if VERBOSE > 2
+            cout << endl << "For a = " << qc->s_q.id_q_to_str(it_a) << endl;
+        #endif
+
+        ten_a.set(it_a, &qc->mesh_q);
+        auto qa = *(q->pt) - *(ten_a.pt);
+
+        Pt3D m;
+        middle_pt(q->pt, ten_a.pt, m);
+        double d_pm = eucl_dist(q->pt, &m);
+        double r_donut = d_pm * 1.73205080757;
+
+        #if VERBOSE > 2
+            #ifdef ACC
+                prob_donut_range_and_show(&m, &qa, r_donut, q, err, qc, range_b, "");
+            #else
+                // detm_donut_range_and_show(); TODO
+            #endif
+        #else
+            #ifdef ACC
+                prob_donut_range(&m, &qa, r_donut, q, err, qc, range_b);
+            #else
+                // detm_donut_range(); TODO
+            #endif
+        #endif
+
+        for (auto &it_b: range_b) {
+
+            if (it_b < 0)
+                continue;
+
+            #if VERBOSE > 3
+                cout << endl << TAB << "For b = " << qc->s_q.id_q_to_str(it_b) << endl;
+            #endif
+
+            ten_b.set(it_b, &qc->mesh_q);
+
+            Pt3D ten_b_est, ten_c_est;
+            auto got_b_c = get_est_b_c(&m, ten_a.pt, ten_b.pt, ten_b_est, ten_c_est);
+            if (!got_b_c) {
+                continue;
+            }
+
+            int excl_qab[3] = { q->id, ten_a.id, ten_b.id };
+
+            #if VERBOSE > 3
+                nn_sphere_range_and_show(&ten_c_est, 0.0, err, qc, range_c, TAB, excl_qab, 3);
+            #else
+                nn_sphere_range(&ten_c_est, 0.0, err, qc, range_c, excl_qab, 3);
+            #endif
+
+            for (auto &it_c: range_c) {
+
+                if (it_c < 0)
+                    continue;
+
+                #if VERBOSE > 4
+                    cout << endl << TABTAB << "For c = " << qc->s_q.id_q_to_str(it_c) << endl;
+                #endif
+
+                ten_c.set(it_c, &qc->mesh_q);
+
+                // currently the ratio set (including the volume and volume ratio) is not required
+                // since the indexing key are the side length
+                // auto ratio_set = get_ratio_set_vol(q->pt, ten_a.pt, ten_b.pt, ten_c.pt);
+                // Entry* q_entry = new Entry(*q, ten_a, ten_b, ten_c, ratio_set.volume, ratio_set.ratio, ten_h);
+
+                Entry* q_entry = new Entry(q, &ten_a, &ten_b, &ten_c);
+
+                q_entry->fill_sides();
+
+                // if (qc->sort_entry) {
+                //     q_entry->sort_sides();
+                // }
+
+                #if VERBOSE > 4
+                    cout << TABTAB << "Include query entry: " << q_entry->to_str(10) << endl;
+                #endif
+                v_ret.push_back(q_entry);
+
+                ret++;
+            }
+            range_c.clear();
+        }
+        range_b.clear();
+    }
+    range_a.clear();
+
+    return ret;
+}
+
+bool recheck_congr(const Entry* e, const Entry* f, double err) {
+
+    // #ifdef _3NN
+        if (abs(e->sides[0] - f->sides[0]) > err) {
+            return false;
+        }
+        if (abs(e->sides[1] - f->sides[1]) > err) {
+            return false;
+        }
+        if (abs(e->sides[2] - f->sides[2]) > err) {
+            return false;
+        }
+    // #else
+    //     if (abs(e->sides[1] - f->sides[1]) > err) {
+    //         return false;
+    //     }
+    //     if (abs(e->sides[2] - f->sides[2]) > err) {
+    //         return false;
+    //     }
+    //     if (abs(e->sides[5] - f->sides[5]) > err) {
+    //         return false;
+    //     }
+    // #endif
 
     return true;
 }
 
-////////////////////////// Toggle_1 /////////////////////////////////////
-int retrieve_congr_entry(vector<Entry*>& e_list, double epsilon, IndexTree* tree, const Struct_DB* s_db, vector<Entry_Pair*>& ret) {
-////////////////////////// Toggle_1 /////////////////////////////////////
+int retrieve_congr_entry(vector<Entry*>& e_list, Query_Context* qc, vector<Entry_Pair*>& ret) {
 
-////////////////////////// Toggle_2 /////////////////////////////////////
-// int retrieve_congr_entry(vector<Entry*>& e_list, double epsilon, node_type* tree, rtree_info* r_info, const Struct_DB* s_db,
-//     vector<Entry_Pair*>& ret, int& total_page_accessed) {
-////////////////////////// Toggle_2 /////////////////////////////////////
-
-    double corr_err = max(0.001, 2 * epsilon);
+    double corr_err = max(0.001, 2 * qc->epsilon);
 
     int total_nhits = 0;
 
@@ -293,39 +943,31 @@ int retrieve_congr_entry(vector<Entry*>& e_list, double epsilon, IndexTree* tree
 
     for (auto &e: e_list) {
 
-        ////////////////////////// Toggle_1 /////////////////////////////////////
         vector<int> rr_ret;
-        int rr_num = window_query(tree, e, corr_err, rr_ret);
-        ////////////////////////// Toggle_1 /////////////////////////////////////
+        int rr_num = window_query(&qc->tree, e, corr_err, rr_ret);
 
-        ////////////////////////// Toggle_2 /////////////////////////////////////
-        // vector<RangeReturn_type*> rr_ret;
-    	// total_nhits += window_query(tree, r_info, e->sides, corr_epsilon, rr_ret, page_accessed);
-        ////////////////////////// Toggle_2 /////////////////////////////////////
-
-#if VERBOSE > 4
-        cout << "For entry #" << index << ", get " << rr_num << " window query results" << endl;
-#endif
+        #if VERBOSE > 4
+            cout << "For entry #" << index << ", get " << rr_num << " window query results" << endl;
+        #endif
 
 	    for (auto &hit: rr_ret) {
-            ////////////////////////// Toggle_1 /////////////////////////////////////
             int hit_key = hit;
-            ////////////////////////// Toggle_1 /////////////////////////////////////
 
-            ////////////////////////// Toggle_2 /////////////////////////////////////
-	        // int hit_key = hit->oid;
-            ////////////////////////// Toggle_2 /////////////////////////////////////
+	        Entry* f = qc->s_db.get_entry(hit_key);
 
-	        Entry* f = s_db->get_entry(hit_key);
-            if (check_congr(e, f, corr_err)) {
-                total_nhits++;
-    	        Entry_Pair* new_pair = new Entry_Pair(e, f, s_db->get_grid_id_by_global_cell_id(hit_key));
-    	        ret.push_back(new_pair);
+            #ifdef IDX_3
+                if (!recheck_congr(e, f, corr_err)) {
+                	continue;
+                }
+            #endif
 
-#if VERBOSE > 0
+            total_nhits++;
+	        Entry_Pair* new_pair = new Entry_Pair(e, f, qc->s_db.get_grid_id_by_global_cell_id(hit_key));
+	        ret.push_back(new_pair);
+
+            #if VERBOSE > 4
                 cout << "Found pair:" << endl << new_pair->to_str(10) << endl;
-#endif
-            }
+            #endif
 	    }
 
         index++;
@@ -334,449 +976,614 @@ int retrieve_congr_entry(vector<Entry*>& e_list, double epsilon, IndexTree* tree
     return total_nhits;
 }
 
+#ifdef TEST_MODE
+bool test_verification_pt(PtwID* p, Query_Context* qc, vector<int>& ret_id, vector<double>& ret_dist, bool verbose = false) {
 
-////////////////////////// Toggle_1 /////////////////////////////////////
-int retrieve_congr_entry_bundle(vector<Entry*>& e_list, double epsilon, IndexTree* tree, const Struct_DB* s_db,
-    vector<Entry_Pair*>& ret) {
-////////////////////////// Toggle_1 /////////////////////////////////////
+    const int db_mesh_id = qc->s_q.get_db_mesh_id();
+    // get point ID mapped in DB
+    const int mapping = qc->s_q.get_id_db_by_q(p->id);
+    if (mapping >= 0) {
+    	if (qc->s_db.look_up_repre_index(mapping, db_mesh_id)) { // if mapping is a repre point in DB
+	    	ret_id.push_back(p->id);
+	    	ret_dist.push_back(qc->s_q.get_drift_by_q(p->id));
+	        if (verbose) {
+	            cout << "Query pt #" << p->id << " matched with a repre. pt #" << mapping << " with drift = " << qc->s_q.get_drift_by_q(p->id) << endl;
+	            cout << "Backtrace:" << endl;
+	        }
 
-////////////////////////// Toggle_2 /////////////////////////////////////
-// int retrieve_congr_entry_bundle(vector<Entry*>& e_list, double epsilon, node_type* tree, rtree_info* r_info, const Struct_DB* s_db,
-//     vector<Entry_Pair*>& ret, int& total_page_accessed, bool verbose = false) {
-////////////////////////// Toggle_2 /////////////////////////////////////
+	        for (int i = 0; i < 3; i++) {
+	        	const int remai_id_db = qc->s_db.get_remai_id(mapping, i, db_mesh_id);
+	        	const int remai_id_q = qc->s_q.get_id_q_by_db(remai_id_db);
+	        	if (remai_id_q >= 0) {
+	        		ret_id.push_back(remai_id_q);
+	        		ret_dist.push_back(qc->s_q.get_drift_by_q(remai_id_q));
+	        		if (verbose) {
+	        			cout << "Query pt #" << remai_id_q << " matched with remai[" << i << "] (db#" << remai_id_db << ") with drift = " << qc->s_q.get_drift_by_q(remai_id_q) << endl;
+	        		}
+	        	} else {
+	        		ret_id.push_back(-1);
+	        		ret_dist.push_back(-1.0);
+	        		if (verbose) {
+	        			cout << "No query pt matched with remai[" << i << "] (db#" << remai_id_db << ")" << endl;
+	        		}
+	        	}
+	        }
 
-    double corr_epsilon = max(0.001, 2 * epsilon);
+	        const int help_id_db = qc->s_db.get_help_id(mapping, db_mesh_id);
+	        const int help_id_q = qc->s_q.get_id_q_by_db(help_id_db);
+	        if (help_id_q >= 0) {
+	        	ret_id.push_back(help_id_q);
+	        	ret_dist.push_back(qc->s_q.get_drift_by_q(help_id_q));
+	        	if (verbose) {
+	        		cout << "Query pt #" << help_id_q << " matched with help (db#" << help_id_q << ") with drift = " << qc->s_q.get_drift_by_q(help_id_q) << endl;
+	        	}
+	        } else {
+        		ret_id.push_back(-1);
+        		ret_dist.push_back(-1.0);
+        		if (verbose) {
+        			cout << "No query pt matched with help (db#" << help_id_q << ")" << endl;
+        		}
+	        }
 
-    AuxTree aux_tree;
-    Entry* e;
-    int box_min[INDEX_DIM], box_max[INDEX_DIM];
-    for (int i = 0; i < e_list.size(); i++) {
-        e_list[i]->get_index_box(corr_epsilon, box_min, box_max);
-        aux_tree.Insert(box_min, box_max, i);
+	        return true;
+    	}
     }
 
-    aux_tree.SortDim0();
-
-    vector<pair<int, int>> search_ret;
-
-    tree->SpatialJoin(&aux_tree, search_ret);
-
-    for (auto &r: search_ret) {
-        Entry* e = e_list[r.first];
-        Entry* f = s_db->get_entry(r.second);
-        if (check_congr(e, f, corr_epsilon)) {
-            Entry_Pair* new_pair = new Entry_Pair(e, f, s_db->get_grid_id_by_global_cell_id(r.second));
-            ret.push_back(new_pair);
-
-#if VERBOSE > 0
-            cout << "Found pair:" << endl << new_pair->to_str(10) << endl;
+    return false;
+}
 #endif
-        }
-    }
 
-    return search_ret.size();
-
+double rand_double_in_range(double low, double high) {
+	double r = static_cast <double> (rand()) / static_cast <double> (RAND_MAX);
+	return (low + r * (high - low));
 }
 
-bool test_verification_cell(const Cell* c, const Struct_Q* s_q, const Struct_DB* s_db, bool verbose = false) {
-    int matching_repre_point_count = 0, matching_all_point_count = 0;
-    const int db_mesh_id = s_q->get_db_mesh_id();
+// a test method
+#ifdef TEST_MODE
+Pt3D drift(Pt3D p, double tar_dist) {
+	Pt3D ret;
 
-    // loop through all points inside the cell
-    for (auto &p: c->list) {
-        // get point ID mapped in DB
-        const int mapping = s_q->get_id_mapping(p.id);
-        if (mapping >= 0) {
-            if (s_db->look_up_repre_index(mapping, db_mesh_id)) { // if mapping is a repre point in DB
-                if (verbose)
-                	cout << "Query pt #" << p.id << " matched with a repre. pt #" << mapping << endl;
-                
-                matching_repre_point_count++;
+	double a = rand_double_in_range(0.0, 1.0) - 0.5,
+		   b = rand_double_in_range(0.0, 1.0) - 0.5,
+		   c = rand_double_in_range(0.0, 1.0) - 0.5;
+	double norm = sqrt(a * a + b * b + c * c);
+	double ran_scale = tar_dist / norm;
+	a *= ran_scale; b *= ran_scale; c *= ran_scale;
 
-                // check whether the remaining and help points appear in query
-                bool all_appearing = true;
-                for (int i = 0; i < 3; i++) {
-                    const int remai_id = s_db->get_remai_id(mapping, i, db_mesh_id);
-                    if (!s_q->look_up_id_db(remai_id)) {
-                        if (verbose)
-                        	cout << "But remai[" << i << "] (db#" << remai_id << ") not appearing in the query" << endl;
-                        
-                        all_appearing = false;
-                    }
-                }
-                int help_id = s_db->get_help_id(mapping, db_mesh_id);
-                if (!s_q->look_up_id_db(help_id)) {
-                    if (verbose)
-                    	cout << "But help pt (db#" << help_id << ") not appearing in the query" << endl;
-                    all_appearing = false;
-                }
+	ret.x = p.x + a;
+	ret.y = p.y + a;
+	ret.z = p.z + a;
 
-                if (all_appearing) {
-                    matching_all_point_count++;
-                }
+	return ret;
+}
+#endif
+
+class CPQ_Detector {
+
+public:
+	struct Single_Coll_Tree {
+	    unordered_set<int> inserted_pt_id_set;
+	    CollTree* tree;
+	    Single_Coll_Tree() {
+	        tree = new CollTree();
+	    }
+	    bool exists(int pt_id) {
+	        if (inserted_pt_id_set.find(pt_id) == inserted_pt_id_set.end()) {
+	            return false;
+	        } else {
+	            return true;
+	        }
+	    }
+	    void insert(PtwID* p) {
+	        int pt_box_min[3], pt_box_max[3];
+	        pt_box_min[0] = pt_box_max[0] = (int) (p->pt->x * RSTREE_SCALE);
+	        pt_box_min[1] = pt_box_max[1] = (int) (p->pt->y * RSTREE_SCALE);
+	        pt_box_min[2] = pt_box_max[2] = (int) (p->pt->z * RSTREE_SCALE);
+	        // cout << pt_box_min[0] << endl << pt_box_max[0] << endl << pt_box_min[1] << endl << pt_box_max[1] << endl << pt_box_min[2] << endl << pt_box_max[2] << endl;
+	        tree->Insert(pt_box_min, pt_box_max, p->id);
+	        inserted_pt_id_set.insert(p->id);
+	    }
+	    bool check_coll(Pt3D* q, double d, double& acc_time) {
+	        double center[3] = { q->x, q->y, q->z };
+	        vector<int> v_ret;
+            int query_box_min[3], query_box_max[3];
+            for (int i = 0; i < 3; i++) {
+                query_box_min[i] = (int) ((center[i] - d - 0.01) * RSTREE_SCALE);
+                query_box_max[i] = (int) ((center[i] + d + 0.01) * RSTREE_SCALE);
+            }
+	        // timer_start();
+            bool got = tree->YoNSearch(query_box_min, query_box_max); // TODO: use a fast SphereSearch instead
+            // acc_time += timer_end(SECOND);
+            return got;
+	    }
+        virtual ~Single_Coll_Tree() {
+            delete tree;
+        }
+	};
+
+	vector<unordered_map<int, Single_Coll_Tree*>> v_coll_map;
+	vector<double> v_nn_dist;
+
+	void add_coll_map(vector<Entry_Pair*>& nn_v_pairs, double nn_dist, Query_Context* qc) {
+		unordered_map<int, Single_Coll_Tree*> coll_map;
+	    for (auto &i: nn_v_pairs) {
+	        auto pi = PtwID(i->e_database->repre->id, qc->db_meshes.get_mesh(i->id_db));
+
+	        if (coll_map.find(i->id_db) == coll_map.end()) {
+	            // i->id_db not exists in coll_map
+	            Single_Coll_Tree* sct = new Single_Coll_Tree;
+	            coll_map[i->id_db] = sct;
+	        }
+	        if (!coll_map[i->id_db]->exists(pi.id)) {
+	            coll_map[i->id_db]->insert(&pi);
+	        }
+	    }
+
+        for (auto &i: coll_map) {
+            i.second->tree->SortDim0();
+        }
+
+	    v_coll_map.push_back(coll_map);
+
+	    v_nn_dist.push_back(nn_dist);
+	}
+
+private:
+	bool check_coll(int id_db, Pt3D* pt, Query_Context* qc, double& acc_time, double& test_time) {
+		for (int i = 0; i < v_coll_map.size(); i++) {
+			// auto coll_map = v_coll_map[i];
+			// auto nn_q_d = v_nn_dist[i];
+
+            if (v_coll_map[i].find(id_db) == v_coll_map[i].end()) {
+            	return false;
+            }
+
+            // timer_start();
+            bool pass = v_coll_map[i][id_db]->check_coll(pt, v_nn_dist[i] + 2 * qc->epsilon, acc_time);
+            // test_time += timer_end(SECOND);
+            if (!pass) {
+                return false;
+            }
+		}
+
+		return true;
+	}
+
+public:
+	void check_coll_filter(vector<Entry_Pair*>& v_pairs, Query_Context* qc) {
+
+        double check_time = 0.0;
+        double query_time = 0.0;
+        double test_time = 0.0;
+
+	    unordered_map<int, unordered_map<int, bool>> checked_map;
+	    for (auto itr = v_pairs.begin(); itr != v_pairs.end(); itr++) {
+	        auto i = *itr;
+	        PtwID pi(i->e_database->repre->id, qc->db_meshes.get_mesh(i->id_db));
+	        bool collision = false;
+	        bool checked = false;
+
+	        if (checked_map.find(i->id_db) != checked_map.end()) {
+	            if (checked_map[i->id_db].find(pi.id) != checked_map[i->id_db].end()) {
+	                // already checked, thus read collision status directly from checked_map
+	                collision = checked_map[i->id_db][pi.id];
+	                checked = true;
+	            }
+	        }
+
+	        if (!checked) {
+                // timer_start();
+	            collision = check_coll(i->id_db, pi.pt, qc, query_time, test_time);
+                // check_time += timer_end(SECOND);
+
+	            // store collision status into checked_map
+	            if (checked_map.find(i->id_db) == checked_map.end()) {
+	                unordered_map<int, bool> new_checked_map;
+	                checked_map[i->id_db] = new_checked_map;
+	            }
+	            checked_map[i->id_db][pi.id] = collision;
+	        }
+
+	        if (collision) {
+                // #if VERBOSE > 0
+                //    cout << "Found collision: " << pi.id << endl;
+                // #endif
+	        } else {
+	            v_pairs.erase(itr--);
+	        }
+	    }
+
+        // cout << "Total check time: " << check_time << endl;
+        // cout << "Total query time: " << query_time << endl;
+        // cout << "Total test time: " << test_time << endl;
+    }
+
+    void check_coll_filter_bf(vector<Entry_Pair*>& v_pairs, Query_Context* qc) {
+
+        // for (auto itr = v_pairs.begin(); itr != v_pairs.end(); itr++) {
+        //     auto i = *itr;
+        //     auto pi = PtwID(i->e_database->repre->id, qc->db_meshes.get_mesh(i->id_db));
+        //     bool collision = false;
+
+        //     for (auto jtr = nn_v_pairs.begin(); jtr != nn_v_pairs.end(); jtr++) {
+        //         auto j = *jtr;
+
+        //         if (i->id_db != j->id_db) {
+        //             continue;
+        //         }
+
+        //         auto pj = PtwID(j->e_database->repre->id, qc->db_meshes.get_mesh(j->id_db));
+
+        //         double dist_ij = eucl_dist(&pi.pt, &pj.pt);
+        //         if (dist_ij > nn_q_d + 2 * qc->epsilon) {
+        //             continue;
+        //         }
+
+        //         // #if VERBOSE > 0
+        //         //     cout << "Found collision: " << pi.id << " & " << pj.id << ", dist = " << dist_ij << endl;
+        //         // #endif
+        //         collision = true;
+        //         break;
+        //     }
+
+        //     if (!collision) {
+        //         v_pairs.erase(itr--);
+        //     }
+        // }
+	}
+
+    virtual ~CPQ_Detector() {
+        for (auto &v: v_coll_map) {
+            for (auto &p: v) {
+                delete p.second;
             }
         }
     }
-    if (verbose)
-    	cout << "Matching repre: " << matching_repre_point_count << endl;
-    if (verbose)
-    	cout << "Matching all: " << matching_all_point_count << endl;
+};
 
-    if (matching_all_point_count > 0) { // if at least 1 all_matching point found
-        return true;
-    } else {
-        return false;
-    }
+struct Proposal_Stat {
+    double cal_entries_time;
+    double retrieve_congr_time;
+    int num_entries;
+    int num_hits;
+};
+
+void pair_proposal(PtwID* q, Query_Context* qc, vector<Entry_Pair*>& v_pairs, Proposal_Stat& ps) {
+
+	vector<Entry*> v_entries;
+
+    #if VERBOSE > 0
+        cout << endl << "Calculating entry list for query pt #" << q->id << " with min=" << qc->s_db.ann_min << endl;
+    #endif
+
+    timer_start();
+
+    // #ifdef TEST_MODE
+    //     #ifdef _3NN
+    //         cal_entries_3nn(q, qc, v_entries, test_ret_id, test_ret_dist);
+    //     #else
+    //         cal_entries(q, qc, v_entries, test_ret_id, test_ret_dist);
+    //     #endif
+    // #else
+        #ifdef _3NN
+        	#ifdef _3LNN
+                cal_entries_3lnn(q, qc, v_entries);
+            #else
+                cal_entries_3nn(q, qc, v_entries);
+            #endif
+        #else
+            #ifdef _DNT
+                cal_entries_donut(q, qc, v_entries);
+            #else
+                cal_entries(q, qc, v_entries);
+            #endif
+        #endif
+    // #endif
+
+    ps.cal_entries_time = timer_end(SECOND);
+    ps.num_entries = v_entries.size();
+
+    #if VERBOSE > 0
+        cout << endl << "Size of the entry list for query pt #" << q->id << ": " << v_entries.size() << endl;
+        #if VERBOSE > 4
+            for (auto &e: v_entries)
+                cout << e->to_str(10) << endl;
+            cout << endl;
+        #endif
+    #endif
+
+    timer_start();
+
+    retrieve_congr_entry(v_entries, qc, v_pairs);
+
+    ps.retrieve_congr_time = timer_end(SECOND);
+    ps.num_hits = v_pairs.size();
+
+    #if VERBOSE > 0
+        cout << endl << "Size of the hit list for query pt #" << q->id << ": " << v_pairs.size() << endl;
+        #if VERBOSE > 4
+            for (auto &p: v_pairs)
+                cout << p->to_str(10) << endl;
+            cout << endl;
+        #endif
+    #endif
+
+    // #ifdef TEST_MODE // depr: testing the drift error effects
+    //     double drift_dist = 0.1;
+    //     for (int i = 0; i < 10; i++) {
+    //     	PtwID drift_repr(v_entries[0]->repre->id, drift(v_entries[0]->repre->pt, drift_dist));
+    //     	PtwID drift_rem0(v_entries[0]->remai[0]->id, drift(v_entries[0]->remai[0]->pt, drift_dist));
+    //     	PtwID drift_rem1(v_entries[0]->remai[1]->id, drift(v_entries[0]->remai[1]->pt, drift_dist));
+    //     	PtwID drift_rem2(v_entries[0]->remai[2]->id, drift(v_entries[0]->remai[2]->pt, drift_dist));
+    //     	Entry* mock_entry_q = new Entry(drift_repr, drift_rem0, drift_rem1, drift_rem2, PtwID());
+    //     	v_pairs.push_back(new Entry_Pair(mock_entry_q, v_pairs[0]->e_database, v_pairs[0]->id_db));
+    //     }
+    // #endif
 }
 
-void test_verification(const Struct_Q* s_q, const Grid* g_q, const Struct_DB* s_db, bool verbose = false) {
-    cout << "Test verification..." << endl;
+bool iter(Query_Context* qc, Exec_stat& stat) {
 
-    int counter = 0, matched_cells_count = 0;
+    stat = (const struct Exec_stat) { 0 };
 
-    // loop through all query cells
-    for (auto it = g_q->cells_map.begin(); it != g_q->cells_map.end(); it++) {
-        if (verbose)
-        	cout << "For query cell #" << counter << endl;
+    timer_start();
 
-        if (test_verification_cell(it->second, s_q, s_db, verbose)) {
-            matched_cells_count++;
+    vector<Entry_Pair*> ret_left_icp_only, ret_left_goicp;
+
+    int selected_pt_id = rand() % qc->mesh_q.size();
+
+    #ifdef TEST_MODE
+        if (qc->force_cell >= 0) {
+            selected_pt_id = qc->force_cell;
         }
-        counter++;
-    }
-    cout << "Summary: " << matched_cells_count << "/" << g_q->cells_map.size() << " cells are matched" << endl;
+    #endif
 
+    PtwID q(selected_pt_id, &qc->mesh_q);
+
+    #ifdef TEST_MODE
+        vector<int> test_ret_id;
+        vector<double> test_ret_dist;
+        if (!test_verification_pt(&q, qc, test_ret_id, test_ret_dist, true)) {
+        	cout << "Test failed because the selected query pt cannot be mapped to a repre pt in DB!" << endl;
+        	timer_end(SECOND);
+        	return false;
+        }
+    #endif
+
+    vector<Entry_Pair*> v_pairs;
+    Proposal_Stat prop_stat = (const struct Proposal_Stat){ 0 };
+    pair_proposal(&q, qc, v_pairs, prop_stat);
+
+    stat.prop_time = timer_end(SECOND);
+    stat.cal_entries_time = prop_stat.cal_entries_time;
+    stat.retrieve_congr_time = prop_stat.retrieve_congr_time;
+    stat.num_entries = prop_stat.num_entries;
+
+    #ifdef _CPQ
+
+        timer_start();
+
+        CPQ_Detector detector;
+
+    	int nn_q_arr[NR];
+    	double nn_q_d = qc->r_q.nn_sphere(q.pt, 0.01, nn_q_arr, {}, NR);
+
+        for (int i = 0; i < NR; i++) {
+
+        	int nn_q_id = nn_q_arr[i];
+        	PtwID nn_q(nn_q_id, &qc->mesh_q);
+        	double nn_q_d = eucl_dist(q.pt, nn_q.pt);
+
+            #if VERBOSE > 0
+        	   cout << "Pair proposal for query NN pt " << qc->s_q.id_q_to_str(nn_q_id) << " of dist = " << nn_q_d << endl;
+            #endif
+
+    	    vector<Entry_Pair*> nn_v_pairs;
+            Proposal_Stat nn_prop_stat = (const struct Proposal_Stat){ 0 };
+
+            timer_start();
+    	    pair_proposal(&nn_q, qc, nn_v_pairs, nn_prop_stat);
+    	    stat.cpq_prop_time = timer_end(SECOND);
+
+            // timer_start();
+    	    detector.add_coll_map(nn_v_pairs, nn_q_d, qc);
+            // cout << "Line 1374: add_coll_map time: " << timer_end(SECOND) << endl;
+
+        }
+
+        // timer_start();
+        detector.check_coll_filter(v_pairs, qc);
+        // cout << "Line 1381: check_coll_filter time: " << timer_end(SECOND) << endl;
+    
+        #if VERBOSE > 0
+            cout << "Collision complete, coll count = " << v_pairs.size() << endl;
+        #endif
+
+        stat.cpq_total_time = timer_end(SECOND);
+        stat.prop_excpq_time = stat.prop_time;
+        stat.prop_time += stat.cpq_total_time;
+        stat.cpq_ovh_time = stat.cpq_total_time - stat.cpq_prop_time;
+
+    #endif
+
+    stat.veri_size = v_pairs.size();
+
+    timer_start();
+    timer_start();
+
+    bool found_one_iter = false;
+    double first_time_iter = 0.0;
+
+    // Step 1: calculate transformation, initial distance, and leave those for step 2&3
+    for (auto &h: v_pairs) {
+        h->cal_xf();
+        // h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q, h->id_db, &h->xf); // TODO: use another unimplemented interface
+        h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q, h->id_db, &h->xf, qc->delta); // TODO: simplified method, stops when error is larger
+        // cout << "Initial distance: " << h->init_dist << endl;
+
+        // if (h->init_dist <= sq(qc->delta)) {
+        if (h->init_dist >= 0) {
+            stat.num_verified++;
+            if (stat.num_verified == 1 && !found_one_iter) {
+                first_time_iter = timer_end(SECOND);
+                found_one_iter = true;
+            }
+        } else {
+            ret_left_icp_only.push_back(h);
+        }
+    }
+
+    #if VERBOSE > 0
+        cout << "Left for ICP-only check: " << ret_left_icp_only.size() << endl;
+    #endif
+
+    stat.num_icp_only = ret_left_icp_only.size();
+
+    // // Step 2: perform the ICP-only check
+    // for (auto &r: ret_left_icp_only) {
+    //     double updated_err = qc->goicp[r->id_db]->ICP(&r->xf); // ICP-only
+    //     cout << "Updated distance with ICP-only: " << updated_err << endl;
+
+    //     if (updated_err <= sq(qc->delta)) {
+    //         num_verified_iter++;
+    //         if (num_verified_iter == 1 && !found_one_iter) {
+    //             first_time_iter = timer_end(SECOND);
+    //             found_one_iter = true;
+    //         }
+    //     } else {
+    //         ret_left_goicp.push_back(r);
+    //     }
+    // }
+
+    #if VERBOSE > 0
+        cout << "Left for GoICP check: " << ret_left_goicp.size() << endl;
+    #endif
+
+    stat.num_goicp = ret_left_goicp.size();
+
+    // // Step 3: perform GoICP
+    // for (auto &r: ret_left_goicp) {
+    //  goicp[r->db_id].fly_init();
+    //  goicp[r->db_id].OuterBnB(); // TODO: return false?
+
+    //  // TODO
+    // }
+
+    if (!found_one_iter) {
+        first_time_iter = timer_end(SECOND);
+    }
+
+    stat.veri_time = timer_end(SECOND);
+    stat.first_verified_time += (stat.prop_time + first_time_iter);
+    stat.user_time = (stat.prop_time + stat.veri_time);
+
+    // cout << "# verified: " << stat.num_verified << endl;
+
+    if (stat.num_verified > 0)
+        return true;
+    else
+        return false;
 }
 
-Cell* get_random_q_cell(const Grid* g_q, int& selected_cell_id, int cheating = -1) {
-    if (cheating < 0) {
-        selected_cell_id = rand() % g_q->cells_map.size();
-    } else {
-        selected_cell_id = cheating;
+void exec(Query_Context* qc, Exec_stat& stat) {
+
+    #ifdef PROB
+        const int k_m = 20;
+    #else
+        const int k_m = 1;
+    #endif
+
+    Exec_stat stats[k_m];
+
+    int num_itr = 0;
+    bool find_accept = false;
+
+    for (int t = 0; t < k_m; t++) {
+
+        find_accept = iter(qc, stats[t]);
+        num_itr++;
+
+        if (find_accept)
+            break;
+
+        #ifdef TEST_MODE
+            break;
+        #endif
+
     }
-    auto ptr = g_q->cells_map.begin();
-    for (int i = 0; i < selected_cell_id; i++, ptr++);
-    return ptr->second;
+
+    get_avg_stat(stats, 1, stat);
+
+    stat.num_iterations = num_itr;
+    stat.success = find_accept;
+    if (!find_accept) {
+    	stat.num_fail++;
+    }
 }
 
 int main(int argc, char **argv) {
-    
-    if (argc < 5) {
-        cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename delta [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
-        exit(1);
-    }
 
-    int verbose = -1, force_cell = -1;
-    unordered_set<int> force_pts;
-    bool write_stat = false;
-    string stat_filename = "";
-    for (int i = 0; i < argc; i++) {
-        string argv_str(argv[i]);
-        if (argv_str.rfind("-verbose", 0) == 0)
-        	verbose = atoi(argv[i] + 9);
-        else if (argv_str.rfind("-force_cell", 0) == 0)
-        	force_cell = atoi(argv[i] + 12);
-        else if (argv_str.rfind("-force_pt", 0) == 0)
-            force_pts.insert(atoi(argv[i] + 10));
-        else if (argv_str.rfind("-stat", 0) == 0) {
-            write_stat = true;
-            stat_filename = string(argv[i] + 6);
+    // for (int i = 0; i < argc; i++) {
+    //     cout << argv[i] << " ";
+    // }
+    // cout << endl;
+    // exit(0);
+
+    #ifdef PROB
+        if (argc < 6) {
+            cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename delta epsilon [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+            exit(1);
         }
-    }
+    #else
+        if (argc < 5) {
+            cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename delta [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+            exit(1);
+        }
+    #endif
 
-    int argi = 0;
-    string db_path = argv[(++argi)];
-    string grid_filename = argv[(++argi)];
-    string query_filename = argv[(++argi)];
+    Query_Context qc;
+    qc.read_param(argc, argv);
 
-    double delta = atof(argv[(++argi)]);
+    cout << "delta: " << qc.delta << endl;
+    cout << "epsilon: " << qc.epsilon << endl;
+    cout << endl;
 
     srand(time(NULL));
 
     timer_start();
 
-    cout << "Reading database files from " << db_path << endl;
-    DB_Meshes db_meshes;
-    int num_meshes = db_meshes.read_from_path(db_path);
-    cout << "Total no. meshes: " << num_meshes << endl << endl;
+    if(!qc.load()) {
+        exit(1);
+    }
 
-    db_meshes.build_kd();
-
-    // load the DB structure
-    cout << "Loading DB structure from " << grid_filename << endl;
-    Struct_DB s_db;
-    s_db.read(grid_filename, &db_meshes);
-    cout << "Total no. cells: " << s_db.get_total_cells_count() << endl;
-
-    ////////////////////////// Toggle_1 /////////////////////////////////////
-    string idx_filename = get_idx_filename(grid_filename);
-    ////////////////////////// Toggle_1 /////////////////////////////////////
-
-    ////////////////////////// Toggle_2 /////////////////////////////////////
-    // string idx_filename = grid_filename + ".idx.4";
-    ////////////////////////// Toggle_2 /////////////////////////////////////
-
-    // load the index entries tree
-    cout << "Loading index entries from " << idx_filename << endl;
-
-    ////////////////////////// Toggle_1 /////////////////////////////////////
-    IndexTree tree;
-    tree.Load(idx_filename.c_str());
-    ////////////////////////// Toggle_1 /////////////////////////////////////
-
-    ////////////////////////// Toggle_2 /////////////////////////////////////
-    // rtree_info idx_rtree_info = read_rstree_info("../common/config/rstree.idx.config");
-    // cout << "R-tree config: m=" << idx_rtree_info.m << ", M=" << idx_rtree_info.M << ", dim=" << idx_rtree_info.dim << ", reinsert=" << idx_rtree_info.reinsert_p << endl << endl;
-    // node_type* tree;
-    // read_rtree(&tree, idx_filename.c_str(), &idx_rtree_info);
-    ////////////////////////// Toggle_2 /////////////////////////////////////
-
-    cout << "Reading query mesh from " << query_filename << endl;
-    Mesh mesh_q;
-    mesh_q.read_from_path(query_filename);
-
-    // load the query R-tree
-    C_RTree query_rtree;
-    query_rtree.read_from_mesh(query_filename);
-
-    // load the query structure
-    Struct_Q s_q;
-    s_q.read(query_filename + ".info");
+    cout << "Final delta by number of query: " << qc.delta << endl;
 
     auto exec_i_time = timer_end(SECOND);
     cout << "Total I/- time: " << exec_i_time << "(s)" << endl;
 
     cout << endl;
 
-    const int exec_times = 100;
-    double exec_prop_time = 0, exec_veri_time = 0, exec_user_time = 0, exec_retr_time = 0;
-    int exec_veri_num = 0;
-    int exec_num_fail = 0;
+    Exec_stat stats[exec_times];
 
     for (int exec_i = 0; exec_i < exec_times; exec_i++) {
 
-	    timer_start();
+        // cout << "Execution #" << exec_i << ": " << endl;
+        exec(&qc, stats[exec_i]);
+        // cout << endl;
 
-	    int total_num_verification = 0;
-	    double total_time = 0.0, proposal_time = 0.0, verification_time = 0.0;
-	    double grid_time = 0.0;
-        double time_p1 = 0.0, time_p2 = 0.0;
-
-	    double w_q = 3.464102 * s_db.get_w();
-
-#if VERBOSE >= 0
-        cout << "Query voxelized of grid size " << w_q << endl;
-#endif
-
-	    // timer_start();
-	    Grid g_q(w_q);
-	    g_q.gridify(&mesh_q);
-	    // cout << "Gridify completed in " << timer_end(SECOND) << "(s)" << endl;
-
-#if VERBOSE >= 0
-        cout << "Total number of query cells: " << g_q.cells_map.size() << endl;
-        cout << endl;
-#endif
-
-	    // cout << "Displaying info of each query cell:" << endl;
-	    // for (auto it = g_q.cells_map.begin(); it != g_q.cells_map.end(); it++) {
-	    //     cout << it->second->x << " "
-	    //          << it->second->y << " "
-	    //          << it->second->z << " "
-	    //          << it->second->list.size() << endl;
-	    // }
-	    // cout << endl;
-
-// #ifdef TEST_MODE
-//         test_verification(&s_q, &s_db, false);
-// #endif
-
-        bool find_accept = false;
-	    const int k_m = 10;
-	    int verified_size = 0;
-
-	    for (int t = 0; t < k_m; t++) {
-
-	        int selected_cell_id;
-	        Cell* selected_cell;
-
-#ifdef TEST_MODE
-	        selected_cell = get_random_q_cell(&g_q, selected_cell_id, force_cell);
-#else
-	        selected_cell = get_random_q_cell(&g_q, selected_cell_id);
-#endif
-
-#if VERBOSE >= 0
-            cout << "Selecting cell #" << selected_cell_id
-                 << " with " << selected_cell->list.size() << " pts" << endl;
-#endif
-
-#ifdef TEST_MODE
-            if(!test_verification_cell(selected_cell, &s_q, &s_db, true)) {
-                continue;
-            }
-#endif
-
-	        vector<Entry_Pair*> v_pairs;
-
-	        for (auto &q: selected_cell->list) {
-
-#ifdef TEST_MODE
-                // under test mode AND force pts list not empty AND q is not a force pt -> continue
-                // that is, only execute force pts
-                if (!force_pts.empty() && (force_pts.find(q.id) == force_pts.end()))
-                    continue;
-#endif
-	            
-                double ann_min = s_db.get_ann_min();
-#if VERBOSE > 0
-	            cout << endl << "Calculating entry list for query pt #" << q.id << " with min=" << ann_min << endl;
-#endif
-
-	            timer_start();
-
-	            vector<Entry*> v_entries;
-	            int num_entries = cal_entries(q, ann_min, &s_q, &mesh_q, &query_rtree, v_entries);
-
-                double time_incre_p1 = timer_end(SECOND);
-                time_p1 += time_incre_p1;
-
-#if VERBOSE > 0
-	            cout << endl << "Size of the entry list for query pt #" << q.id << ": " << num_entries << endl;
-
-    #if VERBOSE > 4
-                for (auto &e: v_entries)
-                    cout << e->to_str(10) << endl;
-                cout << endl;
-    #endif
-
-#endif
-
-	            timer_start();
-
-                int total_page_accessed = 0;
-
-                ////////////////////////// Toggle_1 /////////////////////////////////////
-                // int num_hits = retrieve_congr_entry_bundle(v_entries, s_q.epsilon, &tree, &s_db, v_pairs);
-                int num_hits = retrieve_congr_entry(v_entries, s_q.epsilon, &tree, &s_db, v_pairs);
-                ////////////////////////// Toggle_1 /////////////////////////////////////
-
-                ////////////////////////// Toggle_2 /////////////////////////////////////
-	            // int num_hits = retrieve_congr_entry(v_entries, s_q.epsilon, tree, &idx_rtree_info, &s_db, v_pairs, total_page_accessed, (verbose > 4));
-             //    // int num_hits = retrieve_congr_entry_bundle(v_entries, s_q.epsilon, tree, &idx_rtree_info, &s_db, v_pairs, total_page_accessed, (verbose > 4));
-                ////////////////////////// Toggle_2 /////////////////////////////////////
-
-                double time_incre_p2 = timer_end(SECOND);
-                time_p2 += time_incre_p2;
-
-#if VERBOSE > 0
-	            cout << endl << "Size of the hit list for query pt #" << q.id << ": " << num_hits << endl;
-#endif
-
-                // cout << "Total page accessed: " << total_page_accessed << endl;
-	        }
-
-#if VERBOSE >= 0
-            cout << endl << "Total hit size is " << v_pairs.size() << endl << endl;
-	#if VERBOSE > 4
-        	for (auto &p: v_pairs) {
-        		cout << p->to_str(10) << endl;
-        	}
-	#endif
-#endif
-
-	        total_num_verification += v_pairs.size();
-
-	        timer_start();
-	        verified_size = 0;
-	        for (auto &h: v_pairs) {
-	            // cout << h->to_str() << endl;
-	            h->cal_xf();
-
-	            double result = db_meshes.cal_corr_err(&mesh_q, h->id_db, &h->xf, delta);
-	            if (result > 0) {
-	                // cout << "Accept:" << endl << h->to_str(10) << endl << result << endl;
-	                verified_size++;
-	            }
-	        }
-	        verification_time += timer_end(SECOND);
-
-	        if (verified_size > 0) {
-                find_accept = true;
-	            break;
-            }
-
-#ifdef TEST_MODE
-	        break;
-#endif
-
-	    }
-
-	    total_time = timer_end(SECOND);
-	    proposal_time = total_time - verification_time; // TODO: also minus retrieval time
-
-#if VERBOSE >= 0
-	    cout << endl;
-	    cout << "Total number of candidate transformations: " << total_num_verification << endl;
-	    cout << "Final number of valid transformations: " << verified_size << endl;
-	    cout << "Total time: " << total_time << "(s)" << endl;
-	    cout << "Proposal time: " << proposal_time << "(s)" << endl;
-	    cout << "Verification time: " << verification_time << "(s)" << endl;
-
-        cout << "cal entries in " << time_p1 << "(s)" << endl;
-        cout << "retrieve congr in " << time_p2 << "(s)" << endl << endl;
-#endif
-
-	    exec_prop_time += proposal_time;
-	    exec_veri_time += verification_time;
-	    exec_veri_num += total_num_verification;
-        exec_user_time += total_time;
-
-        if (!find_accept) {
-            exec_num_fail++;
-        }
-
-#ifdef TEST_MODE
-	    break;
-#endif
+        #if VERBOSE >= 0
+            print_stat(stats[exec_i]);
+            cout << endl;
+        #endif
 	}
 
-    double aver_user_time = exec_user_time / exec_times;
-    double aver_prop_time = exec_prop_time / exec_times;
-    double aver_veri_time = exec_veri_time / exec_times;
-    double aver_retr_time = exec_retr_time / exec_times;
-    double aver_veri_num = (double) exec_veri_num / exec_times;
+	Exec_stat avg_stat;
+	get_avg_stat(stats, exec_times, avg_stat);
 
-    if (write_stat) {
-        ofstream stat_ofs;
-        stat_ofs.open(stat_filename, ofstream::out | ofstream::app);
-        stat_ofs /*<< left << setw(12) << setfill(' ')*/
-            << aver_user_time << "\t";
-        stat_ofs /*<< left << setw(12) << setfill(' ')*/
-            << aver_prop_time << "\t";
-        stat_ofs /*<< left << setw(12) << setfill(' ')*/
-            << aver_veri_time << "\t";
-        stat_ofs /*<< left << setw(12) << setfill(' ')*/
-            << aver_retr_time << "\t";
-        stat_ofs /*<< left << setw(12) << setfill(' ')*/
-            << aver_veri_num << "\t";
-        stat_ofs /*<< left << setw(12) << setfill(' ')*/
-            << exec_num_fail << "\t";
-        stat_ofs /*<< left << setw(12) << setfill(' ')*/
-            << exec_i_time << "\t";
-        stat_ofs.close();
+    if (qc.write_stat) {
+    	write_stat(avg_stat, qc.stat_filename);
     }
 
-#ifndef TEST_MODE
+    cout << "Average stat over all the executions: " << endl << endl;
+    print_stat(avg_stat);
     cout << endl;
-    cout << "Average proposal time: " << aver_prop_time << endl;
-    cout << "Average verification time: " << aver_veri_time << endl;
-    cout << "Average retrieval time: " << aver_retr_time << endl;
-    cout << "Average number of candidate transformations: " << aver_veri_num << endl;
-    cout << "Failed exec: " << exec_num_fail << endl;
-    cout << "Average user time: " << aver_user_time << endl;
-#endif
-
-    cout << endl;
-
 }

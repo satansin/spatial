@@ -39,12 +39,10 @@ inline double sq(double d) {
 	return (d * d);
 }
 
-inline Pt3D middle_pt(const Pt3D* p, const Pt3D* q) {
-	Pt3D mid;
-	mid.x = (p->x + q->x) * 0.5;
-	mid.y = (p->y + q->y) * 0.5;
-	mid.z = (p->z + q->z) * 0.5;
-	return mid;
+inline void middle_pt(const Pt3D* p, const Pt3D* q, Pt3D& ret) {
+	ret.x = (p->x + q->x) * 0.5;
+	ret.y = (p->y + q->y) * 0.5;
+	ret.z = (p->z + q->z) * 0.5;
 }
 
 inline void print_pt(const Pt2D* p) {
@@ -98,10 +96,14 @@ inline double dot_prd(const Pt3D* a, const Pt3D* b) {
 	return (a->x * b->x + a->y * b->y + a->z * b->z);
 }
 
-inline const Pt3D cross_prd(const Pt3D* a, const Pt3D* b) {
-	return {a->y * b->z - a->z * b->y,
-			a->z * b->x - a->x * b->z,
-			a->x * b->y - a->y * b->x};
+inline void cross_prd(const Pt3D* a, const Pt3D* b, Pt3D& ret) {
+	ret.x = a->y * b->z - a->z * b->y;
+	ret.y = a->z * b->x - a->x * b->z;
+	ret.z = a->x * b->y - a->y * b->x;
+}
+
+inline double cos_theta(const Pt3D* pa, const Pt3D* pb) {
+	return dot_prd(pa, pb) / (pa->mode() * pb->mode());
 }
 
 #endif

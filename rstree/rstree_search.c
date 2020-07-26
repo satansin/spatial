@@ -753,7 +753,7 @@ void k_NN_search(node_type *root, R_TYPE *query, int k, NN_type **returnResult, 
 }
 
 /**
- * Gives me the squred radius
+ * Give me the squred radius
  */
 void k_NN_search_sphere(node_type *root, R_TYPE *query, int k, NN_type **returnResult, rtree_info *aInfo, R_LONG_TYPE rad)
 {
@@ -1006,7 +1006,7 @@ void NN_range_NodeSearch(node_type *curr_node, R_TYPE *query, RangeReturn_type *
 
 
 /**
- * Gives me the squred distance
+ * Give me the squred distance
  */
 void NN_range_search(node_type *root, R_TYPE *query, RangeReturn_type **rr_ret, rtree_info *aInfo, R_LONG_TYPE rad, double span, int excl_list[], int excl_num)
 {

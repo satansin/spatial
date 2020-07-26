@@ -54,9 +54,9 @@ struct Extracted_pair_gen {
         this->p1 = i1;
         this->p2 = i2;
     }
-    void fill(const Mesh* mesh, double r12, double r34) {
-        auto pt1 = mesh->get_pt(p1);
-        auto pt2 = mesh->get_pt(p2);
+    void fill(Mesh* mesh, double r12, double r34) {
+        auto pt1 = *(mesh->get_pt(p1));
+        auto pt2 = *(mesh->get_pt(p2));
         e = (pt2 - pt1) * r12 + pt1;
         f = (pt2 - pt1) * r34 + pt1;
     }
@@ -69,9 +69,9 @@ struct Extracted_pair {
         this->p1 = i1;
         this->p2 = i2;
     }
-    void fill(const Mesh* mesh, double r) {
-        auto pt1 = mesh->get_pt(p1);
-        auto pt2 = mesh->get_pt(p2);
+    void fill(Mesh* mesh, double r) {
+        auto pt1 = *(mesh->get_pt(p1));
+        auto pt2 = *(mesh->get_pt(p2));
         e = (pt2 - pt1) * r + pt1;
     }
 };
@@ -84,10 +84,10 @@ bool solver(double a[3], double b[3], double& x, double &y) {
 }
 
 bool cal_3d_intersection(Mesh* mesh_q, int tab[4], double& l, double& la, double& mu, Pt3D& e, Pt3D& f, double& angle) {
-    auto q1 = mesh_q->get_pt(tab[0]);
-    auto q2 = mesh_q->get_pt(tab[1]);
-    auto q3 = mesh_q->get_pt(tab[2]);
-    auto q4 = mesh_q->get_pt(tab[3]);
+    auto q1 = *(mesh_q->get_pt(tab[0]));
+    auto q2 = *(mesh_q->get_pt(tab[1]));
+    auto q3 = *(mesh_q->get_pt(tab[2]));
+    auto q4 = *(mesh_q->get_pt(tab[3]));
     auto q12 = q2 - q1;
     auto q34 = q4 - q3;
 
@@ -123,16 +123,16 @@ bool cal_3d_intersection(Mesh* mesh_q, int tab[4], double& l, double& la, double
 
 bool cal_3d_intersection_new(Mesh* mesh_q, int tab[4], double& l, double& la, double& mu, Pt3D& e, Pt3D& f, double& angle) {
     
-    auto q1 = mesh_q->get_pt(tab[0]);
-    auto q2 = mesh_q->get_pt(tab[1]);
-    auto q3 = mesh_q->get_pt(tab[2]);
-    auto q4 = mesh_q->get_pt(tab[3]);
+    auto q1 = *(mesh_q->get_pt(tab[0]));
+    auto q2 = *(mesh_q->get_pt(tab[1]));
+    auto q3 = *(mesh_q->get_pt(tab[2]));
+    auto q4 = *(mesh_q->get_pt(tab[3]));
     auto q12 = q2 - q1;
     auto q34 = q4 - q3;
 
-    auto n = cross_prd(&q12, &q34);
-    auto n1 = cross_prd(&q12, &n);
-    auto n2 = cross_prd(&q34, &n);
+    Pt3D n;  cross_prd(&q12, &q34, n);
+    Pt3D n1; cross_prd(&q12, &n, n1);
+    Pt3D n2; cross_prd(&q34, &n, n2);
     auto q1_q3 = q3 - q1;
     auto q3_q1 = q1 - q3;
     la = dot_prd(&q1_q3, &n2) / dot_prd(&q12, &n2);
@@ -166,10 +166,10 @@ bool check_dup(T* val, int n) {
 }
 
 bool cal_intersection(Mesh* mesh_q, int ran1, int ran2, int ran3, int ran4, double& la, double& mu, Pt3D& e, double& angle) {
-	auto q1 = mesh_q->get_pt(ran1);
-	auto q2 = mesh_q->get_pt(ran2);
-	auto q3 = mesh_q->get_pt(ran3);
-	auto q4 = mesh_q->get_pt(ran4);
+	auto q1 = *(mesh_q->get_pt(ran1));
+	auto q2 = *(mesh_q->get_pt(ran2));
+	auto q3 = *(mesh_q->get_pt(ran3));
+	auto q4 = *(mesh_q->get_pt(ran4));
 	mu = ((q3.x - q1.x) * (q2.y - q1.y) - (q3.y - q1.y) * (q2.x - q1.x))
 	   / ((q4.y - q3.y) * (q2.x - q1.x) - (q4.x - q3.x) * (q2.y - q1.y));
 
@@ -206,7 +206,7 @@ bool test_3d_coplanar(Mesh* mesh_q, C_RTree* r_q, Struct_Q* s_q, int* ran, doubl
         for (int i = 0; i < m; i++) {
             for (int j = i + 1; j < m; j++) {
                 auto q_i = mesh_q->get_pt(i), q_j = mesh_q->get_pt(j);
-                Dist_pair dp { i, j, eucl_dist(&q_i, &q_j) };
+                Dist_pair dp { i, j, eucl_dist(q_i, q_j) };
                 pairwise_dists.push_back(dp);
             }
         }
@@ -245,7 +245,7 @@ bool test_3d_coplanar(Mesh* mesh_q, C_RTree* r_q, Struct_Q* s_q, int* ran, doubl
             auto bq1 = mesh_q->get_pt(ran[0]);
             auto bq2 = mesh_q->get_pt(ran[1]);
 
-            d = eucl_dist(&bq1, &bq2);
+            d = eucl_dist(bq1, bq2);
 
             for (int j = 0; j < 100; j++) {
                 do {
@@ -254,7 +254,7 @@ bool test_3d_coplanar(Mesh* mesh_q, C_RTree* r_q, Struct_Q* s_q, int* ran, doubl
 
                 auto bq3 = mesh_q->get_pt(ran[2]);
                 vector<int> bq4_cand_set;
-                r_q->range_sphere_dist_err(&bq3, d, 0.001, bq4_cand_set);
+                r_q->range_sphere_dist_err(bq3, d, 0.001, bq4_cand_set);
                 if (bq4_cand_set.empty()) {
                     continue;
                 }
@@ -313,7 +313,7 @@ bool test_coplanar(Mesh* mesh_q, Struct_Q* s_q, int* ran, double& d12_q, double&
 
         // get the first 3 base points
         for (int i = 0; i < 3; i++) {
-            bq[i] = mesh_q->get_pt(ran[i]);
+            bq[i] = *(mesh_q->get_pt(ran[i]));
         }
         
         // calculate the equation plane
@@ -335,7 +335,7 @@ bool test_coplanar(Mesh* mesh_q, Struct_Q* s_q, int* ran, double& d12_q, double&
             if (i == ran[0] || i == ran[1] || i == ran[2]) // skip the repeats
                 continue;
 
-            bq[3] = mesh_q->get_pt(i);
+            bq[3] = *(mesh_q->get_pt(i));
             double dist = (a * bq[3].x + b * bq[3].y + c * bq[3].z + d) / div;
 
             if(eq(dist, 0) && cal_intersection(mesh_q, ran[0], ran[1], ran[2], i, la, mu, e, angle)) {
@@ -372,7 +372,7 @@ bool test_coplanar(Mesh* mesh_q, Struct_Q* s_q, int* ran, double& d12_q, double&
     return true;
 }
 
-void match_base_in_db_mesh_gen(const Mesh* mesh_p, C_RTree* r_tree, double d, double l, double epsilon, double la, double mu, double angle, int db_id, vector<Congr_base>& ret) {
+void match_base_in_db_mesh_gen(Mesh* mesh_p, C_RTree* r_tree, double d, double l, double epsilon, double la, double mu, double angle, int db_id, vector<Congr_base>& ret) {
 
     double err = max(2.0 * epsilon, 0.001);
 
@@ -385,10 +385,10 @@ void match_base_in_db_mesh_gen(const Mesh* mesh_p, C_RTree* r_tree, double d, do
 
     for (int i = 0; i < n; i++) {
 
-        Pt3D p = mesh_p->get_pt(i);
+        auto p = mesh_p->get_pt(i);
 
         intersection_ret.clear();
-        r_tree->range_sphere_dist_err(&p, d, err, intersection_ret);
+        r_tree->range_sphere_dist_err(p, d, err, intersection_ret);
 
         if (!intersection_ret.empty()) {
             vector<Extracted_pair_gen> ep_v;
@@ -423,13 +423,13 @@ void match_base_in_db_mesh_gen(const Mesh* mesh_p, C_RTree* r_tree, double d, do
             continue;
         }
 
-        auto ep1 = mesh_p->get_pt(e_ep.p1) - e_ep.e;
+        auto ep1 = *(mesh_p->get_pt(e_ep.p1)) - e_ep.e;
         double ep1_mode = ep1.mode();
 
         for (auto &i: intersection_ret) {
 
             auto ef = eps[i].f - e_ep.e;
-            auto fp3 = mesh_p->get_pt(eps[i].p1) - eps[i].f;
+            auto fp3 = *(mesh_p->get_pt(eps[i].p1)) - eps[i].f;
 
             // cout << dot_prd(ep1, ef) << endl;
 
@@ -450,7 +450,7 @@ void match_base_in_db_mesh_gen(const Mesh* mesh_p, C_RTree* r_tree, double d, do
     }
 }
 
-void match_base_in_db_mesh(const Mesh* mesh_p, C_RTree* r_tree, double d12_q, double d34_q, double epsilon, double la, double mu, double angle, int db_id, vector<Congr_base>& ret) {
+void match_base_in_db_mesh(Mesh* mesh_p, C_RTree* r_tree, double d12_q, double d34_q, double epsilon, double la, double mu, double angle, int db_id, vector<Congr_base>& ret) {
     
     vector<int> intersection_ret;
     unordered_map<int, vector<Extracted_pair>> ep12;
@@ -461,10 +461,10 @@ void match_base_in_db_mesh(const Mesh* mesh_p, C_RTree* r_tree, double d12_q, do
     double err = max(0.01, 2 * epsilon);
     for (int i = 0; i < n; i++) {
 
-        Pt3D p = mesh_p->get_pt(i);
+        auto p = mesh_p->get_pt(i);
 
         intersection_ret.clear();
-        r_tree->range_sphere_dist_err(&p, d12_q, err, intersection_ret);
+        r_tree->range_sphere_dist_err(p, d12_q, err, intersection_ret);
 
         if (!intersection_ret.empty()) {
             vector<Extracted_pair> ep12_v;
@@ -479,7 +479,7 @@ void match_base_in_db_mesh(const Mesh* mesh_p, C_RTree* r_tree, double d12_q, do
         }
 
         intersection_ret.clear();
-        r_tree->range_sphere_dist_err(&p, d34_q, err, intersection_ret);
+        r_tree->range_sphere_dist_err(p, d34_q, err, intersection_ret);
 
         if (!intersection_ret.empty()) {
             vector<Extracted_pair> ep34_v;
@@ -494,8 +494,8 @@ void match_base_in_db_mesh(const Mesh* mesh_p, C_RTree* r_tree, double d12_q, do
         }
     }
 
-    // cout << "Num of matching 12: " << count12 << endl;
-    // cout << "Num of matching 34: " << count34 << endl;
+    cout << "Num of matching 12: " << count12 << endl;
+    cout << "Num of matching 34: " << count34 << endl;
 
     double l34 = d34_q * mu;
 
@@ -511,12 +511,12 @@ void match_base_in_db_mesh(const Mesh* mesh_p, C_RTree* r_tree, double d12_q, do
 
                 auto iPt = mesh_p->get_pt(i);
                 auto p1 = mesh_p->get_pt(v12.first);
-                auto e12_iPt = iPt - e12;
-                auto e12_p1 = p1 - e12;
+                auto e12_iPt = *iPt - e12;
+                auto e12_p1 = *p1 - e12;
                 double cosIPt = (dot_prd(&e12_iPt, &e12_p1)) / (e12_iPt.mode() * e12_p1.mode());
 
-                // if (abs(cosIPt - angle) > 0.01) {
-                if (!eq(cosIPt, angle)) {
+                if (abs(cosIPt - angle) > 0.01) {
+                // if (!eq(cosIPt, angle)) {
                     continue;
                 }
 
@@ -552,8 +552,6 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree>& db_rtrees, Mesh* mesh_q, Struct
     double d12_q, d34_q;
 #endif
 
-    Pt3D bq[4];
-
     vector<Congr_base> ret;
 
     double iter_prop_time = 0.0, iter_veri_time = 0.0;
@@ -575,8 +573,9 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree>& db_rtrees, Mesh* mesh_q, Struct
         return false;
     }
 
+    Pt3D* bq_ptr[4];
     for (int i = 0; i < 4; i++) {
-        bq[i] = mesh_q->get_pt(ran[i]);
+        bq_ptr[i] = mesh_q->get_pt(ran[i]);
     }
 
     for (int i = 0; i < db_meshes->size(); i++) {
@@ -594,15 +593,17 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree>& db_rtrees, Mesh* mesh_q, Struct
 
     // Step 1: calculate transformation, initial distance, and leave those for step 2&3
     for (auto &r: ret) {
-        Pt3D bp[4];
+        Pt3D* bp_ptr[4];
         for (int j = 0; j < 4; j++) {
-            bp[j] = db_meshes->get_mesh(r.db_id)->get_pt(r.bp[j]);
+            bp_ptr[j] = db_meshes->get_mesh(r.db_id)->get_pt(r.bp[j]);
         }
-        r.xf = cal_trans(bq, bp, 4);
-        r.init_dist = db_meshes->cal_corr_err(mesh_q, r.db_id, &r.xf); // TODO: use another unimplemented interface
+        cal_trans(bq_ptr, bp_ptr, 4, r.xf);
+        // r.init_dist = db_meshes->cal_corr_err(mesh_q, r.db_id, &r.xf); // TODO: use another unimplemented interface
+        r.init_dist = db_meshes->cal_corr_err(mesh_q, r.db_id, &r.xf, delta); // TODO: simplified method, stops when error is larger
         // cout << "Initial distance: " << r.init_dist << endl;
 
-        if (r.init_dist <= sq(delta)) {
+        // if (r.init_dist <= sq(delta)) {
+        if (r.init_dist >= 0) {
             iter_num_verified++;
             if (iter_num_verified == 1 && !iter_found_one) {
                 iter_first_time = timer_end(SECOND);
@@ -613,21 +614,21 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree>& db_rtrees, Mesh* mesh_q, Struct
         }
     }
 
-    // Step 2: perform the ICP-only check
-    for (auto &r: ret_left_icp_only) {
-        double updated_err = goicp[r->db_id].ICP(&r->xf); // ICP-only
-        // cout << "Updated distance with ICP-only: " << updated_err << endl;
+    // // Step 2: perform the ICP-only check
+    // for (auto &r: ret_left_icp_only) {
+    //     double updated_err = goicp[r->db_id].ICP(&r->xf); // ICP-only
+    //     // cout << "Updated distance with ICP-only: " << updated_err << endl;
 
-        if (updated_err <= sq(delta)) {
-            iter_num_verified++;
-            if (iter_num_verified == 1 && !iter_found_one) {
-                iter_first_time = timer_end(SECOND);
-                iter_found_one = true;
-            }
-        } else {
-            ret_left_goicp.push_back(r);
-        }
-    }
+    //     if (updated_err <= sq(delta)) {
+    //         iter_num_verified++;
+    //         if (iter_num_verified == 1 && !iter_found_one) {
+    //             iter_first_time = timer_end(SECOND);
+    //             iter_found_one = true;
+    //         }
+    //     } else {
+    //         ret_left_goicp.push_back(r);
+    //     }
+    // }
 
     // // Step 3: perform GoICP
     // for (auto &r: ret_left_goicp) {
@@ -747,6 +748,9 @@ int main(int argc, char **argv) {
     C_RTree query_rtree;
     query_rtree.read_from_mesh(query_filename);
 
+    delta *= (double) mesh_q.size();
+    cout << "Final delta by number of query: " << delta << endl;
+
     // load the query structure
     Struct_Q s_q;
     if (!s_q.read(query_filename + ".info")) {
@@ -758,9 +762,9 @@ int main(int argc, char **argv) {
     for (int i = 0; i < num_meshes; i++) {
     	loadGoICP(db_meshes.get_mesh(i), &mesh_q, delta, goicp[i]);
 
-	    // Build Distance Transform
-		cout << endl << "Building Distance Transform of #" << i << "..." << endl;
-		goicp[i].BuildDT();
+	 //    // Build Distance Transform
+		// cout << endl << "Building Distance Transform of #" << i << "..." << endl;
+		// goicp[i].BuildDT();
 
     	goicp[i].Initialize();
     }
