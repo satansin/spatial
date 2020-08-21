@@ -52,6 +52,7 @@ public:
 
 	double get_bsphere_r();
 	double get_bsphere_d();
+	void get_bsphere_o(Pt3D& o);
 
 	void centralize();
 

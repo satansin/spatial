@@ -9,10 +9,10 @@ USE_TM=-I../trimesh2/include/ -L../trimesh2/lib.Linux64/
 USE_RS=-I../rstree/ ../rstree/*.o
 
 SRC=src
-# OBJ=obj
-OBJ=obj_tmp
-# OUT=out
-OUT=out_tmp
+OBJ=obj
+# OBJ=obj_tmp
+OUT=out
+# OUT=out_tmp
 
 # examples for more complex make (see original webpage):
 # https://stackoverflow.com/questions/2481269/how-to-make-a-simple-c-makefile
@@ -24,16 +24,11 @@ OUT=out_tmp
 #     add $(USE_TM)
 #     add the following (!!in the end!!): -ltrimesh -lgluit -fopenmp
 
-all: super4pcs_prob superg4pcs_prob anal_nn anal_diam \
-	 grid_donut
-# 	 query_prob3 query_prob3_cpq \
-# 	 query_donut_prob3 query_donut_prob3_cpq \
-# 	 query_3nn_prob3 query_3nn_prob3_cpq query_3nn_prob3_cpq2 \
-# 	 query_3lnn_prob3 query_3lnn_prob3_cpq query_3lnn_prob3_cpq2 \
-# 	 super4pcs_prob superg4pcs_prob
-
-# 	 query_prob3_cpq2 \
-# 	 query_prob6_cpq2 \
+all: super4pcs_prob superg4pcs_prob \
+	 grid grid_donut grid_3nn index3 binary_helper \
+	 query_prob3 query_prob3_cpq \
+	 query_3nn_prob3 query_3nn_prob3_cpq \
+	 query_donut_prob3 query_donut_prob3_cpq \
 
 # 	 grid grid_donut grid_3nn grid_3lnn index3
 # 	 query_det query_det_eps query_det_icp query_det_nar \
@@ -71,7 +66,7 @@ index6: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/index.cpp $(OBJ)/* -o $(OUT)/index6.out -ltrimesh -lgluit -fopenmp
 
 index3: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/index.cpp $(OBJ)/* -o $(OUT)/index3.out -ltrimesh -lgluit -fopenmp -DIDX_3
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/index.cpp $(OBJ)/* -o $(OUT)/index3.out -ltrimesh -lgluit -fopenmp -DIDX_3 -g
 
 # index3_3nn: build_obj
 # 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/index.cpp $(OBJ)/* -o $(OUT)/index3_3nn.out -ltrimesh -lgluit -fopenmp -DIDX_3 -D_3NN
@@ -96,24 +91,18 @@ query_prob3: build_obj
 query_prob3_cpq: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_prob3_cpq.out       -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -DIDX_3 -D_CPQ #-DVERBOSE=5 -DTEST_MODE -g
 
-query_prob3_cpq2: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_prob3_cpq2.out      -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -DIDX_3 -D_CPQ -DNR=2 #-DVERBOSE=5 -DTEST_MODE -g
-
 # query_prob6: build_obj
 # 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_prob6.out           -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -DVERBOSE=1 -DTEST_MODE -g
 
 # query_prob6_cpq: build_obj
 # 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_prob6_cpq.out       -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_CPQ -DVERBOSE=1 -DTEST_MODE -g
 
-# query_prob6_cpq2: build_obj
-# 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_prob6_cpq2.out      -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_CPQ -DNR=2 #-DTEST_MODE -DVERBOSE=1 -g
-
 
 query_donut_prob3: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_donut_prob3.out     -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_DNT -DIDX_3 #-DVERBOSE=0 -DTEST_MODE -g
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_donut_prob3.out     -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_DNT -DIDX_3 #-DVERBOSE=0 #-DTEST_MODE -g
 
 query_donut_prob3_cpq: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_donut_prob3_cpq.out -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_DNT -D_CPQ -DIDX_3 #-DVERBOSE=0 -DTEST_MODE -g
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_donut_prob3_cpq.out -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_DNT -D_CPQ -DIDX_3 #-DVERBOSE=0 #-DTEST_MODE -g
 
 # query_donut_prob6: build_obj
 # 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_donut_prob6.out     -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_DNT #-DVERBOSE=0 -DTEST_MODE -g
@@ -128,18 +117,12 @@ query_3nn_prob3: build_obj
 query_3nn_prob3_cpq: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_3nn_prob3_cpq.out   -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -DIDX_3 -D_3NN -D_CPQ #-DVERBOSE=1 #-DTEST_MODE -g
 
-query_3nn_prob3_cpq2: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_3nn_prob3_cpq2.out  -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -DIDX_3 -D_3NN -D_CPQ -DNR=2 #-DVERBOSE=1 #-DTEST_MODE -g
-
 
 query_3lnn_prob3: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_3lnn_prob3.out      -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -DIDX_3 -D_3NN -D_3LNN #-DVERBOSE=1 -DTEST_MODE -g
 
 query_3lnn_prob3_cpq: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_3lnn_prob3_cpq.out  -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -DIDX_3 -D_3NN -D_3LNN -D_CPQ #-DVERBOSE=1 #-DTEST_MODE -g
-
-query_3lnn_prob3_cpq2: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_3lnn_prob3_cpq2.out -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -DIDX_3 -D_3NN -D_3LNN -D_CPQ -DNR=2 #-DVERBOSE=1 #-DTEST_MODE -g
 
 
 analyze: build_obj
@@ -153,6 +136,10 @@ anal_nn: build_obj
 
 anal_diam: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/anal_diam.cpp $(OBJ)/* -o $(OUT)/anal_diam.out -ltrimesh -lgluit -fopenmp
+
+binary_helper: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/binary_helper.cpp $(OBJ)/* -o $(OUT)/binary_helper.out -ltrimesh -lgluit -fopenmp #-g
+
 
 goicp: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/goicp.cpp $(OBJ)/* -o $(OUT)/goicp.out -ltrimesh -lgluit -fopenmp #-g

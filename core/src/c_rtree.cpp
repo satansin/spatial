@@ -43,6 +43,18 @@ R_TYPE* C_RTree::convert_pt(Pt3D* p) const {
     return ret;
 }
 
+R_TYPE* C_RTree::convert_donut(Pt3D* o, double r, Pt3D* n) const {
+    R_TYPE* ret = (R_TYPE *) malloc(sizeof(R_TYPE) * 7);
+    ret[0] = (int) (o->x * RSTREE_SCALE);
+    ret[1] = (int) (o->y * RSTREE_SCALE);
+    ret[2] = (int) (o->z * RSTREE_SCALE);
+    ret[3] = (int) (r * RSTREE_SCALE);
+    ret[4] = (int) (n->x * RSTREE_SCALE);
+    ret[5] = (int) (n->y * RSTREE_SCALE);
+    ret[6] = (int) (n->z * RSTREE_SCALE);
+    return ret;
+}
+
 
 // public
 C_RTree::C_RTree(Usage usage) {
@@ -50,6 +62,40 @@ C_RTree::C_RTree(Usage usage) {
 		read_rstree_info(get_info_filename(usage));
 		m_info_created = true;
 	}
+}
+
+double C_RTree::donut_nn(Pt3D* o, double r, Pt3D* n, int* ret, const unordered_set<int>& excl_id_set, int k) {
+	auto query = convert_donut(o, r, n);
+    NN_type *nn;
+    int real_k = excl_id_set.size() + k;
+
+    k_Donut_NN_search(m_root, query, real_k, &nn, &m_info);
+
+    NN_type *nn_copy = nn;
+
+    stack<NN_type*> s;
+    for (int i = 0; i < real_k; i++) {
+    	s.push(nn);
+    	nn = nn->next;
+    }
+
+    double nn1_dist;
+    int i = 0;
+    while (i < k) {
+    	auto top = s.top();
+    	s.pop();
+    	if (excl_id_set.find(top->oid) == excl_id_set.end()) { // not in the exclusive list
+    		if (i == 0) {
+    			nn1_dist = (double) top->dist / (double) RSTREE_SCALE;
+    		}
+    		ret[i] = top->oid;
+    		i++;
+    	}
+    }
+
+    NN_freeChain(nn_copy);
+
+    return nn1_dist;
 }
 
 double C_RTree::nn_sphere(Pt3D* p, double r, int* ret, const unordered_set<int>& excl_id_set, int k) {

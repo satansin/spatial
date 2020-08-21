@@ -4,6 +4,10 @@
 #include <iostream>
 #include <cmath>
 
+static const double PI = 3.1415926535897932384626;
+static const double TWO_PI = PI * 2.0;
+static const double HALF_PI = PI * 0.5;
+
 struct Pt2D
 {
 	double x;
@@ -27,11 +31,22 @@ struct Pt3D
 	const Pt3D operator/(double scalar) const {
 		return { x / scalar, y / scalar, z / scalar };
 	}
+	const Pt3D operator-() const {
+		return { -x, -y, -z };
+	}
 	double mode() const {
 		return sqrt(this->sq_mode());
 	}
 	double sq_mode() const {
 		return (x * x + y * y + z * z);
+	}
+	void unitify() {
+		double norm = this->mode();
+		if (norm != 0.0) {
+			x /= norm;
+			y /= norm;
+			z /= norm;
+		}
 	}
 };
 
@@ -104,6 +119,26 @@ inline void cross_prd(const Pt3D* a, const Pt3D* b, Pt3D& ret) {
 
 inline double cos_theta(const Pt3D* pa, const Pt3D* pb) {
 	return dot_prd(pa, pb) / (pa->mode() * pb->mode());
+}
+
+inline bool get_perp_unit(const Pt3D* p, Pt3D& ret) {
+	if (p->x != 0.0) {
+		ret.x = - (p->y + p->z) / p->x;
+		ret.y = 1.0;
+		ret.z = 1.0;
+	} else if (p->y != 0.0) {
+		ret.x = 1.0;
+		ret.y = - (p->x + p->z) / p->y;
+		ret.z = 1.0;
+	} else if (p->z != 0.0) {
+		ret.x = 1.0;
+		ret.y = 1.0;
+		ret.z = - (p->x + p->y) / p->z;
+	} else {
+		return false;
+	}
+	ret.unitify();
+	return true;
 }
 
 #endif

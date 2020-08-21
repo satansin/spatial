@@ -1,5 +1,4 @@
 DIR_RAW="/rwproject/kdd-db/hliubs/10_data_spatial/3dor/raw"
-# DIR_DB="/rwproject/kdd-db/hliubs/10_data_spatial/3dor/db"
 DIR_OBJ_DB="/rwproject/kdd-db/hliubs/10_data_spatial/3dor/db/object_scans"
 # DIR_QUERY="/rwproject/kdd-db/hliubs/10_data_spatial/3dor/query"
 # DIR_RESULT="/rwproject/kdd-db/hliubs/10_data_spatial/3dor/query_result"

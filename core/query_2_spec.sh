@@ -2,16 +2,16 @@
 
 source ../common/config/dir_loc.sh
 
-OUT=out_tmp
+OUT=out
 
-rs_range=( 7 ) #6 )
-qi_range=( 01 ) #02 03 04 05 06 07 08 )
-nl_range=( 0 1 ) #2 3 4 5 )
-r_range=( 200 250 300 ) #050 100 150 200 250 300 350 400 450 500 )
+rs_range=( 7 ) #7 6 5 1 )
+qi_range=( 01 02 06 08 10 ) #01 02 03 04 05 06 07 08 )
+nl_range=( 1 ) #0 1 2 3 4 5 )
+r_range=( 200 ) #050 100 150 200 250 300 350 400 450 500 )
 a_range=( 015 ) #030 )
 t_range=( 030 015 )
-e_range=( 05 10 ) #2.0 3.0 4.0 )
-MSE=( 001 032 060 100 120 140 )
+e_range=( 10 ) # 10 3.87 1.4 0.48 )
+# MSE=( 001 032 060 100 120 140 ) # matched with nl, thus do not change: "${MSE[nl]}"
 pcr_adv_alg=(
 	prob3 prob3_cpq
 	donut_prob3 donut_prob3_cpq
@@ -24,17 +24,21 @@ pcr_adv_idx=(
 	3nn 3nn
 	3lnn 3nn_sim
 )
-pcr_adv_eid=( 0 1 2 3 4 5 ) #6 7 )
-
-mkdir -p "$DIR_RESULT"
+pcr_adv_eid=( 1 3 5 ) #0 1 2 3 4 5 ) #6 7 )
 
 
-## 1 indoor (sim)
+## indoor (sim) (spec)
 
-CURR_DS="$DIR_RESULT"/indoor_scans
+CURR_DS="$DIR_RESULT"/indoor_scans_spec
 mkdir -p "$CURR_DS"
 
 for rs in "${rs_range[@]}"; do
+
+	if (( $rs > 5 )); then
+		OPT="-small"
+	else
+		OPT=""
+	fi
 
 	DB_F="$DIR_DB"/indoor_scans/comp_"$rs"/
 	CURR_DB="$CURR_DS"/comp_"$rs"
@@ -44,7 +48,13 @@ for rs in "${rs_range[@]}"; do
 
 		for nl in "${nl_range[@]}"; do
 
-			Q_PLY="$DIR_QUERY"/indoor_scans_pro_noise/comp_"$rs"/q_"$qi"."$nl".ply
+			if (( $nl < 1 )); then
+				OPT_DELTA="-delta=1"
+			else
+				OPT_DELTA=""
+			fi
+
+			Q_PLY="$DIR_QUERY"/indoor_scans_spec/comp_"$rs"/q_"$qi"."$nl".ply
 			CURR_NL="$CURR_DB"/q_"$qi"_"$nl"
 			mkdir -p "$CURR_NL"
 
@@ -64,7 +74,7 @@ for rs in "${rs_range[@]}"; do
 					## for donut and gt
 					for r in "${r_range[@]}"; do
 						for e in "${e_range[@]}"; do
-							./"$OUT"/query_"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_INDEX"/indoor_scans_"${pcr_adv_idx[al_id]}"/comp_"$rs"/comp_"$rs"."$r".grid "$Q_PLY" "${MSE[nl]}" "$e" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."${MSE[nl]}"."$e".dat
+							./"$OUT"/query_"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_INDEX"/indoor_scans_"${pcr_adv_idx[al_id]}"/comp_"$rs"/comp_"$rs"."$r".grid "$Q_PLY" "$e" "$OPT" "$OPT_DELTA" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$e".dat
 						done
 					done
 
@@ -74,7 +84,7 @@ for rs in "${rs_range[@]}"; do
 					for r in "${r_range[@]}"; do
 						for a in "${a_range[@]}"; do
 							for e in "${e_range[@]}"; do
-								./"$OUT"/query_"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_INDEX"/indoor_scans_"${pcr_adv_idx[al_id]}"/comp_"$rs"/comp_"$rs"."$r"."$a".grid "$Q_PLY" "${MSE[nl]}" "$e" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$a"."${MSE[nl]}"."$e".dat
+								./"$OUT"/query_"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_INDEX"/indoor_scans_"${pcr_adv_idx[al_id]}"/comp_"$rs"/comp_"$rs"."$r"."$a".grid "$Q_PLY" "$e" "$OPT_DELTA" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$a"."$e".dat
 							done
 						done
 					done
@@ -86,7 +96,7 @@ for rs in "${rs_range[@]}"; do
 						for t in "${t_range[@]}"; do
 							for a in "${a_range[@]}"; do
 								for e in "${e_range[@]}"; do
-									./"$OUT"/query_"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_INDEX"/indoor_scans_"${pcr_adv_idx[al_id]}"/comp_"$rs"/comp_"$rs"."$r"."$t"."$a".grid "$Q_PLY" "${MSE[nl]}" "$e" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$t"."$a"."${MSE[nl]}"."$e".dat
+									./"$OUT"/query_"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_INDEX"/indoor_scans_"${pcr_adv_idx[al_id]}"/comp_"$rs"/comp_"$rs"."$r"."$t"."$a".grid "$Q_PLY" "$e" "$OPT_DELTA" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$t"."$a"."$e".dat
 								done
 							done
 						done
@@ -97,7 +107,7 @@ for rs in "${rs_range[@]}"; do
 					## for 3nn-sim
 					for r in "${r_range[@]}"; do
 						for e in "${e_range[@]}"; do
-							./"$OUT"/query_3nn_prob3.out "$DB_F" "$DIR_INDEX"/indoor_scans_"${pcr_adv_idx[al_id]}"/comp_"$rs"/comp_"$rs"."$r".grid "$Q_PLY" "${MSE[nl]}" "$e" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."${MSE[nl]}"."$e".dat -simple
+							./"$OUT"/query_3nn_prob3.out "$DB_F" "$DIR_INDEX"/indoor_scans_"${pcr_adv_idx[al_id]}"/comp_"$rs"/comp_"$rs"."$r".grid "$Q_PLY" "$e" "$OPT_DELTA" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$e".dat -simple
 						done
 					done
 

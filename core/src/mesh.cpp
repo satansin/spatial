@@ -72,6 +72,13 @@ double Mesh::get_bsphere_d() {
     return 2.0 * m_mesh->bsphere.r;
 }
 
+void Mesh::get_bsphere_o(Pt3D& o) {
+    build_bsphere();
+    o.x = m_mesh->bsphere.center[0];
+    o.y = m_mesh->bsphere.center[1];
+    o.z = m_mesh->bsphere.center[2];
+}
+
 void Mesh::centralize() {
 	trans(m_mesh, -mesh_center_of_mass(m_mesh));
 }

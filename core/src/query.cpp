@@ -19,10 +19,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#ifndef NR
-#define NR 1
-#endif
-
 #ifndef VERBOSE
 #define VERBOSE (-1)
 #endif
@@ -42,6 +38,7 @@ public:
     unordered_set<int> force_pts;
     bool write_stat;
     bool stop_once;
+    bool small_set;
     string stat_filename;
     bool sort_entry;
     bool simple;
@@ -49,7 +46,8 @@ public:
     string db_path;
     string grid_filename;
     string query_filename;
-    double delta; // TODO: change to MSE
+    double delta;
+    bool spec_delta; // when PROB, delta might be specified or automatically assigned
     double epsilon;
 
     double cos_phi; // in query this threshold is slightly larger
@@ -58,9 +56,11 @@ public:
         force_cell = -1;
         force_pts.clear();
         stop_once = false;
+        small_set = false;
         sort_entry = false;
         simple = false;
         write_stat = false;
+        spec_delta = false;
         stat_filename = "";
         for (int i = 0; i < argc; i++) {
             string argv_str(argv[i]);
@@ -77,6 +77,12 @@ public:
                 sort_entry = true;
             else if (argv_str == "-simple")
             	simple = true;
+            else if (argv_str == "-small")
+                small_set = true;
+            else if (argv_str.rfind("-delta", 0) == 0) {
+                delta = atof(argv[i] + 7);
+                spec_delta = true;
+            }
         }
 
         int argi = 0;
@@ -85,11 +91,10 @@ public:
         grid_filename = argv[(++argi)];
         query_filename = argv[(++argi)];
 
-        delta = atof(argv[(++argi)]);
-
         #ifdef PROB
             epsilon = atof(argv[(++argi)]);
         #else
+            delta = atof(argv[(++argi)]);
             epsilon = delta;
         #endif
     }
@@ -111,9 +116,11 @@ public:
 
         db_meshes.build_kd();
 
+        string grid_bin_filename = get_bin_filename(grid_filename);
+
         // load the DB structure
-        cout << "Loading DB structure from " << grid_filename << endl;
-        if (!s_db.read(grid_filename, &db_meshes)) {
+        cout << "Loading DB structure from " << grid_bin_filename << endl;
+        if (!s_db.read_bin(grid_bin_filename, &db_meshes)) {
             cout << "Error loading DB structure" << endl;
             return false;
         }
@@ -135,10 +142,6 @@ public:
         cout << "Reading query mesh from " << query_filename << endl;
         mesh_q.read_from_path(query_filename);
 
-        // cout << "Diameter of query mesh: " << mesh_q.get_bsphere_d() << endl;
-
-        delta *= (double) mesh_q.size();
-
         // load the query R-tree
         r_q.read_from_mesh(query_filename);
 
@@ -148,17 +151,29 @@ public:
             return false;
         }
 
-        goicp = new GoICP*[num_meshes];
-        for (int i = 0; i < num_meshes; i++) {
-            goicp[i] = new GoICP;
-            loadGoICP(db_meshes.get_mesh(i), &mesh_q, delta, *goicp[i]);
+        #ifdef PROB
+            if (!spec_delta) {
+                double q_diam = mesh_q.get_bsphere_d();
+                // delta = q_diam * 0.001;
+                delta = sq(s_q.sigma);
+                cout << "Diameter of query mesh: " << q_diam << ", thus delta is set to " << delta << endl;
+            }
+        #endif
 
-            // Build Distance Transform
-            // cout << endl << "Building Distance Transform of #" << i << "..." << endl;
-            // goicp[i]->BuildDT();
+        delta *= (double) mesh_q.size();
+        cout << "Final SSE by number of query: " << delta << endl;
 
-            goicp[i]->Initialize();
-        }
+        // goicp = new GoICP*[num_meshes];
+        // for (int i = 0; i < num_meshes; i++) {
+        //     goicp[i] = new GoICP;
+        //     loadGoICP(db_meshes.get_mesh(i), &mesh_q, delta, *goicp[i]);
+
+        //     // Build Distance Transform
+        //     cout << endl << "Building Distance Transform of #" << i << "..." << endl;
+        //     goicp[i]->BuildDT();
+
+        //     goicp[i]->Initialize();
+        // }
         cout << endl;
 
         return true;
@@ -499,25 +514,25 @@ bool insert_entry(Entry* new_entry, vector<Entry*>& v_ret, unordered_set<long lo
     }
 }
 
-// // test function TODO
-// double brute_force_nn(vector<int>& list, int cheat, Query_Context* qc, PtwID& ret) {
+#ifdef TEST_MODE
+double brute_force_nn(vector<int>& list, int cheat, Query_Context* qc, PtwID& ret) {
+    PtwID cheat_pt = PtwID(cheat, &qc->mesh_q);
 
-//     PtwID cheat_pt = PtwID(cheat, &qc->mesh_q);
+    double nn_dist = numeric_limits<double>::max();
+    for (int i = 0; i < list.size(); i++) {
+        if (list[i] != cheat) {
+            PtwID pt = PtwID(list[i], &qc->mesh_q);
+            double dist = eucl_dist(pt.pt, cheat_pt.pt);
+            if (dist < nn_dist) {
+                nn_dist = dist;
+                ret = pt;
+            }
+        }
+    }
 
-//     double nn_dist = numeric_limits<double>::max();
-//     for (int i = 0; i < list.size(); i++) {
-//         if (list[i] != cheat) {
-//             PtwID pt = PtwID(list[i], &qc->mesh_q);
-//             double dist = eucl_dist(&pt.pt, &cheat_pt.pt);
-//             if (dist < nn_dist) {
-//                 nn_dist = dist;
-//                 ret = pt;
-//             }
-//         }
-//     }
-
-//     return nn_dist;
-// }
+    return nn_dist;
+}
+#endif
 
 // #ifdef TEST_MODE
 // int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret, vector<int>& cheat_list_id, vector<double>& cheat_list_dist)
@@ -721,52 +736,38 @@ int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
     return ret;
 }
 
-void prob_donut_range(Pt3D* o, Pt3D* n, double r/*?*/, PtwID* q, double err, Query_Context* qc, vector<int>& ret) {
+void prob_donut_range(Pt3D* o, Pt3D* n, double r/*?*/, double err, Query_Context* qc, vector<int>& ret) {
 
-    vector<int> donut_range_cand;
-    qc->r_q.range_sphere_min_max(o, 0.001, r * 2.0, donut_range_cand, { q->id }); // exclude q, do not need to exclude a here since a will definitely be pruned next
-
-    double sq_r = sq(r);
-
-    double sq_d_min = numeric_limits<double>::max();
-    vector<double> v_d;
-    for (auto &i: donut_range_cand) {
-        auto i_pt = PtwID(i, &qc->mesh_q);
-        // cout << i << endl;
-
-        auto pi = *(i_pt.pt) - *(q->pt);
-        if (cos_theta(n, &pi) > 0.5) {
-            v_d.push_back(numeric_limits<double>::max());
-            continue;
-        }
-
-        double sq_a = sq_dist(i_pt.pt, o);
-        double sq_n = n->sq_mode();
-        double lambda = (dot_prd(o, n) - dot_prd(i_pt.pt, n)) / sq_n;
-        double sq_h = sq(lambda) * sq_n;
-
-        double sq_d = sq_a + sq_r - 2.0 * r * sqrt(sq_a - sq_h);
-
-        v_d.push_back(sqrt(sq_d));
-
-        if (sq_d < sq_d_min) {
-            sq_d_min = sq_d;
-        }
+    int q_donut_nn;
+    double q_donut_dist;
+    if (qc->small_set) {
+        q_donut_dist = donut_nn_quick(o, n, r, &qc->mesh_q, &qc->r_q, &q_donut_nn);
+    } else {
+        q_donut_dist = donut_nn(o, n, r, &qc->mesh_q, &qc->r_q, &q_donut_nn);
+    }
+    if (q_donut_nn < 0 || q_donut_nn >= qc->mesh_q.size()) {
+        return;
     }
 
-    double d_min = sqrt(sq_d_min);
-    // cout << "d_min = " << d_min << endl;
+    auto donut_nn_pt = PtwID(q_donut_nn, &qc->mesh_q);
+    double L = eucl_dist(donut_nn_pt.pt, o);
 
-    for (int i = 0; i < donut_range_cand.size(); i++) {
-        if (v_d[i] - d_min <= err * 2.0) {
-            ret.push_back(donut_range_cand[i]);
+    vector<int> donut_range_cand;
+    qc->r_q.range_sphere_min_max(o, L - 0.01, L + err * 2.0, donut_range_cand);
+
+    double sq_r = sq(r);
+    for (auto &i: donut_range_cand) {
+        auto i_pt = PtwID(i, &qc->mesh_q);
+        double donut_dist = sqrt(donut_dist_sq(i_pt.pt, o, n, r, sq_r));
+        if (donut_dist <= q_donut_dist + err * 2.0) {
+            ret.push_back(i);
         }
     }
 }
 
-void prob_donut_range_and_show(Pt3D* o, Pt3D* n, double r/*?*/, PtwID* q, double err, Query_Context* qc, vector<int>& ret, string nav = "") {
+void prob_donut_range_and_show(Pt3D* o, Pt3D* n, double r/*?*/, double err, Query_Context* qc, vector<int>& ret, string nav = "") {
 
-    prob_donut_range(o, n, r, q, err, qc, ret);
+    prob_donut_range(o, n, r, err, qc, ret);
     
     cout << nav << "donut_range-------RR:";
     for (auto &it: ret) {
@@ -829,13 +830,13 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
 
         #if VERBOSE > 2
             #ifdef ACC
-                prob_donut_range_and_show(&m, &qa, r_donut, q, err, qc, range_b, "");
+                prob_donut_range_and_show(&m, &qa, r_donut, err, qc, range_b, "");
             #else
                 // detm_donut_range_and_show(); TODO
             #endif
         #else
             #ifdef ACC
-                prob_donut_range(&m, &qa, r_donut, q, err, qc, range_b);
+                prob_donut_range(&m, &qa, r_donut, err, qc, range_b);
             #else
                 // detm_donut_range(); TODO
             #endif
@@ -858,6 +859,24 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
                 continue;
             }
 
+            // if (it_a == 29287 && it_b == 36328) {
+            //     cout << "fuck" << endl;
+            //     print_pt(&m);
+            //     cout << endl;
+            //     print_pt(ten_a.pt);
+            //     cout << endl;
+            //     print_pt(ten_b.pt);
+            //     cout << endl;
+            //     print_pt(&ten_b_est);
+            //     cout << endl;
+            //     print_pt(&ten_c_est);
+            //     cout << endl;
+
+            //     PtwID ch_c;
+            //     ch_c.set(29326, &qc->mesh_q);
+            //     cout << "cheat dist: " << eucl_dist(ch_c.pt, &ten_c_est) << endl;
+            // }
+
             int excl_qab[3] = { q->id, ten_a.id, ten_b.id };
 
             #if VERBOSE > 3
@@ -876,6 +895,10 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
                 #endif
 
                 ten_c.set(it_c, &qc->mesh_q);
+
+                if (it_a == 29287 && it_b == 36328) {
+                    cout << "real dist: " << eucl_dist(ten_c.pt, &ten_c_est) << endl;
+                }
 
                 // currently the ratio set (including the volume and volume ratio) is not required
                 // since the indexing key are the side length
@@ -1083,7 +1106,8 @@ public:
 	        tree->Insert(pt_box_min, pt_box_max, p->id);
 	        inserted_pt_id_set.insert(p->id);
 	    }
-	    bool check_coll(Pt3D* q, double d, double& acc_time) {
+        // bool check_coll(Pt3D* q, double d, double& acc_time) {
+        bool check_coll(Pt3D* q, double d) {
 	        double center[3] = { q->x, q->y, q->z };
 	        vector<int> v_ret;
             int query_box_min[3], query_box_max[3];
@@ -1101,97 +1125,68 @@ public:
         }
 	};
 
-	vector<unordered_map<int, Single_Coll_Tree*>> v_coll_map;
-	vector<double> v_nn_dist;
+    unordered_map<int, Single_Coll_Tree*> coll_map;
+    double nn_dist;
 
-	void add_coll_map(vector<Entry_Pair*>& nn_v_pairs, double nn_dist, Query_Context* qc) {
-		unordered_map<int, Single_Coll_Tree*> coll_map;
-	    for (auto &i: nn_v_pairs) {
-	        auto pi = PtwID(i->e_database->repre->id, qc->db_meshes.get_mesh(i->id_db));
+    void set_coll_map(vector<Entry_Pair*>& nn_v_pairs, double t_nn_dist, Query_Context* qc) {
+        for (auto &i: nn_v_pairs) {
+            auto pi = PtwID(i->e_database->repre->id, qc->db_meshes.get_mesh(i->id_db));
 
-	        if (coll_map.find(i->id_db) == coll_map.end()) {
-	            // i->id_db not exists in coll_map
-	            Single_Coll_Tree* sct = new Single_Coll_Tree;
-	            coll_map[i->id_db] = sct;
-	        }
-	        if (!coll_map[i->id_db]->exists(pi.id)) {
-	            coll_map[i->id_db]->insert(&pi);
-	        }
-	    }
+            if (coll_map.find(i->id_db) == coll_map.end()) {
+                // i->id_db not exists in coll_map
+                Single_Coll_Tree* sct = new Single_Coll_Tree;
+                coll_map[i->id_db] = sct;
+            }
+            if (!coll_map[i->id_db]->exists(pi.id)) {
+                coll_map[i->id_db]->insert(&pi);
+            }
+        }
 
         for (auto &i: coll_map) {
             i.second->tree->SortDim0();
         }
 
-	    v_coll_map.push_back(coll_map);
-
-	    v_nn_dist.push_back(nn_dist);
-	}
+        nn_dist = t_nn_dist;
+    }
 
 private:
-	bool check_coll(int id_db, Pt3D* pt, Query_Context* qc, double& acc_time, double& test_time) {
-		for (int i = 0; i < v_coll_map.size(); i++) {
-			// auto coll_map = v_coll_map[i];
-			// auto nn_q_d = v_nn_dist[i];
+	// bool check_coll(int id_db, Pt3D* pt, Query_Context* qc, double& acc_time, double& test_time) {
+    bool check_coll(int id_db, Pt3D* pt, Query_Context* qc) {
+        if (coll_map.find(id_db) == coll_map.end()) {
+            return false;
+        }
 
-            if (v_coll_map[i].find(id_db) == v_coll_map[i].end()) {
-            	return false;
-            }
+        // timer_start();
+        // bool pass = coll_map[id_db]->check_coll(pt, nn_dist + 2 * qc->epsilon, acc_time);
+        bool pass = coll_map[id_db]->check_coll(pt, nn_dist + 2 * qc->epsilon);
+        // test_time += timer_end(SECOND);
 
-            // timer_start();
-            bool pass = v_coll_map[i][id_db]->check_coll(pt, v_nn_dist[i] + 2 * qc->epsilon, acc_time);
-            // test_time += timer_end(SECOND);
-            if (!pass) {
-                return false;
-            }
-		}
-
-		return true;
-	}
+        return pass;
+    }
 
 public:
-	void check_coll_filter(vector<Entry_Pair*>& v_pairs, Query_Context* qc) {
+    void check_coll_filter(vector<Entry_Pair*>& v_pairs, Query_Context* qc, vector<Entry_Pair*>& v_ret) {
 
-        double check_time = 0.0;
-        double query_time = 0.0;
-        double test_time = 0.0;
+        // double check_time = 0.0;
+        // double query_time = 0.0;
+        // double test_time = 0.0;
 
-	    unordered_map<int, unordered_map<int, bool>> checked_map;
-	    for (auto itr = v_pairs.begin(); itr != v_pairs.end(); itr++) {
-	        auto i = *itr;
-	        PtwID pi(i->e_database->repre->id, qc->db_meshes.get_mesh(i->id_db));
-	        bool collision = false;
-	        bool checked = false;
+        for (auto &i: v_pairs) {
+            PtwID pi(i->e_database->repre->id, qc->db_meshes.get_mesh(i->id_db));
+            bool collision = false;
 
-	        if (checked_map.find(i->id_db) != checked_map.end()) {
-	            if (checked_map[i->id_db].find(pi.id) != checked_map[i->id_db].end()) {
-	                // already checked, thus read collision status directly from checked_map
-	                collision = checked_map[i->id_db][pi.id];
-	                checked = true;
-	            }
-	        }
+            // timer_start();
+            // collision = check_coll(i->id_db, pi.pt, qc, query_time, test_time);
+            collision = check_coll(i->id_db, pi.pt, qc);
+            // check_time += timer_end(SECOND);
 
-	        if (!checked) {
-                // timer_start();
-	            collision = check_coll(i->id_db, pi.pt, qc, query_time, test_time);
-                // check_time += timer_end(SECOND);
-
-	            // store collision status into checked_map
-	            if (checked_map.find(i->id_db) == checked_map.end()) {
-	                unordered_map<int, bool> new_checked_map;
-	                checked_map[i->id_db] = new_checked_map;
-	            }
-	            checked_map[i->id_db][pi.id] = collision;
-	        }
-
-	        if (collision) {
+            if (collision) {
                 // #if VERBOSE > 0
                 //    cout << "Found collision: " << pi.id << endl;
                 // #endif
-	        } else {
-	            v_pairs.erase(itr--);
-	        }
-	    }
+                v_ret.push_back(i);
+            }
+        }
 
         // cout << "Total check time: " << check_time << endl;
         // cout << "Total query time: " << query_time << endl;
@@ -1233,10 +1228,8 @@ public:
 	}
 
     virtual ~CPQ_Detector() {
-        for (auto &v: v_coll_map) {
-            for (auto &p: v) {
-                delete p.second;
-            }
+        for (auto &p: coll_map) {
+            delete p.second;
         }
     }
 };
@@ -1245,7 +1238,7 @@ struct Proposal_Stat {
     double cal_entries_time;
     double retrieve_congr_time;
     int num_entries;
-    int num_hits;
+    // int num_hits;
 };
 
 void pair_proposal(PtwID* q, Query_Context* qc, vector<Entry_Pair*>& v_pairs, Proposal_Stat& ps) {
@@ -1280,7 +1273,7 @@ void pair_proposal(PtwID* q, Query_Context* qc, vector<Entry_Pair*>& v_pairs, Pr
         #endif
     // #endif
 
-    ps.cal_entries_time = timer_end(SECOND);
+    ps.cal_entries_time += timer_end(SECOND);
     ps.num_entries = v_entries.size();
 
     #if VERBOSE > 0
@@ -1296,8 +1289,8 @@ void pair_proposal(PtwID* q, Query_Context* qc, vector<Entry_Pair*>& v_pairs, Pr
 
     retrieve_congr_entry(v_entries, qc, v_pairs);
 
-    ps.retrieve_congr_time = timer_end(SECOND);
-    ps.num_hits = v_pairs.size();
+    ps.retrieve_congr_time += timer_end(SECOND);
+    // ps.num_hits += v_pairs.size();
 
     #if VERBOSE > 0
         cout << endl << "Size of the hit list for query pt #" << q->id << ": " << v_pairs.size() << endl;
@@ -1327,76 +1320,98 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
 
     timer_start();
 
-    vector<Entry_Pair*> ret_left_icp_only, ret_left_goicp;
-
-    int selected_pt_id = rand() % qc->mesh_q.size();
-
-    #ifdef TEST_MODE
-        if (qc->force_cell >= 0) {
-            selected_pt_id = qc->force_cell;
-        }
-    #endif
-
-    PtwID q(selected_pt_id, &qc->mesh_q);
-
-    #ifdef TEST_MODE
-        vector<int> test_ret_id;
-        vector<double> test_ret_dist;
-        if (!test_verification_pt(&q, qc, test_ret_id, test_ret_dist, true)) {
-        	cout << "Test failed because the selected query pt cannot be mapped to a repre pt in DB!" << endl;
-        	timer_end(SECOND);
-        	return false;
-        }
-    #endif
-
+    PtwID q;
     vector<Entry_Pair*> v_pairs;
     Proposal_Stat prop_stat = (const struct Proposal_Stat){ 0 };
-    pair_proposal(&q, qc, v_pairs, prop_stat);
+
+    while (v_pairs.size() == 0 || v_pairs.size() > 50000) {
+
+        v_pairs.clear();
+
+        int selected_pt_id = rand() % qc->mesh_q.size();
+
+        #ifdef TEST_MODE
+            if (qc->force_cell >= 0) {
+                selected_pt_id = qc->force_cell;
+            }
+        #endif
+
+        q.set(selected_pt_id, &qc->mesh_q);
+
+        // try to find non-boundary points
+        Pt3D q_mbs_center;
+        qc->mesh_q.get_bsphere_o(q_mbs_center);
+        // cout << "Eucl dist: " << eucl_dist(q.pt, &q_mbs_center) << ", to compare with " << (qc->mesh_q.get_bsphere_r() - qc->s_db.ann_min) << endl;
+        double sel_ratio = qc->small_set ? 0.9 : 0.5;
+        while (eucl_dist(q.pt, &q_mbs_center) > sel_ratio * (qc->mesh_q.get_bsphere_r() - qc->s_db.ann_min)) { // set to 0.5 such that the largest dataset obtain the best performance
+            // cout << "Boundary! reselect." << endl;
+            selected_pt_id = rand() % qc->mesh_q.size();
+            q.set(selected_pt_id, &qc->mesh_q);
+        }
+
+        #ifdef TEST_MODE
+            vector<int> test_ret_id;
+            vector<double> test_ret_dist;
+            if (!test_verification_pt(&q, qc, test_ret_id, test_ret_dist, true)) {
+            	cout << "Test failed because the selected query pt cannot be mapped to a repre pt in DB!" << endl;
+            	timer_end(SECOND);
+            	return false;
+            }
+        #endif
+
+        pair_proposal(&q, qc, v_pairs, prop_stat);
+
+    }
 
     stat.prop_time = timer_end(SECOND);
     stat.cal_entries_time = prop_stat.cal_entries_time;
     stat.retrieve_congr_time = prop_stat.retrieve_congr_time;
     stat.num_entries = prop_stat.num_entries;
+    stat.num_init_pairs = v_pairs.size();
+
+    vector<Entry_Pair*>* ptr_v_pairs = &v_pairs;
 
     #ifdef _CPQ
 
         timer_start();
 
-        CPQ_Detector detector;
+        int nn_q_id;
+    	double nn_q_d = qc->r_q.nn_sphere(q.pt, 0.01, &nn_q_id);
 
-    	int nn_q_arr[NR];
-    	double nn_q_d = qc->r_q.nn_sphere(q.pt, 0.01, nn_q_arr, {}, NR);
+        PtwID nn_q(nn_q_id, &qc->mesh_q);
 
-        for (int i = 0; i < NR; i++) {
+        #if VERBOSE > 0
+           cout << "Pair proposal for query NN pt " << qc->s_q.id_q_to_str(nn_q_id) << " of dist = " << nn_q_d << endl;
+        #endif
 
-        	int nn_q_id = nn_q_arr[i];
-        	PtwID nn_q(nn_q_id, &qc->mesh_q);
-        	double nn_q_d = eucl_dist(q.pt, nn_q.pt);
+        vector<Entry_Pair*> nn_v_pairs;
+        Proposal_Stat nn_prop_stat = (const struct Proposal_Stat){ 0 };
 
-            #if VERBOSE > 0
-        	   cout << "Pair proposal for query NN pt " << qc->s_q.id_q_to_str(nn_q_id) << " of dist = " << nn_q_d << endl;
-            #endif
+        timer_start();
+        pair_proposal(&nn_q, qc, nn_v_pairs, nn_prop_stat);
+        stat.cpq_prop_time = timer_end(SECOND);
 
-    	    vector<Entry_Pair*> nn_v_pairs;
-            Proposal_Stat nn_prop_stat = (const struct Proposal_Stat){ 0 };
+        vector<Entry_Pair*> v_pairs_ret;
 
-            timer_start();
-    	    pair_proposal(&nn_q, qc, nn_v_pairs, nn_prop_stat);
-    	    stat.cpq_prop_time = timer_end(SECOND);
+        if (nn_v_pairs.size() > 0) {
+
+            CPQ_Detector detector;
 
             // timer_start();
-    	    detector.add_coll_map(nn_v_pairs, nn_q_d, qc);
-            // cout << "Line 1374: add_coll_map time: " << timer_end(SECOND) << endl;
+            detector.set_coll_map(nn_v_pairs, nn_q_d, qc);
+            // cout << "set_coll_map time: " << timer_end(SECOND) << endl;
 
+            // timer_start();
+            // cout << "check_coll_filter from size " << v_pairs.size() << endl;
+            detector.check_coll_filter(v_pairs, qc, v_pairs_ret);
+            // cout << "check_coll_filter time: " << timer_end(SECOND) << endl;
+        
+            #if VERBOSE > 0
+                cout << "Collision complete, coll count = " << v_pairs_ret.size() << endl;
+            #endif
+
+            ptr_v_pairs = &v_pairs_ret;
         }
-
-        // timer_start();
-        detector.check_coll_filter(v_pairs, qc);
-        // cout << "Line 1381: check_coll_filter time: " << timer_end(SECOND) << endl;
-    
-        #if VERBOSE > 0
-            cout << "Collision complete, coll count = " << v_pairs.size() << endl;
-        #endif
 
         stat.cpq_total_time = timer_end(SECOND);
         stat.prop_excpq_time = stat.prop_time;
@@ -1405,7 +1420,7 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
 
     #endif
 
-    stat.veri_size = v_pairs.size();
+    stat.veri_size = ptr_v_pairs->size();
 
     timer_start();
     timer_start();
@@ -1413,12 +1428,13 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
     bool found_one_iter = false;
     double first_time_iter = 0.0;
 
+    vector<Entry_Pair*> ret_left_icp_only;
     // Step 1: calculate transformation, initial distance, and leave those for step 2&3
-    for (auto &h: v_pairs) {
+    for (auto &h: *ptr_v_pairs) {
         h->cal_xf();
         // h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q, h->id_db, &h->xf); // TODO: use another unimplemented interface
         h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q, h->id_db, &h->xf, qc->delta); // TODO: simplified method, stops when error is larger
-        // cout << "Initial distance: " << h->init_dist << endl;
+        // cout << "Initial distance: " << h->init_dist << " for pair: " << h->to_str(10) << endl;
 
         // if (h->init_dist <= sq(qc->delta)) {
         if (h->init_dist >= 0) {
@@ -1438,6 +1454,7 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
 
     stat.num_icp_only = ret_left_icp_only.size();
 
+    vector<Entry_Pair*> ret_left_goicp;
     // // Step 2: perform the ICP-only check
     // for (auto &r: ret_left_icp_only) {
     //     double updated_err = qc->goicp[r->id_db]->ICP(&r->xf); // ICP-only
@@ -1476,7 +1493,7 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
     stat.first_verified_time += (stat.prop_time + first_time_iter);
     stat.user_time = (stat.prop_time + stat.veri_time);
 
-    // cout << "# verified: " << stat.num_verified << endl;
+    cout << "# verified: " << stat.num_verified << endl;
 
     if (stat.num_verified > 0)
         return true;
@@ -1511,31 +1528,30 @@ void exec(Query_Context* qc, Exec_stat& stat) {
 
     }
 
-    get_avg_stat(stats, 1, stat);
+    get_sum_stat(stats, num_itr, stat);
 
     stat.num_iterations = num_itr;
-    stat.success = find_accept;
-    if (!find_accept) {
-    	stat.num_fail++;
-    }
+    // stat.success = find_accept;
+    // if (!find_accept) {
+    // 	stat.num_fail++;
+    // }
 }
 
 int main(int argc, char **argv) {
 
-    // for (int i = 0; i < argc; i++) {
-    //     cout << argv[i] << " ";
-    // }
-    // cout << endl;
-    // exit(0);
+    for (int i = 0; i < argc; i++) {
+        cout << argv[i] << " ";
+    }
+    cout << endl << endl;
 
     #ifdef PROB
-        if (argc < 6) {
-            cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename delta epsilon [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+        if (argc < 5) {
+            cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename epsilon [-delta=...] [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
             exit(1);
         }
     #else
         if (argc < 5) {
-            cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename delta [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+            cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename delta [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
             exit(1);
         }
     #endif
@@ -1555,29 +1571,38 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    cout << "Final delta by number of query: " << qc.delta << endl;
-
     auto exec_i_time = timer_end(SECOND);
     cout << "Total I/- time: " << exec_i_time << "(s)" << endl;
 
     cout << endl;
 
     Exec_stat stats[exec_times];
+    Exec_stat tmp_stat;
+    int real_exec_times = 0;
 
     for (int exec_i = 0; exec_i < exec_times; exec_i++) {
 
-        // cout << "Execution #" << exec_i << ": " << endl;
+        cout << "Execution #" << (exec_i + 1) << ": " << endl;
         exec(&qc, stats[exec_i]);
-        // cout << endl;
+        cout << endl;
 
         #if VERBOSE >= 0
             print_stat(stats[exec_i]);
             cout << endl;
         #endif
+
+        real_exec_times++;
+
+        if (real_exec_times == 5 || real_exec_times == 10 || real_exec_times == 20) {
+        	get_sum_stat(stats, real_exec_times, tmp_stat);
+        	if (tmp_stat.user_time > 100.0) {
+        		break;
+        	}
+        }
 	}
 
 	Exec_stat avg_stat;
-	get_avg_stat(stats, exec_times, avg_stat);
+	get_avg_stat(stats, real_exec_times, avg_stat);
 
     if (qc.write_stat) {
     	write_stat(avg_stat, qc.stat_filename);

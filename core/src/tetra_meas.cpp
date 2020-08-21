@@ -8,8 +8,6 @@ using namespace std;
 using namespace trimesh;
 using namespace Eigen;
 
-static const double PI = 3.14159265359;
-
 // local help function
 double area_3d(double a, double b, double c){
 	double s = (a + b + c) * 0.5;

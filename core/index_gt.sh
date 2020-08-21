@@ -3,54 +3,44 @@
 source ../common/config/dir_loc.sh
 
 
-## Create folders for indoor_scans
-# mkdir -p "$DIR_INDEX"/indoor_scans_gt_sorted/
-# mkdir -p "$DIR_INDEX"/indoor_scans_gt_sorted/comp_7/
-# mkdir -p "$DIR_INDEX"/indoor_scans_gt_sorted/comp_6/
-# mkdir -p "$DIR_INDEX"/indoor_scans_gt_sorted/comp_5/
-# mkdir -p "$DIR_INDEX"/indoor_scans_gt_sorted/comp_1/
-
-
-## Generate grids by grid-size and radius - indoor_scans
-
-
 mkdir -p "$DIR_INDEX"/indoor_scans_gt/
 
 
 # mkdir -p "$DIR_INDEX"/indoor_scans_gt/comp_7/
 # for r in 200 250 300
 # do
-# 	./out/grid.out   "$DIR_DB"/indoor_scans/comp_7/ "$r" "$DIR_INDEX"/indoor_scans_gt/comp_7/comp_7."$r".grid -show_prog_bar
-# 	./out/index3.out "$DIR_DB"/indoor_scans/comp_7/      "$DIR_INDEX"/indoor_scans_gt/comp_7/comp_7."$r".grid -show_prog_bar
+# 	./out/grid.out          "$DIR_DB"/indoor_scans/comp_7/ "$r" "$DIR_INDEX"/indoor_scans_gt/comp_7/comp_7."$r".grid -show_prog_bar
+# 	./out/index3.out        "$DIR_DB"/indoor_scans/comp_7/      "$DIR_INDEX"/indoor_scans_gt/comp_7/comp_7."$r".grid -show_prog_bar
+# 	./out/binary_helper.out "$DIR_DB"/indoor_scans/comp_7/      "$DIR_INDEX"/indoor_scans_gt/comp_7/comp_7."$r".grid
 # done
 
 
 # mkdir -p "$DIR_INDEX"/indoor_scans_gt/comp_6/
 # for r in 050 100 150 200 250 300 350 400 450 500
 # do
-# 	./out/grid.out   "$DIR_DB"/indoor_scans/comp_6/ "$r" "$DIR_INDEX"/indoor_scans_gt/comp_6/comp_6."$r".grid -show_prog_bar
-# 	./out/index3.out "$DIR_DB"/indoor_scans/comp_6/      "$DIR_INDEX"/indoor_scans_gt/comp_6/comp_6."$r".grid -show_prog_bar
+# 	./out/grid.out          "$DIR_DB"/indoor_scans/comp_6/ "$r" "$DIR_INDEX"/indoor_scans_gt/comp_6/comp_6."$r".grid -show_prog_bar
+# 	./out/index3.out        "$DIR_DB"/indoor_scans/comp_6/      "$DIR_INDEX"/indoor_scans_gt/comp_6/comp_6."$r".grid -show_prog_bar
+# 	./out/binary_helper.out "$DIR_DB"/indoor_scans/comp_6/      "$DIR_INDEX"/indoor_scans_gt/comp_6/comp_6."$r".grid
 # done
 
 
 # mkdir -p "$DIR_INDEX"/indoor_scans_gt/comp_5/
-# for r in 030 060 090 150 180 210 240 #120 300 400 500 600 700 800 900 1000
+# for r in 200 250 #030 060 090 120 150 180 210 240 300 400 500 600 700 800 900 1000
 # do
-# 	./out_tmp/grid.out     "$DIR_DB"/indoor_scans/comp_5/ "$r" "$DIR_INDEX"/indoor_scans_gt/comp_5/comp_5."$r".grid -show_prog_bar
-# 	./out_tmp/reg_anal.out "$DIR_DB"/indoor_scans/comp_5/      "$DIR_INDEX"/indoor_scans_gt/comp_5/comp_5."$r".grid
-# 	./out_tmp/index6.out   "$DIR_DB"/indoor_scans/comp_5/      "$DIR_INDEX"/indoor_scans_gt/comp_5/comp_5."$r".grid -show_prog_bar
-# 	./out/index3.out   "$DIR_DB"/indoor_scans/comp_5/      "$DIR_INDEX"/indoor_scans_gt/comp_5/comp_5."$r".grid -show_prog_bar
-
-# 	# ./out/grid.out   "$DIR_DB"/indoor_scans/comp_5/ "$r" "$DIR_INDEX"/indoor_scans_gt_sorted/comp_5/comp_5."$r".grid -show_prog_bar -sort_entry
-# 	# ./out/index3.out "$DIR_DB"/indoor_scans/comp_5/      "$DIR_INDEX"/indoor_scans_gt_sorted/comp_5/comp_5."$r".grid -show_prog_bar
+# 	./out/grid.out          "$DIR_DB"/indoor_scans/comp_5/ "$r" "$DIR_INDEX"/indoor_scans_gt/comp_5/comp_5."$r".grid -show_prog_bar
+# 	./out/reg_anal.out      "$DIR_DB"/indoor_scans/comp_5/      "$DIR_INDEX"/indoor_scans_gt/comp_5/comp_5."$r".grid
+# 	./out/index6.out        "$DIR_DB"/indoor_scans/comp_5/      "$DIR_INDEX"/indoor_scans_gt/comp_5/comp_5."$r".grid -show_prog_bar
+# 	./out/index3.out        "$DIR_DB"/indoor_scans/comp_5/      "$DIR_INDEX"/indoor_scans_gt/comp_5/comp_5."$r".grid -show_prog_bar
+# 	./out/binary_helper.out "$DIR_DB"/indoor_scans/comp_5/      "$DIR_INDEX"/indoor_scans_gt/comp_5/comp_5."$r".grid
 # done
 
 
-mkdir -p "$DIR_INDEX"/indoor_scans_gt/comp_1/
-for r in 300 200
+# mkdir -p "$DIR_INDEX"/indoor_scans_gt/comp_1/
+for r in 200 #250 #300
 do
-	./out/grid.out   "$DIR_DB"/indoor_scans/comp_1/ "$r" "$DIR_INDEX"/indoor_scans_gt/comp_1/comp_1."$r".grid -show_prog_bar
-	./out/index3.out "$DIR_DB"/indoor_scans/comp_1/      "$DIR_INDEX"/indoor_scans_gt/comp_1/comp_1."$r".grid -show_prog_bar
+	./out/grid.out          "$DIR_DB"/indoor_scans/comp_1/ "$r" "$DIR_INDEX"/indoor_scans_gt/comp_1/comp_1."$r".grid -show_prog_bar
+	./out/index3.out        "$DIR_DB"/indoor_scans/comp_1/      "$DIR_INDEX"/indoor_scans_gt/comp_1/comp_1."$r".grid -show_prog_bar
+	./out/binary_helper.out "$DIR_DB"/indoor_scans/comp_1/      "$DIR_INDEX"/indoor_scans_gt/comp_1/comp_1."$r".grid
 done
 
 

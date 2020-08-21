@@ -13,25 +13,12 @@ using namespace std;
 
 
 #ifndef WIN32
-float  userTime_read, sysTime_read;
-float  userTime_sort, sysTime_sort;
-float  userTime_write, sysTime_write;
-float  userTime_overall, sysTime_overall;
-struct rusage myTime_program_start, myTime_read_end, myTime_sort_end, myTime_write_end;
-#endif
-
-
-#ifndef WIN32
-float calculateExecutionTime(struct rusage *myTimeStart, struct rusage *myTimeEnd/*, float *userTime, float *sysTime*/)
+float calculateExecutionTime(struct rusage *myTimeStart, struct rusage *myTimeEnd)
 {
     return (
         ((float) (myTimeEnd->ru_utime.tv_sec  - myTimeStart->ru_utime.tv_sec)) +
         ((float) (myTimeEnd->ru_utime.tv_usec - myTimeStart->ru_utime.tv_usec)) * 1e-6
     );
-    // (*sysTime) =
-    //     ((float) (myTimeEnd->ru_stime.tv_sec  - myTimeStart->ru_stime.tv_sec)) +
-    //     ((float) (myTimeEnd->ru_stime.tv_usec - myTimeStart->ru_stime.tv_usec)) * 1e-6;
-    
 }
 #endif
 
@@ -144,11 +131,15 @@ void print_stat(const Exec_stat& stat) {
     cout << "Total number of transformations: " << stat.veri_size << endl;
 
     cout << "  Total number of entries (exclude CPQ): " << stat.num_entries << endl;
+    cout << "  Total number of inital pairs (exclude CPQ): " << stat.num_init_pairs << endl;
     cout << "  Avg number of DB tetra matchings (exclude CPQ): " << stat.num_db_tetra_matchings << endl;
     // cout << "Final number of valid transformations: " << stat.num_verified << endl;
+    cout << "Number of iterations: " << stat.num_iterations << endl;
+
+    cout << endl;
 
     cout << "Number of fail: " << stat.num_fail << endl;
-    // cout << "Success: " << (stat.success ? "yes" : "no") << endl;
+    cout << "Number of exec: " << stat.num_exec << endl;
 
 }
 
@@ -172,60 +163,79 @@ void write_stat(const Exec_stat& stat, string filename) {
 
     stat_ofs << "veri_size=" << stat.veri_size << endl;
     stat_ofs << "num_entries=" << stat.num_entries << endl;
+    stat_ofs << "num_init_pairs=" << stat.num_init_pairs << endl;
     stat_ofs << "num_db_tetra_matchings=" << stat.num_db_tetra_matchings << endl;
     // stat_ofs << "num_verified=" << stat.num_verified << endl;
+    stat_ofs << "num_iterations=" << stat.num_iterations << endl;
 
     stat_ofs << "num_fail=" << stat.num_fail << endl;
-    // stat_ofs << "success=" << stat.success << endl;
+    stat_ofs << "num_exec=" << stat.num_exec << endl;
 
     stat_ofs.close();
 
 }
 
-void get_avg_stat(Exec_stat stats[], int exec_times, Exec_stat& ret) {
+void get_sum_stat(Exec_stat stats[], int num, Exec_stat& ret) {
 
     ret = (const struct Exec_stat) { 0 };
 
-    for (int i = 0; i < exec_times; i++) {
+    for (int i = 0; i < num; i++) {
         ret.user_time += stats[i].user_time;
         ret.prop_time += stats[i].prop_time;
-        ret.prop_excpq_time += stats[i].prop_excpq_time;
+        ret.veri_time += stats[i].veri_time;
+        ret.veri_size += stats[i].veri_size;
+
+        ret.num_verified += stats[i].num_verified;
+
+        ret.first_verified_time += stats[i].first_verified_time;
+
+        ret.num_iterations += stats[i].num_iterations;
+
         ret.cal_entries_time += stats[i].cal_entries_time;
         ret.retrieve_congr_time += stats[i].retrieve_congr_time;
+        ret.num_entries += stats[i].num_entries;
+        ret.num_init_pairs += stats[i].num_init_pairs;
+
+        ret.prop_excpq_time += stats[i].prop_excpq_time;
         ret.cpq_total_time += stats[i].cpq_total_time;
         ret.cpq_prop_time += stats[i].cpq_prop_time;
         ret.cpq_ovh_time += stats[i].cpq_ovh_time;
-        ret.veri_time += stats[i].veri_time;
-        ret.first_verified_time += stats[i].first_verified_time;
 
-        ret.veri_size += stats[i].veri_size;
-        ret.num_entries += stats[i].num_entries;
-
-        if (!stats[i].success)
+        if (stats[i].num_verified < 1)
             ret.num_fail++;
     }
 
-    ret.user_time /= (double) exec_times;
-    ret.prop_time /= (double) exec_times;
-    ret.prop_excpq_time /= (double) exec_times;
-    ret.cal_entries_time /= (double) exec_times;
-    ret.retrieve_congr_time /= (double) exec_times;
-    ret.cpq_total_time /= (double) exec_times;
-    ret.cpq_prop_time /= (double) exec_times;
-    ret.cpq_ovh_time /= (double) exec_times;
-    ret.veri_time /= (double) exec_times;
-    ret.first_verified_time /= (double) exec_times;
+    ret.num_exec = num;
 
-    ret.veri_size /= (double) exec_times;
-    ret.num_entries /= (double) exec_times;
+}
+
+void get_avg_stat(Exec_stat stats[], int exec_times, Exec_stat& ret) {
+
+    get_sum_stat(stats, exec_times, ret);
+
+    double d_avg_over = static_cast<double>(exec_times);
+
+    ret.user_time /= d_avg_over;
+    ret.prop_time /= d_avg_over;
+    ret.veri_time /= d_avg_over;
+    ret.veri_size /= d_avg_over;
+
+    ret.first_verified_time /= d_avg_over;
+
+    ret.num_iterations /= d_avg_over;
+
+    ret.cal_entries_time /= d_avg_over;
+    ret.retrieve_congr_time /= d_avg_over;
+    ret.num_entries /= d_avg_over;
+    ret.num_init_pairs /= d_avg_over;
+
+    ret.prop_excpq_time /= d_avg_over;
+    ret.cpq_total_time /= d_avg_over;
+    ret.cpq_prop_time /= d_avg_over;
+    ret.cpq_ovh_time /= d_avg_over;
+
     if (ret.num_entries > 0) {
-        ret.num_db_tetra_matchings = ret.veri_size / ret.num_entries;
-    }
-
-    if ((double) ret.num_fail / (double) exec_times <= 0.1) {
-        ret.success = true;
-    } else {
-        ret.success = false;
+        ret.num_db_tetra_matchings = ret.num_init_pairs / ret.num_entries;
     }
 
 }

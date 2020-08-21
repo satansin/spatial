@@ -101,6 +101,19 @@ R_LONG_TYPE MINDIST(R_TYPE *P, R_TYPE *a, R_TYPE *b, rtree_info *aInfo)
 	return sum;     
 }
 
+R_LONG_TYPE MINDIST_Donut(struct Circle *cir, R_TYPE *a, R_TYPE *b, rtree_info *aInfo, double *time1, double *time2, double *time3)
+{
+	int i;
+
+	struct Box box;
+	for (i = 0; i < 3; i++) {
+		box.a[i] = (double) a[i];
+		box.b[i] = (double) b[i];
+	}
+	
+	return (R_LONG_TYPE) min_dist_donut(&box, cir, time1, time2, time3);
+}
+
 R_LONG_TYPE MAXDIST(R_TYPE *P, R_TYPE *a, R_TYPE *b, rtree_info *aInfo)
 {
 	int i;
@@ -120,6 +133,15 @@ R_LONG_TYPE MAXDIST(R_TYPE *P, R_TYPE *a, R_TYPE *b, rtree_info *aInfo)
 	}
 
 	return sum;
+}
+
+R_LONG_TYPE cal_Donut(node_type *node, struct Circle *cir, rtree_info *aInfo) {
+	double x[3];
+	int i;
+	for (i = 0; i < 3; i++) {
+		x[i] = (double) node->a[i];
+	}
+	return sqrt(donut_dist_sq(x, cir));
 }
 
 R_LONG_TYPE cal_Euclidean(node_type *node, R_TYPE *query, rtree_info *aInfo)
@@ -566,6 +588,19 @@ void gen_ABL_minmax_nosort(node_type *node, ABL branch[], R_TYPE *query, int tot
 	return;
 }
 
+void gen_Donut_ABL_minmax(node_type *node, ABL branch[], struct Circle *cir, int total, rtree_info *aInfo, double *time1, double *time2, double *time3)
+{
+	int i;
+	for (i=0;i<total;i++)
+	{
+		branch[i].node=node->ptr[i];
+		branch[i].min=MINDIST_Donut(cir, node->ptr[i]->a, node->ptr[i]->b, aInfo, time1, time2, time3);
+		branch[i].max=MAXDIST(cir->o, node->ptr[i]->a, node->ptr[i]->b, aInfo);
+	}
+	qsort(branch,total,sizeof(struct BranchArray),  compare);
+	return;
+}
+
 void k_NN_NodeSearch(node_type *curr_node, R_TYPE *query, NN_type **NN, int k, int level, rtree_info *aInfo)
 {
 	
@@ -656,6 +691,59 @@ void k_NN_NodeSearch_sphere(node_type *curr_node, R_TYPE *query, NN_type **NN, i
 	}
 	return;
 
+}
+
+void k_Donut_NN_NodeSearch(node_type *curr_node, struct Circle *cir, NN_type **NN, int k, int level, rtree_info *aInfo, int *num_cal1, int *num_cal2, double *time1, double *time2, double *time3)
+{
+	
+	int i, total;
+	R_LONG_TYPE donut_dist, sq_eucl_dist;
+	ABL *branch;
+	
+	E_page_access_count++;
+
+	//*** new
+	if (curr_node->vacancy == aInfo->M)
+	{
+		// printf("vacancy\n");
+		return;
+	}
+	
+	/* Please refer NN Queries paper */
+	if (curr_node->ptr[0]->attribute == LEAF) 
+	{
+		total = aInfo->M - curr_node->vacancy;
+		for (i=0;i<total;i++)
+		{
+			*(num_cal1) += 1;
+			donut_dist = cal_Donut(curr_node->ptr[i], cir, aInfo);
+			sq_eucl_dist = cal_Euclidean(curr_node->ptr[i], cir->o, aInfo);
+			// printf("Donut dist leaf: %ld at %d\n", donut_dist, curr_node->ptr[i]->id);
+			if (donut_dist < (*NN)->dist && sq_eucl_dist > cir->sq_r) {
+				NN_update(NN, donut_dist, curr_node->ptr[i], level+1, k);
+				// printf("Donut min update to %ld\n", (*NN)->dist);
+			}
+		}
+	}
+	else
+	{
+		/* Please refer SIGMOD record Sep. 1998 Vol. 27 No. 3 P.18 */
+		total=aInfo->M-curr_node->vacancy;
+		branch=(struct BranchArray *)malloc(total*sizeof(struct BranchArray)*total);
+		gen_Donut_ABL_minmax(curr_node, branch, cir, total, aInfo, time1, time2, time3);
+		*(num_cal2) += total;
+		for (i=0;i<total;i++)
+		{
+			if (branch[i].min >= (*NN)->dist)
+				break;
+			else if (branch[i].max <= cir->sq_r)
+				continue;
+			else
+				k_Donut_NN_NodeSearch(branch[i].node, cir, NN, k, level+1, aInfo, num_cal1, num_cal2, time1, time2, time3);
+		}
+		free(branch);
+	}
+	return;
 }
 
 void k_NN_trim(NN_type *head, int k)
@@ -792,6 +880,80 @@ void k_NN_search_sphere(node_type *root, R_TYPE *query, int k, NN_type **returnR
 	(*returnResult) = head;
 	
 	return;
+}
+
+void k_Donut_NN_search(node_type *root, R_TYPE *query, int k, NN_type **returnResult, rtree_info *aInfo)
+{
+	int i;
+	
+	NN_type *NN, *head;
+	
+	if ((NN = (NN_type *)malloc(sizeof(NN_type))) == NULL)
+        fprintf(stderr, "malloc error at k-NN_search 1\n");
+	NN->oid = UNDEFINED;
+	NN->level = -1;
+	NN->dist = INFINITY;
+	NN->pointer = NULL;
+	head=NN;
+	
+	for (i=0; i<k-1; i++) {
+		
+        if ((NN->next = (NN_type *)malloc(sizeof(NN_type))) == NULL)
+			fprintf(stderr, "malloc error at k-NN_search 1\n");
+		
+        NN->next->oid = UNDEFINED; 
+		NN->next->level = -1;
+        NN->next->dist = INFINITY;
+		NN->next->pointer = NULL;
+		NN->next->next = NULL;
+		
+        NN = NN->next;
+	}
+	NN->next = NULL;
+
+	struct Circle query_cir;
+	query_cir.o[0] = (double) query[0];
+	query_cir.o[1] = (double) query[1];
+	query_cir.o[2] = (double) query[2];
+	query_cir.r    = (double) query[3];
+	query_cir.n[0] = (double) query[4];
+	query_cir.n[1] = (double) query[5];
+	query_cir.n[2] = (double) query[6];
+	// for (i=0;i<7;i++) {
+	// 	printf("%d\n", query[i]);
+	// }
+
+	int num1 = 0;
+	int num2 = 0;
+	double time1 = 0.0;
+	double time2 = 0.0;
+	double time3 = 0.0;
+
+	pre_compute(&query_cir);	
+	k_Donut_NN_NodeSearch(root, &query_cir, &head, k, 0, aInfo, &num1, &num2, &time1, &time2, &time3);
+	// printf("%ld at %d\n", head->dist, head->oid);
+	// printf("cal leaf: %d, cal node: %d, time: %f, %f, %f\n", num1, num2, time1, time2, time3);
+	
+	//k_NN_trim(head, k);
+	
+	NN=head;
+/*
+	printf("\n");
+	
+	while (NN != NULL) {
+		
+        printf("ID: %d    Dist: %f\n", NN->oid, NN->dist);
+		
+        NN = NN->next;
+		
+	}
+	printf("\n");
+*/
+	
+	(*returnResult) = head;
+	
+	return;
+	
 }
 
 void sphere_NodeSearch(node_type *curr_node, R_TYPE *query, R_LONG_TYPE min, R_LONG_TYPE max, RangeReturn_type **RR, rtree_info *aInfo)

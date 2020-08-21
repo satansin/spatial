@@ -26,46 +26,7 @@ struct Entry_Stat {
 	double nn_dist[3];
 };
 
-double donut_nn(Pt3D* o, Pt3D* n, double r, PtwID* p, Mesh* mesh_p, C_RTree* r_p, PtwID& ret) {
-
-    vector<int> donut_nn_cand;
-    r_p->range_sphere_min_max(o, r * 0.9, r * 1.1, donut_nn_cand, { p->id }); // exclude p, do not need to exclude a here since a will definitely be pruned next
-    // cout << donut_nn_cand.size() << endl;
-
-    double sq_r = sq(r);
-
-    int donut_nn_i;
-    double sq_d_min = numeric_limits<double>::max();
-    for (auto &i: donut_nn_cand) {
-        if (i < 0 || i >= mesh_p->size()) {
-            continue;
-        }
-    	auto i_pt = PtwID(i, mesh_p);
-
-    	auto pi = *i_pt.pt - *p->pt;
-    	if (cos_theta(n, &pi) > 0.5) {
-    		continue;
-    	}
-
-    	double sq_a = sq_dist(i_pt.pt, o);
-    	double sq_n = n->sq_mode();
-    	double lambda = (dot_prd(o, n) - dot_prd(i_pt.pt, n)) / sq_n;
-    	double sq_h = sq(lambda) * sq_n;
-
-    	double sq_d = sq_a + sq_r - 2.0 * r * sqrt(sq_a - sq_h);
-
-    	if (sq_d < sq_d_min) {
-    		sq_d_min = sq_d;
-    		donut_nn_i = i;
-    		ret = i_pt;
-    	}
-    }
-
-    return sqrt(sq_d_min);
-
-}
-
-void cal_donut_entry(PtwID* p, double min, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, Entry* prem_entry, Entry_Stat& es) {
+void cal_donut_entry(PtwID* p, double min, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, bool small_set, Entry* prem_entry, Entry_Stat& es) {
 
 	PtwID a, b, c;
 
@@ -95,14 +56,24 @@ void cal_donut_entry(PtwID* p, double min, Mesh* mesh_p, C_RTree* r_p, bool debu
     double d_pm = eucl_dist(p->pt, &m);
 
     double r_donut = d_pm * 1.73205080757;
-    double donut_nn_dist = donut_nn(&m, &pa, r_donut, p, mesh_p, r_p, b);
-    es.nn_dist[1] = donut_nn_dist;
 
-    if (!b.pt) {
-        return;
+    int nn_b;
+    // auto nn_d_b = r_p->donut_nn(&m, r_donut, &pa, &nn_b);
+    double nn_d_b;
+    if (small_set) {
+        nn_d_b = donut_nn_quick(&m, &pa, r_donut, mesh_p, r_p, &nn_b);
+    } else {
+        nn_d_b = donut_nn(&m, &pa, r_donut, mesh_p, r_p, &nn_b);
     }
 
-    if (debug_mode) cout << TABTAB << "Second pt #" << b.id << " dist=" << donut_nn_dist << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
+    if (debug_mode) cout << TABTAB << "Second pt #" << nn_b << " dist=" << nn_d_b << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
+
+    if (nn_b >= 0) {
+        b.set(nn_b, mesh_p);
+        es.nn_dist[1] = nn_d_b;
+    } else {
+        return;
+    }
 
     // start looking for the third pt c
     if (debug_mode) timer_start();
@@ -139,11 +110,11 @@ int main(int argc, char **argv) {
     srand(time(0));
 
     if (argc < 4) {
-        cerr << "Usage: " << argv[0] << " database_path ann_min output_grid_filename [-sort_entry] [-show_prog_bar] [-debug]" << endl;
+        cerr << "Usage: " << argv[0] << " database_path ann_min output_grid_filename [-sort_entry] [-show_prog_bar] [-small] [-debug]" << endl;
         exit(1);
     }
 
-    bool show_prog_bar = false, debug_mode = false, sort_entry = false;
+    bool show_prog_bar = false, debug_mode = false, sort_entry = false, small_set = false;
     for (int i = 0; i < argc; i++) {
         if (string(argv[i]) == "-show_prog_bar")
             show_prog_bar = true;
@@ -151,6 +122,8 @@ int main(int argc, char **argv) {
             debug_mode = true;
         else if (string(argv[i]) == "-sort_entry")
             sort_entry = true;
+        else if (string(argv[i]) == "-small")
+            small_set = true;
     }
 
     int argi = 0;
@@ -232,7 +205,7 @@ int main(int argc, char **argv) {
 
             Entry_Stat es(global_cell_id);
 
-            cal_donut_entry(&p, ann_min, mesh_p, &r_p, debug_mode, prem_entry, es);
+            cal_donut_entry(&p, ann_min, mesh_p, &r_p, debug_mode, small_set, prem_entry, es);
 
             if (prem_entry->fail) {
                 if (debug_mode) cout << TAB << "Fail in finding prem entry" << endl;
@@ -256,10 +229,14 @@ int main(int argc, char **argv) {
 
             global_cell_id++;
 
-            if (debug_mode && i >= 20) {
+            if (debug_mode && i >= 1000) {
                 break;
             }
 
+        }
+
+        if (debug_mode) {
+            break;
         }
 
         if (show_prog_bar) {
@@ -286,13 +263,13 @@ int main(int argc, char **argv) {
     ofs_stat << "I_time = " << i_time << endl;
     ofs_stat << "user_time = " << user_time << endl;
 
-    // for (auto &es: v_es) {
-    //     ofs_stat << es.global_id;
-    //     for (int j = 0; j < 3; j++) {
-    //         ofs_stat << " " << es.nn_dist[j];
-    //     }
-    //     ofs_stat << endl;
-    // }
+    for (auto &es: v_es) {
+        ofs_stat << es.global_id;
+        for (int j = 0; j < 3; j++) {
+            ofs_stat << " " << es.nn_dist[j];
+        }
+        ofs_stat << endl;
+    }
 
     ofs_stat.close();
 

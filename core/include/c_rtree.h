@@ -40,11 +40,15 @@ private:
 	void read_rstree_info(const std::string info_filename);
 
 	R_TYPE* convert_pt(Pt3D* p) const;
+	
+	R_TYPE* convert_donut(Pt3D* o, double r, Pt3D* n) const;
 
 public:
 	C_RTree(Usage usage = PCD);
 
 	void read_from_mesh(const std::string mesh_filename);
+
+	double donut_nn(Pt3D* o, double r, Pt3D* n, int* ret, const std::unordered_set<int>& excl_id_set = {}, int k = 1);
 
 	double nn_sphere(Pt3D* p, double r, int* ret, const std::unordered_set<int>& excl_id_set = {}, int k = 1);
 

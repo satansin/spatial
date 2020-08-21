@@ -6,11 +6,11 @@
 
 struct Struct_Q {
 	int m;
-	double epsilon, eta;
+	double sigma;
 
 private:
 	int db_mesh_id;
-	double gt_err_linear, gt_err_quad;
+	double gt_err_mle, gt_err_mse;
 	std::vector<int> id_q_db_map;
 	std::vector<double> drift_map;
 	std::unordered_map<int, int> id_db_q_map;
@@ -26,10 +26,8 @@ public:
 
 	    int real_inlier_count;
 
-	    info_q_ifs >> this->m >> this->epsilon >> this->db_mesh_id;
-	    // this->epsilon *= 2.0;
-	    this->eta = 0.68;
-	    info_q_ifs >> this->gt_err_linear >> this->gt_err_quad;
+	    info_q_ifs >> this->m >> this->sigma >> this->db_mesh_id;
+	    info_q_ifs >> this->gt_err_mle >> this->gt_err_mse;
 
 	    int q_id, db_id;
 	    double drift_dist;

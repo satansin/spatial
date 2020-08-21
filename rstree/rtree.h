@@ -7,6 +7,7 @@
 #include <limits.h>
 #include <math.h>
 #include "qsort.h"
+#include "donut.h"
 
 #define DEBUG 1
 
@@ -144,6 +145,8 @@ void k_NN_search_sphere(node_type *root, R_TYPE *query, int k, NN_type **returnR
 void sphere_search(node_type *root, R_TYPE *query, R_LONG_TYPE min, R_LONG_TYPE max, RangeReturn_type **returnResult, rtree_info *r_info);
 
 void NN_range_search(node_type *root, R_TYPE *query, RangeReturn_type **rr_ret, rtree_info *aInfo, R_LONG_TYPE rad, double span, int excl_list[], int excl_num);
+
+void k_Donut_NN_search(node_type *root, R_TYPE *query, int k, NN_type **returnResult, rtree_info *aInfo);
 
 // return total no. nodes accessed:
 int rectangle_search(node_type *root, int no_query, R_TYPE **query_min, R_TYPE **query_max, RangeReturn_type **returnResult, rtree_info *aInfo);

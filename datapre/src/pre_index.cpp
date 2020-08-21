@@ -20,13 +20,6 @@ rtree_info read_rstree_info(string filename) {
 	return ret;
 }
 
-void read_db_mesh_batch(vector<string>& db_filenames, int batch_i, int batch_size, vector<TriMesh*>& db_meshes) {
-    for (int i = 0; i < batch_size; i++) {
-    	int real_i = batch_i * batch_size + i;
-    	db_meshes.push_back(TriMesh::read(db_filenames[real_i]));
-    }
-}
-
 void build_rtree(TriMesh* mesh, vector<rtree_info>& info, int n, string realname) {
 	R_TYPE** data = (R_TYPE **) malloc(sizeof(R_TYPE *) * n);
     for (int k = 0; k < n; k++) {
@@ -84,24 +77,7 @@ int main(int argc, char* argv[]) {
     int batch_size = 1;
 
     if (batch_mode) {
-		string db_folder = get_foldername(input_filename);
-		string meta_filename = db_folder + "meta.txt";
-		ifstream meta_ifs(meta_filename);
-	    if (!meta_ifs) {
-	    	cerr << "Fail reading meta file " << meta_filename << endl;
-	    	exit(1);
-	    }
-
-	    meta_ifs >> num_meshes;
-	    int id;
-	    string s_file;
-	    for (int i = 0; i < num_meshes; i++) {
-	        meta_ifs >> id >> s_file;
-	        db_filenames.push_back(s_file);
-	    }
-
-	    meta_ifs.close();
-
+    	num_meshes = read_db_mesh_filenames(input_filename, db_filenames);
 	    batch_size = num_meshes / num_batches;
     } else {
         db_filenames.push_back(input_filename);
@@ -111,10 +87,7 @@ int main(int argc, char* argv[]) {
 	info.push_back(read_rstree_info("../common/config/rstree.pcd.config"));
 
     vector<TriMesh*> db_meshes;
-
 	cout << "Process batch #" << batch_id << endl;
-
-	db_meshes.clear();
 	read_db_mesh_batch(db_filenames, batch_id, batch_size, db_meshes);
 
 	for (int i = 0; i < batch_size; i++) {
