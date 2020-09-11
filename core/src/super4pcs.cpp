@@ -31,16 +31,18 @@ struct Congr_base {
     }
 };
 
-const double ZERO = 0.001;
-const double FINE_ZERO = 0.000001;
+// threshold set:
+//   super4pcs: sel-coplanar: equational distance between the 4th point and the face through the first 3 points
+//   superg4pcs: sel-3D-coplanar: distance threshold of two equal line segments
+//   super4pcs & superg4pcs: match-base: angle threshold of bases
+//   superg4pcs: an equational threshold
+// const double THRESHOLD_LIST[4] = { 0.01, 10, 0.01, 0.01 }; // dense point set (obj) & comp_7, !!don't change this!!
+const double THRESHOLD_LIST[4] = { 0.01, 1, 0.01, 0.01 }; // comp_6, !!don't change this!!
 const int MAX_TRIAL = 50000;
-
-inline bool eq(double a, double b) { return abs(a - b) <= ZERO; };
-inline bool eqf(double a, double b) { return abs(a - b) <= FINE_ZERO; };
 
 struct Dist_pair {
     int p1, p2;
-    double d;   
+    double d;
 };
 
 bool comp_dist_pair(const Dist_pair& a, const Dist_pair& b) {
@@ -212,7 +214,10 @@ bool test_3d_coplanar(Mesh* mesh_q, C_RTree* r_q, Struct_Q* s_q, int* ran, doubl
         }
         sort(begin(pairwise_dists), begin(pairwise_dists) + pairwise_dists.size(), [] (Dist_pair a, Dist_pair b) { return comp_dist_pair(a, b); });
         for (int i = 0; i < pairwise_dists.size() - 1; i++) {
-            if (eq(pairwise_dists[i + 1].d, pairwise_dists[i].d)) {
+            if (abs(pairwise_dists[i + 1].d - pairwise_dists[i].d) <= THRESHOLD_LIST[1]) {
+                if (rand() % 2 == 0) {
+                    continue;
+                }
                 int tab[4] = {
                     pairwise_dists[i].p1,
                     pairwise_dists[i].p2,
@@ -254,7 +259,7 @@ bool test_3d_coplanar(Mesh* mesh_q, C_RTree* r_q, Struct_Q* s_q, int* ran, doubl
 
                 auto bq3 = mesh_q->get_pt(ran[2]);
                 vector<int> bq4_cand_set;
-                r_q->range_sphere_dist_err(bq3, d, 0.001, bq4_cand_set);
+                r_q->range_sphere_dist_err(bq3, d, THRESHOLD_LIST[1], bq4_cand_set); // for object dataset
                 if (bq4_cand_set.empty()) {
                     continue;
                 }
@@ -278,7 +283,7 @@ bool test_3d_coplanar(Mesh* mesh_q, C_RTree* r_q, Struct_Q* s_q, int* ran, doubl
     }
 
     if (!found_coplanar) {
-        cout << "coplanar not found" << endl;
+        cout << "3d coplanar not found" << endl;
         return false;
     }
 
@@ -338,7 +343,7 @@ bool test_coplanar(Mesh* mesh_q, Struct_Q* s_q, int* ran, double& d12_q, double&
             bq[3] = *(mesh_q->get_pt(i));
             double dist = (a * bq[3].x + b * bq[3].y + c * bq[3].z + d) / div;
 
-            if(eq(dist, 0) && cal_intersection(mesh_q, ran[0], ran[1], ran[2], i, la, mu, e, angle)) {
+            if((abs(dist) <= THRESHOLD_LIST[0]) && cal_intersection(mesh_q, ran[0], ran[1], ran[2], i, la, mu, e, angle)) {
                 found_coplanar = true;
                 ran[3] = i;
                 break;
@@ -372,7 +377,7 @@ bool test_coplanar(Mesh* mesh_q, Struct_Q* s_q, int* ran, double& d12_q, double&
     return true;
 }
 
-void match_base_in_db_mesh_gen(Mesh* mesh_p, C_RTree* r_tree, double d, double l, double epsilon, double la, double mu, double angle, int db_id, vector<Congr_base>& ret) {
+int match_base_in_db_mesh_gen(Mesh* mesh_p, C_RTree* r_tree, double d, double l, double epsilon, double la, double mu, double angle, int db_id, vector<Congr_base>& ret) {
 
     double err = max(2.0 * epsilon, 0.001);
 
@@ -407,12 +412,14 @@ void match_base_in_db_mesh_gen(Mesh* mesh_p, C_RTree* r_tree, double d, double l
         }
     }
 
-    // cout << "Num of matching d: " << index << endl;
+    cout << "Num of matching d: " << index << endl;
 
     double sq_dist_min = l - err;
     sq_dist_min = sq_dist_min * sq_dist_min;
     double sq_dist_max = l + err;
     sq_dist_max = sq_dist_max * sq_dist_max;
+
+    int num_matched = 0;
 
     for (auto &e_ep: eps) {
         intersection_ret.clear();
@@ -433,24 +440,26 @@ void match_base_in_db_mesh_gen(Mesh* mesh_p, C_RTree* r_tree, double d, double l
 
             // cout << dot_prd(ep1, ef) << endl;
 
-            if (!eq(dot_prd(&ep1, &ef) / (ep1.mode() * ef.mode()), 0)) {
+            if (abs(dot_prd(&ep1, &ef) / (ep1.mode() * ef.mode())) > THRESHOLD_LIST[3]) {
                 continue;
             }
 
             double cos_p1efp3 = (dot_prd(&ep1, &fp3)) / (ep1_mode * fp3.mode());
             // cout << cos_p1efp3 << endl;
 
-            // if (abs(cos_p1efp3 - angle) > 0.01) {
-            if (!eq(cos_p1efp3, angle)) {
+            if (abs(cos_p1efp3 - angle) > THRESHOLD_LIST[2]) {
                 continue;
             }
 
             ret.push_back(Congr_base(e_ep.p1, e_ep.p2, eps[i].p1, eps[i].p2, db_id));
+            num_matched++;
         }
     }
+
+    return num_matched;
 }
 
-void match_base_in_db_mesh(Mesh* mesh_p, C_RTree* r_tree, double d12_q, double d34_q, double epsilon, double la, double mu, double angle, int db_id, vector<Congr_base>& ret) {
+int match_base_in_db_mesh(Mesh* mesh_p, C_RTree* r_tree, double d12_q, double d34_q, double epsilon, double la, double mu, double angle, int db_id, vector<Congr_base>& ret) {
     
     vector<int> intersection_ret;
     unordered_map<int, vector<Extracted_pair>> ep12;
@@ -499,6 +508,8 @@ void match_base_in_db_mesh(Mesh* mesh_p, C_RTree* r_tree, double d12_q, double d
 
     double l34 = d34_q * mu;
 
+    int num_matched = 0;
+
     for (auto &v12: ep12) {
         for (auto &s12: v12.second) {
 
@@ -515,8 +526,7 @@ void match_base_in_db_mesh(Mesh* mesh_p, C_RTree* r_tree, double d12_q, double d
                 auto e12_p1 = *p1 - e12;
                 double cosIPt = (dot_prd(&e12_iPt, &e12_p1)) / (e12_iPt.mode() * e12_p1.mode());
 
-                if (abs(cosIPt - angle) > 0.01) {
-                // if (!eq(cosIPt, angle)) {
+                if (abs(cosIPt - angle) > THRESHOLD_LIST[2]) {
                     continue;
                 }
 
@@ -530,14 +540,17 @@ void match_base_in_db_mesh(Mesh* mesh_p, C_RTree* r_tree, double d12_q, double d
                     double dist = eucl_dist(&e12, &s34.e);
                     if (dist <= err) {
                         ret.push_back(Congr_base(s12.p1, s12.p2, s34.p1, s34.p2, db_id));
+                        num_matched++;
                     }
                 }
             }
         }
     }
+
+    return num_matched;
 }
 
-bool iter(DB_Meshes* db_meshes, vector<C_RTree>& db_rtrees, Mesh* mesh_q, Struct_Q* s_q, C_RTree* query_rtree, double delta, double epsilon, GoICP goicp[], Exec_stat& stat) {
+bool iter(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struct_Q* s_q, C_RTree* query_rtree, double delta, double epsilon, GoICP goicp[], Exec_stat& stat) {
 
     timer_start();
 
@@ -545,12 +558,12 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree>& db_rtrees, Mesh* mesh_q, Struct
     double la, mu;
     Pt3D e;
     double angle; // cos(theta)
-#ifdef GEN
-    double l, d;
-    Pt3D f;
-#else
-    double d12_q, d34_q;
-#endif
+    #ifdef _GEN
+        double l, d;
+        Pt3D f;
+    #else
+        double d12_q, d34_q;
+    #endif
 
     vector<Congr_base> ret;
 
@@ -562,11 +575,11 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree>& db_rtrees, Mesh* mesh_q, Struct
 
     int iter_num_verified = 0;
 
-#ifdef GEN
-    bool found_coplanar = test_3d_coplanar(mesh_q, query_rtree, s_q, ran, d, l, la, mu, e, f, angle);
-#else
-    bool found_coplanar = test_coplanar(mesh_q, s_q, ran, d12_q, d34_q, la, mu, e, angle);
-#endif
+    #ifdef _GEN
+        bool found_coplanar = test_3d_coplanar(mesh_q, query_rtree, s_q, ran, d, l, la, mu, e, f, angle);
+    #else
+        bool found_coplanar = test_coplanar(mesh_q, s_q, ran, d12_q, d34_q, la, mu, e, angle);
+    #endif
 
     if (!found_coplanar) {
         timer_end(SECOND);
@@ -579,11 +592,14 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree>& db_rtrees, Mesh* mesh_q, Struct
     }
 
     for (int i = 0; i < db_meshes->size(); i++) {
-#ifdef GEN
-        match_base_in_db_mesh_gen(db_meshes->get_mesh(i), &db_rtrees[i], d, l, epsilon, la, mu, angle, i, ret);
-#else
-        match_base_in_db_mesh(db_meshes->get_mesh(i), &db_rtrees[i], d12_q, d34_q, epsilon, la, mu, angle, i, ret);
-#endif
+        // cout << "Match base in db#" << i << endl;
+        int ret_size;
+        #ifdef _GEN
+            ret_size = match_base_in_db_mesh_gen(db_meshes->get_mesh(i), db_rtrees[i], d, l, epsilon, la, mu, angle, i, ret);
+        #else
+            ret_size = match_base_in_db_mesh(db_meshes->get_mesh(i), db_rtrees[i], d12_q, d34_q, epsilon, la, mu, angle, i, ret);
+        #endif
+        // cout << "Returned matched: " << ret_size << endl;
     }
 
     iter_prop_time = timer_end(SECOND);
@@ -650,7 +666,7 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree>& db_rtrees, Mesh* mesh_q, Struct
     stat.first_verified_time += (iter_prop_time + iter_first_time);
     stat.num_verified = iter_num_verified;
 
-    // cout << "# verified: " << stat.num_verified << endl;
+    cout << "# verified: " << stat.num_verified << endl;
 
     stat.veri_size += ret.size();
     stat.num_icp_only += ret_left_icp_only.size();
@@ -662,15 +678,15 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree>& db_rtrees, Mesh* mesh_q, Struct
         return false;
 }
 
-bool exec(DB_Meshes* db_meshes, vector<C_RTree>& db_rtrees, Mesh* mesh_q, Struct_Q* s_q, C_RTree* query_rtree, double delta, double epsilon, GoICP goicp[], Exec_stat& stat) {
+bool exec(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struct_Q* s_q, C_RTree* query_rtree, double delta, double epsilon, GoICP goicp[], Exec_stat& stat) {
 
     bool find_accept = false;
 
-#ifdef DET
-    const int k_m = 1;
-#else
-    const int k_m = 9;
-#endif
+    #ifdef _PROB
+        const int k_m = 12;
+    #else
+        const int k_m = 1;
+    #endif
 
     for (int t = 0; t < k_m; t++) {
 
@@ -685,25 +701,34 @@ bool exec(DB_Meshes* db_meshes, vector<C_RTree>& db_rtrees, Mesh* mesh_q, Struct
 
 int main(int argc, char **argv) {
 
-#ifdef DET
-    if (argc < 4) {
-        cerr << "Usage: " << argv[0] << " database_path query_filename delta [-stat=...]" << endl;
-        exit(1);
-    }
-#else
-    if (argc < 5) {
-        cerr << "Usage: " << argv[0] << " database_path query_filename delta epsilon [-stat=...]" << endl;
-        exit(1);
-    }
-#endif
+    #ifdef _PROB
+        if (argc < 4) {
+            cerr << "Usage: " << argv[0] << " database_path query_filename epsilon [-delta=...] [-stat=...] [-num_parts=...]" << endl;
+            exit(1);
+        }
+    #else
+        if (argc < 4) {
+            cerr << "Usage: " << argv[0] << " database_path query_filename delta [-stat=...] [-num_parts=...]" << endl;
+            exit(1);
+        }
+    #endif
 
     bool write_stat = false;
     string stat_filename = "";
+    double delta;
+    bool spec_delta; // when PROB, delta might be specified or automatically assigned
+    double epsilon;
+    int num_parts = 0;
     for (int i = 0; i < argc; i++) {
         string argv_str(argv[i]);
         if (argv_str.rfind("-stat", 0) == 0) {
             write_stat = true;
             stat_filename = string(argv[i] + 6);
+        } else if (argv_str.rfind("-delta", 0) == 0) {
+            delta = atof(argv[i] + 7);
+            spec_delta = true;
+        } else if (argv_str.rfind("-num_parts", 0) == 0) {
+            num_parts = atoi(argv[i] + 11);
         }
     }
 
@@ -711,14 +736,15 @@ int main(int argc, char **argv) {
     string db_path = argv[(++argi)];
     string query_filename = argv[(++argi)];
 
-    double delta = atof(argv[(++argi)]);
+    #ifdef _PROB
+        epsilon = atof(argv[(++argi)]);
+    #else
+        delta = atof(argv[(++argi)]);
+        epsilon = delta;
+    #endif
 
-#ifdef DET
-    double epsilon = delta;
-#else
-    double epsilon = atof(argv[(++argi)]);
-#endif
-
+    cout << "db_path: " << db_path << endl;
+    cout << "query_filename: " << query_filename << endl;
     cout << "delta: " << delta << endl;
     cout << "epsilon: " << epsilon << endl;
     cout << endl;
@@ -729,13 +755,25 @@ int main(int argc, char **argv) {
     cout << "Reading database files from " << db_path << endl;
     DB_Meshes db_meshes;
     int num_meshes = db_meshes.read_from_path(db_path);
+    if (num_meshes < 0) {
+        cerr << "Error reading database files" << endl;
+        exit(1);
+    }
     cout << "Total no. meshes: " << num_meshes << endl << endl;
 
+    cout << "Building KDtrees for DB meshes" << endl;
     db_meshes.build_kd();
 
     cout << "Reading database R-trees..." << endl;
-    vector<C_RTree> db_rtrees;
-    read_rtrees_from_db_meshes(&db_meshes, db_rtrees);
+    vector<C_RTree*> db_rtrees;
+    if (num_parts > 0) {
+        const int num_meshes_per_part = num_meshes / num_parts;
+        for (int i = 0; i < num_parts; i++) {
+            read_rtrees_comb(db_path, i, num_meshes_per_part, db_rtrees);
+        }
+    } else {
+        read_rtrees_from_db_meshes(&db_meshes, db_rtrees);
+    }
 
     cout << endl;
 
@@ -744,13 +782,6 @@ int main(int argc, char **argv) {
     mesh_q.read_from_path(query_filename);
     cout << endl;
 
-    // load the query R-tree
-    C_RTree query_rtree;
-    query_rtree.read_from_mesh(query_filename);
-
-    delta *= (double) mesh_q.size();
-    cout << "Final delta by number of query: " << delta << endl;
-
     // load the query structure
     Struct_Q s_q;
     if (!s_q.read(query_filename + ".info")) {
@@ -758,20 +789,37 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    GoICP goicp[num_meshes];
-    for (int i = 0; i < num_meshes; i++) {
-    	loadGoICP(db_meshes.get_mesh(i), &mesh_q, delta, goicp[i]);
+    #ifdef _PROB
+        if (!spec_delta) {
+            double q_diam = mesh_q.get_bsphere_d();
+            // delta = q_diam * 0.001;
+            delta = sq(s_q.sigma);
+            cout << "Diameter of query mesh: " << q_diam << ", thus delta is set to " << delta << endl;
+        }
+    #endif
 
-	 //    // Build Distance Transform
-		// cout << endl << "Building Distance Transform of #" << i << "..." << endl;
-		// goicp[i].BuildDT();
+    delta *= (double) mesh_q.size();
+    cout << "Final delta by number of query: " << delta << endl;
 
-    	goicp[i].Initialize();
-    }
+    // load the query R-tree
+    C_RTree query_rtree;
+    query_rtree.read_from_mesh(query_filename);
+
+    GoICP goicp[10];
+  //   for (int i = 0; i < num_meshes; i++) {
+  //   	loadGoICP(db_meshes.get_mesh(i), &mesh_q, delta, goicp[i]);
+
+	 // //    // Build Distance Transform
+		// // cout << endl << "Building Distance Transform of #" << i << "..." << endl;
+		// // goicp[i].BuildDT();
+
+  //   	goicp[i].Initialize();
+  //   }
     cout << endl;
 
 
-    const int exec_times = 3;
+    const int exec_times = 50;
+    int real_exec_times = 0;
     double aggr_prop_time = 0, aggr_veri_time = 0, aggr_user_time = 0, aggr_first_verified_time = 0;
     int aggr_veri_size = 0;
     int aggr_num_fail = 0;
@@ -782,13 +830,13 @@ int main(int argc, char **argv) {
         bool exec_success = exec(&db_meshes, db_rtrees, &mesh_q, &s_q, &query_rtree, delta, epsilon, goicp, stat);
         cout << endl;
 
-        cout << "Total number of candidate transformations: " << stat.veri_size << endl;
-        cout << "Final number of valid transformations: " << stat.num_verified << endl;
-        cout << "Total time: " << stat.user_time << "(s)" << endl;
-        cout << "Proposal time: " << stat.prop_time << "(s)" << endl;
-        cout << "Verification time: " << stat.veri_time << "(s)" << endl;
-        cout << "First verified time: " << stat.first_verified_time << "(s)" << endl;
-        cout << endl;
+        // cout << "Total number of candidate transformations: " << stat.veri_size << endl;
+        // cout << "Final number of valid transformations: " << stat.num_verified << endl;
+        // cout << "Total time: " << stat.user_time << "(s)" << endl;
+        // cout << "Proposal time: " << stat.prop_time << "(s)" << endl;
+        // cout << "Verification time: " << stat.veri_time << "(s)" << endl;
+        // cout << "First verified time: " << stat.first_verified_time << "(s)" << endl;
+        // cout << endl;
 
         aggr_prop_time += stat.prop_time;
         aggr_veri_time += stat.veri_time;
@@ -798,22 +846,35 @@ int main(int argc, char **argv) {
 
         if (!exec_success)
             aggr_num_fail++;
+
+        real_exec_times++;
+
+        if (real_exec_times <= 5 || real_exec_times == 10 || real_exec_times == 20) {
+            if (aggr_user_time > 100.0) {
+                break;
+            }
+        }
     }
 
-    double aver_prop_time = aggr_prop_time / (double) exec_times;
-    double aver_veri_time = aggr_veri_time / (double) exec_times;
-    double aver_user_time = aggr_user_time / (double) exec_times;
-    double aver_veri_size = (double) aggr_veri_size / (double) exec_times;
-    double aver_first_verified_time = aggr_first_verified_time / (double) exec_times;
+    double aver_prop_time = aggr_prop_time / (double) real_exec_times;
+    double aver_veri_time = aggr_veri_time / (double) real_exec_times;
+    double aver_user_time = aggr_user_time / (double) real_exec_times;
+    double aver_veri_size = (double) aggr_veri_size / (double) real_exec_times;
+    double aver_first_verified_time = aggr_first_verified_time / (double) real_exec_times;
 
     if (write_stat) {
-        ofstream stat_ofs;
-        stat_ofs.open(stat_filename, ofstream::out | ofstream::app);
-        stat_ofs << aver_prop_time << "\t";
-        stat_ofs << aver_veri_time << "\t";
-        stat_ofs << aver_user_time << "\t";
-        stat_ofs << aver_veri_size << "\t";
-        stat_ofs << aver_first_verified_time << "\t";
+        ofstream stat_ofs(stat_filename);
+        stat_ofs << "user_time=" << aver_user_time << endl;
+        stat_ofs << "prop_time=" << aver_prop_time << endl;
+        stat_ofs << "veri_time=" << aver_veri_time << endl;
+        stat_ofs << "veri_size=" << aver_veri_size << endl;
+        stat_ofs << "num_fail=" << aggr_num_fail << endl;
+        stat_ofs << "num_exec=" << real_exec_times << endl;
+        // stat_ofs << aver_prop_time << "\t";
+        // stat_ofs << aver_veri_time << "\t";
+        // stat_ofs << aver_user_time << "\t";
+        // stat_ofs << aver_veri_size << "\t";
+        // stat_ofs << aver_first_verified_time << "\t";
         stat_ofs.close();
     }
 

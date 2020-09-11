@@ -1,5 +1,7 @@
 #include "TriMesh.h"
 #include "TriMesh_algo.h"
+#include "ProgressBar.hpp"
+
 #include <ctime>
 #include <cstdlib>
 #include <string>
@@ -16,6 +18,7 @@ using namespace trimesh;
 const double sigma = 200;
 
 int main(int argc, char** argv) {
+
 	srand(time(NULL));
 
 	if (argc < 5) {
@@ -59,58 +62,103 @@ int main(int argc, char** argv) {
 	// }
 	// exit(0);
 
-	int global_id = 0;
-	const int total = num_meshes * num_per_ext;
+	vector<string> output_names;
 
-	ofstream ofs_meta(output_foldername + "meta.txt");
-	ofs_meta << total << endl;
+	const int num_parts = 110;
+	vector<int> part_sizes;
 
-	for (int i = 0; i < num_meshes; i++) {
+	for (int h = 0; h < num_parts; h++) {
 
-		cout << "Processing mesh #" << i << endl;
+		TriMesh* combined_mesh = new TriMesh;
+		vector<int> point_sizes;
 
-		string first_output_filename = output_foldername + db_mesh_names[i] + string(fix_len, '0') + ".ply";
-		db_meshes[i]->write(first_output_filename);
-		ofs_meta << (global_id++) << " " << first_output_filename << endl;
+		int end = (h < num_parts - 1) ? (h * 4 + 4) : (h * 4 + 5); // such that mesh #440 is included in the last part
 
-		for (int j = 1; j < num_per_ext; j++) {
+		for (int i = h * 4; i < end; i++) {
 
-			TriMesh* ext = new TriMesh;
+			cout << "Processing mesh #" << i << endl;
 
-			for (int k = 0; k < db_meshes[i]->vertices.size(); k++) {
+			string output_name = db_mesh_names[i] + string(fix_len, '0') + ".ply";
+			output_names.push_back(output_name);
 
-				auto v = db_meshes[i]->vertices[k];
+			append_mesh(db_meshes[i], combined_mesh);
 
-				double target_drifting_dist = abs(gsl_ran_gaussian(rng, sigma));
+			point_sizes.push_back(db_meshes[i]->vertices.size());
 
-				double a = rand_double_in_range(0.0, 1.0) - 0.5,
-					   b = rand_double_in_range(0.0, 1.0) - 0.5,
-					   c = rand_double_in_range(0.0, 1.0) - 0.5;
-				double norm = sqrt(a * a + b * b + c * c);
-				double ran_scale = target_drifting_dist / norm;
-				a *= ran_scale; b *= ran_scale; c *= ran_scale;
+			ProgressBar bar(num_per_ext - 1, 70);
 
-				v[0] += a;
-				v[1] += b;
-				v[2] += c;
-				// cout << a << " " << b << " " << c << endl;
+			for (int j = 1; j < num_per_ext; j++) {
 
-				ext->vertices.push_back(v);
+				for (int k = 0; k < db_meshes[i]->vertices.size(); k++) {
 
-				// double dist = nn_dist(ext->vertices[i], db_kd);
-				// ground_truth_err_linear += dist;
-				// ground_truth_err_quadratic += dist * dist;
+					auto v = db_meshes[i]->vertices[k];
+
+					double target_drifting_dist = abs(gsl_ran_gaussian(rng, sigma));
+
+					double a = rand_double_in_range(0.0, 1.0) - 0.5,
+						   b = rand_double_in_range(0.0, 1.0) - 0.5,
+						   c = rand_double_in_range(0.0, 1.0) - 0.5;
+					double norm = sqrt(a * a + b * b + c * c);
+					double ran_scale = target_drifting_dist / norm;
+					a *= ran_scale; b *= ran_scale; c *= ran_scale;
+
+					v[0] += a;
+					v[1] += b;
+					v[2] += c;
+					// cout << a << " " << b << " " << c << endl;
+
+					combined_mesh->vertices.push_back(v);
+
+					// double dist = nn_dist(ext->vertices[i], db_kd);
+					// ground_truth_err_linear += dist;
+					// ground_truth_err_quadratic += dist * dist;
+				}
+				
+				string j_str = to_string(j);
+				string output_name = db_mesh_names[i] + string(fix_len - j_str.length(), '0') + j_str + ".ply";
+				output_names.push_back(output_name);
+
+				point_sizes.push_back(db_meshes[i]->vertices.size());
+
+				++bar;
+				bar.display();
 			}
-			
-			string j_str = to_string(j);
-			string output_filename = output_foldername + db_mesh_names[i] + string(fix_len - j_str.length(), '0') + j_str + ".ply";
-			ext->write(output_filename);
-			ofs_meta << (global_id++) << " " << output_filename << endl;
 
-			delete ext;
+			bar.done();
 		}
+
+		part_sizes.push_back(point_sizes.size());
+
+		combined_mesh->write(output_foldername + "combined.ply." + to_string(h));
+		combined_mesh->clear();
+		delete combined_mesh;
+		
+		ofstream ofs_combined_meta(output_foldername + "combined.meta." + to_string(h));
+		for (auto &v: point_sizes) {
+			ofs_combined_meta << v << endl;
+		}
+		ofs_combined_meta.close();
+		vector<int>().swap(point_sizes);
+
 	}
 
+	ofstream ofs_meta(output_foldername + "meta.txt");
+	ofs_meta << output_names.size() << endl;
+	for (int i = 0; i < output_names.size(); i++) {
+		ofs_meta << i << " " << output_names[i] << endl;
+	}
 	ofs_meta.close();
+
+	ofstream ofs_comb_meta_ovr(output_foldername + "combined.meta");
+	ofs_comb_meta_ovr << num_parts << endl;
+	for (auto &v: part_sizes) {
+		ofs_comb_meta_ovr << v << endl;
+	} 
+	ofs_comb_meta_ovr.close();
+
+	for (auto &m: db_meshes) {
+		m->clear();
+		delete m;
+	}
 
 }

@@ -29,12 +29,21 @@ int main(int argc, char **argv) {
 
     cout << "Reading database files from " << db_path << endl;
     DB_Meshes db_meshes;
-    int num_meshes = db_meshes.read_from_path(db_path);
+    const int num_meshes = db_meshes.read_from_path(db_path);
+    if (num_meshes < 0) {
+        cerr << "Error reading database files" << endl;
+        exit(1);
+    }
     cout << "Total no. meshes: " << num_meshes << endl << endl;
 
-    cout << "Loading DB structure from " << grid_filename << endl;
+    // load the DB structure
+    string grid_bin_filename = get_bin_filename(grid_filename);
+    cout << "Loading DB structure from " << grid_bin_filename << endl;
     Struct_DB s_db;
-    s_db.read(grid_filename, &db_meshes);
+    if (!s_db.read_bin(grid_bin_filename, &db_meshes)) {
+        cerr << "Error loading DB structure" << endl;
+        exit(1);
+    }
 
     int num_cells = s_db.get_total_cells_count();
     cout << "Total no. cells: " << num_cells << endl << endl;
@@ -60,6 +69,7 @@ int main(int argc, char **argv) {
     ////////////////////////// Toggle_2 /////////////////////////////////////
 
     int insert_count = 0;
+    int box_min[INDEX_DIM], box_max[INDEX_DIM];
 
     for (int i = 0; i < num_cells; i++) {
 
@@ -68,19 +78,14 @@ int main(int argc, char **argv) {
             bar.display();
         }
 
-        auto e = entries[i];
-        if (e->fail) {
+        if (entries[i]->fail) {
             continue;
         }
 
         ////////////////////////// Toggle_1 /////////////////////////////////////
-        int box_min[INDEX_DIM], box_max[INDEX_DIM];
-        e->get_index_box(box_min, box_max);
-        
+        entries[i]->get_index_box(box_min, box_max);
         tree.Insert(box_min, box_max, i);
         ////////////////////////// Toggle_1 /////////////////////////////////////
-
-        insert_count++;
 
         ////////////////////////// Toggle_2 /////////////////////////////////////
         // tree_data[i] = (R_TYPE *) malloc(sizeof(R_TYPE) * INDEX_DIM);
@@ -88,6 +93,10 @@ int main(int argc, char **argv) {
         //     tree_data[i][dim_i] = (int) (e->sides[dim_i] * 1e5);
         // }
         ////////////////////////// Toggle_2 /////////////////////////////////////
+
+        insert_count++;
+
+        s_db.delete_entry(i);
 
     }
 

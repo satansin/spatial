@@ -24,42 +24,42 @@ OUT=out
 #     add $(USE_TM)
 #     add the following (!!in the end!!): -ltrimesh -lgluit -fopenmp
 
-all: super4pcs_prob superg4pcs_prob \
-	 grid grid_donut grid_3nn index3 binary_helper \
-	 query_prob3 query_prob3_cpq \
-	 query_3nn_prob3 query_3nn_prob3_cpq \
-	 query_donut_prob3 query_donut_prob3_cpq \
+all: goicp \
+	 super4pcs_det superg4pcs_det \
+	 super4pcs_prob superg4pcs_prob \
+	 grid_gt grid_donut grid_3nn index3 index6 \
+	 query_prob3 query_prob3_cpq query_prob6 query_prob6_cpq \
+	 query_3nn_prob3 query_3nn_prob3_cpq query_3nn_prob6 query_3nn_prob6_cpq \
+	 query_donut_prob3 query_donut_prob3_cpq query_donut_prob6 query_donut_prob6_cpq \
 
 # 	 grid grid_donut grid_3nn grid_3lnn index3
 # 	 query_det query_det_eps query_det_icp query_det_nar \
-# 	 super4pcs_det super4pcs_prob superg4pcs_det superg4pcs_prob \
-# 	 goicp
-# 	 anal_reg anal_nn anal_diam \
+# 	 anal_reg anal_nn anal_diam z_test \
 
 super4pcs_det: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/super4pcs.cpp $(OBJ)/* -o $(OUT)/super4pcs_det.out -ltrimesh -lgluit -fopenmp -DDET #-g
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/super4pcs.cpp $(OBJ)/* -o $(OUT)/super4pcs_det.out   -ltrimesh -lgluit -fopenmp -g
 
 super4pcs_prob: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/super4pcs.cpp $(OBJ)/* -o $(OUT)/super4pcs_prob.out -ltrimesh -lgluit -fopenmp #-g
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/super4pcs.cpp $(OBJ)/* -o $(OUT)/super4pcs_prob.out  -ltrimesh -lgluit -fopenmp -D_PROB -g
 
 superg4pcs_det: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/super4pcs.cpp $(OBJ)/* -o $(OUT)/superg4pcs_det.out -ltrimesh -lgluit -fopenmp -DGEN -DDET #-g
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/super4pcs.cpp $(OBJ)/* -o $(OUT)/superg4pcs_det.out  -ltrimesh -lgluit -fopenmp -D_GEN -g
 
 superg4pcs_prob: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/super4pcs.cpp $(OBJ)/* -o $(OUT)/superg4pcs_prob.out -ltrimesh -lgluit -fopenmp -DGEN #-g
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/super4pcs.cpp $(OBJ)/* -o $(OUT)/superg4pcs_prob.out -ltrimesh -lgluit -fopenmp -D_GEN -D_PROB -g
 
 
-grid: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/grid.cpp $(OBJ)/* -o $(OUT)/grid.out -ltrimesh -lgluit -fopenmp
-
-grid_3nn: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/grid_3nn.cpp $(OBJ)/* -o $(OUT)/grid_3nn.out -ltrimesh -lgluit -fopenmp
-
-grid_3lnn: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/grid_3lnn.cpp $(OBJ)/* -o $(OUT)/grid_3lnn.out -ltrimesh -lgluit -fopenmp
+grid_gt: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/grid.cpp $(OBJ)/* -o $(OUT)/grid_gt.out    -ltrimesh -lgluit -fopenmp -g
 
 grid_donut: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/grid_donut.cpp $(OBJ)/* -o $(OUT)/grid_donut.out -ltrimesh -lgluit -fopenmp -g
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/grid.cpp $(OBJ)/* -o $(OUT)/grid_donut.out -ltrimesh -lgluit -fopenmp -D_DNT -g
+
+grid_3nn: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/grid.cpp $(OBJ)/* -o $(OUT)/grid_3nn.out   -ltrimesh -lgluit -fopenmp -D_3NN
+
+grid_3lnn: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/grid.cpp $(OBJ)/* -o $(OUT)/grid_3lnn.out  -ltrimesh -lgluit -fopenmp -D_3NN -D_3LNN
 
 
 index6: build_obj
@@ -86,29 +86,29 @@ query_det_nar: build_obj
 
 
 query_prob3: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_prob3.out           -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -DIDX_3 #-DVERBOSE=5 -DTEST_MODE -g
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_prob3.out           -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -DIDX_3 #-DVERBOSE=2 #-DTEST_MODE #-g
 
 query_prob3_cpq: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_prob3_cpq.out       -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -DIDX_3 -D_CPQ #-DVERBOSE=5 -DTEST_MODE -g
 
-# query_prob6: build_obj
-# 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_prob6.out           -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -DVERBOSE=1 -DTEST_MODE -g
+query_prob6: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_prob6.out           -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC #-DVERBOSE=1 -DTEST_MODE -g
 
-# query_prob6_cpq: build_obj
-# 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_prob6_cpq.out       -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_CPQ -DVERBOSE=1 -DTEST_MODE -g
+query_prob6_cpq: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_prob6_cpq.out       -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_CPQ #-DVERBOSE=1 -DTEST_MODE -g
 
 
 query_donut_prob3: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_donut_prob3.out     -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_DNT -DIDX_3 #-DVERBOSE=0 #-DTEST_MODE -g
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_donut_prob3.out     -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_DNT -DIDX_3 -g #-DVERBOSE=1 -DTEST_MODE
 
 query_donut_prob3_cpq: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_donut_prob3_cpq.out -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_DNT -D_CPQ -DIDX_3 #-DVERBOSE=0 #-DTEST_MODE -g
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_donut_prob3_cpq.out -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_DNT -D_CPQ -DIDX_3 -g #-DVERBOSE=1 #-DTEST_MODE
 
-# query_donut_prob6: build_obj
-# 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_donut_prob6.out     -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_DNT #-DVERBOSE=0 -DTEST_MODE -g
+query_donut_prob6: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_donut_prob6.out     -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_DNT -g #-DVERBOSE=0 -DTEST_MODE
 
-# query_donut_prob6_cpq: build_obj
-# 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_donut_prob6_cpq.out -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_DNT -D_CPQ #-DVERBOSE=0 #-DTEST_MODE -g
+query_donut_prob6_cpq: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_donut_prob6_cpq.out -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_DNT -D_CPQ -g #-DVERBOSE=0 #-DTEST_MODE
 
 
 query_3nn_prob3: build_obj
@@ -116,6 +116,12 @@ query_3nn_prob3: build_obj
 
 query_3nn_prob3_cpq: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_3nn_prob3_cpq.out   -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -DIDX_3 -D_3NN -D_CPQ #-DVERBOSE=1 #-DTEST_MODE -g
+
+query_3nn_prob6: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_3nn_prob6.out       -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_3NN #-DVERBOSE=1 #-DTEST_MODE -g
+
+query_3nn_prob6_cpq: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/query.cpp $(OBJ)/* -o $(OUT)/query_3nn_prob6_cpq.out   -ltrimesh -lgluit -fopenmp -DPROB -DICPONLY -DACC -D_3NN -D_CPQ #-DVERBOSE=1 #-DTEST_MODE -g
 
 
 query_3lnn_prob3: build_obj
@@ -137,8 +143,11 @@ anal_nn: build_obj
 anal_diam: build_obj
 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/anal_diam.cpp $(OBJ)/* -o $(OUT)/anal_diam.out -ltrimesh -lgluit -fopenmp
 
-binary_helper: build_obj
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/binary_helper.cpp $(OBJ)/* -o $(OUT)/binary_helper.out -ltrimesh -lgluit -fopenmp #-g
+z_test: build_obj
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/z_test.cpp $(OBJ)/* -o $(OUT)/z_test.out -ltrimesh -lgluit -fopenmp
+
+# binary_helper: build_obj
+# 	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/binary_helper.cpp $(OBJ)/* -o $(OUT)/binary_helper.out -ltrimesh -lgluit -fopenmp #-g
 
 
 goicp: build_obj

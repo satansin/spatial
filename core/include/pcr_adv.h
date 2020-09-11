@@ -33,29 +33,6 @@ typedef RTree<int, int, INDEX_DIM, double, 6> AuxTree;
 
 typedef RTree<int, int, 3, double, 6> CollTree;
 
-struct PtwID {
-	int id;
-	Pt3D* pt;
-	void set(int id, Pt3D* pt) {
-		this->id = id;
-		this->pt = pt;
-	}
-	void set(int id, Mesh* mesh) {
-		set(id, mesh->get_pt(id));
-	}
-	PtwID() {
-		this->id = -1;
-	}
-	PtwID(int id, Pt3D* pt) {
-		set(id, pt);
-	}
-	PtwID(int id, Mesh* mesh) {
-		set(id, mesh);
-	}
-	PtwID(PtwID* from) {
-		set(from->id, from->pt);
-	}
-};
 
 struct Box3D_Int {
 	int min_id[3], max_id[3];
@@ -505,6 +482,7 @@ struct Entry {
 		sides[4] = eucl_dist(remai[0]->pt, remai[2]->pt);
 		sides[5] = eucl_dist(remai[1]->pt, remai[2]->pt);
 	}
+	// not needed
 	void sort_sides() {
 		int prim = primary_remai();
 		if (prim != 0) {
@@ -570,11 +548,20 @@ struct Entry {
 		}
 	}
 	virtual ~Entry() {
-		delete repre;
+		if (repre != nullptr) {
+			delete repre;
+			repre = nullptr;
+		}
         for (int i = 0; i < 3; i++) {
-        	delete remai[i];
+        	if (remai[i] != nullptr) {
+        		delete remai[i];
+        		remai[i] = nullptr;
+        	}
         }
-		delete help;
+        if (help != nullptr) {
+			delete help;
+			help = nullptr;
+        }
 	}
 
 private:
@@ -622,6 +609,108 @@ private:
 //     }
 // }
 
+struct Entry_trim {
+	PtwID* repre; // p or q
+	PtwID* remai[3]; // a, b, c
+	bool fail;
+	PtwID* help; // h
+	double sides[6]; // pa, pb, pc, ab, ac, bc
+
+	void set(int repre, int remai_0, int remai_1, int remai_2, int help, Mesh* mesh) {
+		this->repre = mesh->get_ptwid(repre);
+		this->remai[0] = mesh->get_ptwid(remai_0);
+		this->remai[1] = mesh->get_ptwid(remai_1);
+		this->remai[2] = mesh->get_ptwid(remai_2);
+		this->help = mesh->get_ptwid(help);
+	}
+	Entry_trim(int repre_id, Entry_Helper* ent, Mesh* mesh_db) {
+		if (!ent->fail) {
+			set(repre_id, ent->remai[0], ent->remai[1], ent->remai[2], ent->help, mesh_db);
+		}
+		this->fail = ent->fail;
+
+		for (int i = 0; i < 6; i++) {
+			this->sides[i] = ent->sides[i];
+		}
+	}
+	Entry_trim(istream& is, Mesh* mesh_db) {
+		int repre_id, help_id;
+		int remai_id[3];
+	    double vol, meas;
+	    bool l_fail;
+		is >> repre_id;
+		for (int i = 0; i < 3; i++) {
+			is >> remai_id[i];
+		}
+		is >> vol >> meas >> l_fail >> help_id;
+		if (!l_fail) {
+			set(repre_id, remai_id[0], remai_id[1], remai_id[2], help_id, mesh_db);
+		}
+	    this->fail = l_fail;
+
+		for (int i = 0; i < 6; i++) {
+			is >> sides[i];
+		}
+	}
+	void get_index_box(double err, int box_min[INDEX_DIM], int box_max[INDEX_DIM]) {
+		#ifdef IDX_3
+			// #ifdef _3NN
+				// use 3-side length as index keys
+				box_min[0] = (int) ((sides[3] - err) * RSTREE_SCALE);
+				box_max[0] = (int) ((sides[3] + err) * RSTREE_SCALE);
+				box_min[1] = (int) ((sides[4] - err) * RSTREE_SCALE);
+				box_max[1] = (int) ((sides[4] + err) * RSTREE_SCALE);
+				box_min[2] = (int) ((sides[5] - err) * RSTREE_SCALE);
+				box_max[2] = (int) ((sides[5] + err) * RSTREE_SCALE);
+			// #else
+			// 	// use 3-side length as index keys
+			// 	box_min[0] = (int) ((sides[0] - err) * RSTREE_SCALE);
+			// 	box_max[0] = (int) ((sides[0] + err) * RSTREE_SCALE);
+			// 	box_min[1] = (int) ((sides[3] - err) * RSTREE_SCALE);
+			// 	box_max[1] = (int) ((sides[3] + err) * RSTREE_SCALE);
+			// 	box_min[2] = (int) ((sides[4] - err) * RSTREE_SCALE);
+			// 	box_max[2] = (int) ((sides[4] + err) * RSTREE_SCALE);
+			// #endif
+		#else
+			// use 6-side length as index keys
+			for (int i = 0; i < INDEX_DIM; i++) {
+				box_min[i] = (int) ((sides[i] - err) * RSTREE_SCALE);
+				box_max[i] = (int) ((sides[i] + err) * RSTREE_SCALE);
+			}
+		#endif
+	}
+	void get_index_box(int box_min[INDEX_DIM], int box_max[INDEX_DIM]) {
+		get_index_box(0.0, box_min, box_max);
+	}
+	string to_str(int precision = 6) const {
+		stringstream ss;
+		ss << setprecision(precision);
+		ss << repre->id << " "
+		   << remai[0]->id << " "
+		   << remai[1]->id << " "
+		   << remai[2]->id << " "
+		   << "0.0 0.0 "
+		   << fail << " "
+		   << help->id << " ";
+		for (int i = 0; i < 6; i++) {
+			ss << sides[i];
+			if (i < 5)
+				ss << " ";
+		}
+		return ss.str();
+	}
+	void get_entry_helper(Entry_Helper& ret) const {
+		for (int i = 0; i < 3; i++) {
+			ret.remai[i] = this->fail ? -1 : this->remai[i]->id;
+		}
+		ret.fail = this->fail;
+		ret.help = this->fail ? -1 : this->help->id;
+		for (int i = 0; i < 6; i++) {
+			ret.sides[i] = this->sides[i];
+		}
+	}
+};
+
 struct Struct_DB_Helper {
 	double w;
 	double ann_min;
@@ -640,7 +729,8 @@ struct Struct_DB {
 	double ann_max;
 	double ang_min;
 
-	vector<Entry*> entries;
+	// vector<Entry*> entries;
+	vector<Entry_trim*> entries;
 
 	vector<int> global_id_map;
 
@@ -655,6 +745,14 @@ struct Struct_DB {
 		total_cells_count = 0;
 	}
 
+	virtual ~Struct_DB() {
+		for (auto &v: entries) {
+			if (v != nullptr) {
+				delete v;
+			}
+		}
+	}
+
 	int get_total_cells_count() const {
 		return total_cells_count;
 	}
@@ -667,11 +765,18 @@ struct Struct_DB {
 		return grids;
 	}
 
-	void append_entry(Entry* e) {
-		entries.push_back(e);
-	}
-	const vector<Entry*>& get_entries() const {
+	// void append_entry(Entry* e) {
+	// 	entries.push_back(e);
+	// }
+	// const vector<Entry*>& get_entries() const {
+	const vector<Entry_trim*>& get_entries() const {
 		return entries;
+	}
+	void delete_entry(int i) {
+		if (i >= 0 && i < entries.size()) {
+			delete entries[i];
+			entries[i] = nullptr;
+		}
 	}
 
 	bool read_bin(string bin_filename, DB_Meshes* db_meshes) {
@@ -698,14 +803,18 @@ struct Struct_DB {
 		    repre_id_sets.resize(num_grids);
 	    #endif
 
-		vector<Entry_Helper> ent_list;
-		ent_list.reserve(total_cells_count);
-		ifs.read((char *) &ent_list.front(), sizeof(Entry_Helper) * total_cells_count);
+		Entry_Helper ent;
+		auto ent_ptr = (char *) &ent;
 
 		int global_id = 0;
+		// Entry* e;
+		Entry_trim* e;
 		for (int db_i = 0; db_i < num_grids; db_i++) {
 		    for (int i = 0; i < db_meshes->get_mesh(db_i)->size(); i++) {
-		        Entry *e = new Entry(i, &ent_list[global_id], db_meshes->get_mesh(db_i));
+		    	ifs.read(ent_ptr, sizeof(Entry_Helper));
+
+		        // e = new Entry(i, &ent, db_meshes->get_mesh(db_i));
+		        e = new Entry_trim(i, &ent, db_meshes->get_mesh(db_i));
 
 		        entries.push_back(e);
 
@@ -717,10 +826,17 @@ struct Struct_DB {
 		        #endif
 
 			    global_id++;
+
+			    if (global_id % 10000000 == 0) {
+			    	cout << global_id << endl;
+			    }
 		    }
 		}
 
 		ifs.close();
+
+		entries.shrink_to_fit();
+		global_id_map.shrink_to_fit();
 
 		return true;
 	}
@@ -733,44 +849,48 @@ struct Struct_DB {
 		int num_grids;
 		ifs >> w >> ann_min >> ann_mid >> ann_max >> ang_min >> num_grids >> total_cells_count;
 
-		grids.reserve(num_grids);
+		int id;
+		int dummy;
+		// grids.reserve(num_grids);
 		for (int i = 0; i < num_grids; i++) {
-			int id;
 			ifs >> id;
 
-			Grid* g = new Grid(w);
-			ifs >> g->cells_box->min_id[0] >> g->cells_box->min_id[1] >> g->cells_box->min_id[2]
-				>> g->cells_box->max_id[0] >> g->cells_box->max_id[1] >> g->cells_box->max_id[2];
+			// Grid* g = new Grid(w);
+			// ifs >> g->cells_box->min_id[0] >> g->cells_box->min_id[1] >> g->cells_box->min_id[2]
+			// 	>> g->cells_box->max_id[0] >> g->cells_box->max_id[1] >> g->cells_box->max_id[2];
+			// grids.push_back(g);
 
-			grids.push_back(g);
+			ifs >> dummy >> dummy >> dummy >> dummy >> dummy >> dummy;
 		}
-		grids.shrink_to_fit();
+		// grids.shrink_to_fit();
 
 		#ifdef TEST_MODE
 			reverse_entries_maps.resize(num_grids);
 			repre_id_sets.resize(num_grids);
 		#endif
 
+		int counter = 0;
+
+		int grid_id, key, cell_id, x, y, z, list_size, pt_id;
+		// Entry* e;
+		Entry_trim* e;
 		for (int i = 0; i < total_cells_count; i++) {
-			int grid_id, key, cell_id, x, y, z, list_size;
 			ifs >> grid_id;
 			ifs >> key;
 			ifs >> cell_id;
 			ifs >> x >> y >> z >> list_size;
 
-			Cell* c = new Cell(x, y, z);
-			c->set_global_id(cell_id);
+			// Cell* c = new Cell(x, y, z);
+			// c->set_global_id(cell_id);
 			for (int j = 0; j < list_size; j++) {
-				int pt_id;
 				ifs >> pt_id;
-				// Pt3D pt = *(db_meshes->get_mesh(grid_id)->get_pt(pt_id));
-				// c->add_pt(pt_id, pt);
-				c->add_pt(pt_id);
+				// c->add_pt(pt_id);
 			}
-			grids[grid_id]->cells_map[key] = c;
+			// grids[grid_id]->cells_map[key] = c;
 
 			ifs >> grid_id; // another grid_id has been saved
-			Entry *e = new Entry(ifs, db_meshes->get_mesh(grid_id));
+			// e = new Entry(ifs, db_meshes->get_mesh(grid_id));
+			e = new Entry_trim(ifs, db_meshes->get_mesh(grid_id));
 
 			entries.push_back(e);
 
@@ -780,14 +900,23 @@ struct Struct_DB {
 				repre_id_sets[grid_id].insert(e->repre->id);
 				reverse_entries_maps[grid_id][e->repre->id] = cell_id;
 			#endif
+
+			counter++;
+			if (counter % 10000000 == 0) {
+				cout << counter << endl;
+			}
 		}
 
 		ifs.close();
 
+		entries.shrink_to_fit();
+		global_id_map.shrink_to_fit();
+
 		return true;
 	}
 
-	Entry* get_entry(int key) const {
+	// Entry* get_entry(int key) const {
+	Entry_trim* get_entry(int key) const {
 		return entries[key];
 	}
 
@@ -863,16 +992,27 @@ struct Struct_DB {
 
 struct Entry_Pair {
 	Entry* e_query;
-	Entry* e_database;
+	Entry_trim* e_database;
 	int id_db;
 	Trans xf;
 	double init_dist;
 
-	Entry_Pair(Entry* q, Entry* p, int id_db) {
+	Entry_Pair(Entry* q, Entry_trim* p, int id_db) {
 		this->e_query = q;
 		this->e_database = p;
 		this->id_db = id_db;
 	}
+
+	// virtual ~Entry_Pair() {
+	// 	if (e_query != nullptr) {
+	// 		delete e_query;
+	// 		e_query = nullptr;
+	// 	}
+	// 	if (e_database != nullptr) {
+	// 		delete e_database;
+	// 		e_database = nullptr;
+	// 	}
+	// }
 
 	string to_str(int precision = 6) const {
 		return e_query->to_str(precision) + " <\n" + e_database->to_str(precision) + " >\nin DB #" + to_string(id_db);
@@ -968,7 +1108,16 @@ double donut_nn_quick(Pt3D* o, Pt3D* n, double r, /*PtwID* p,*/ Mesh* mesh_p, C_
     double sq_r = sq(r);
 
     vector<int> donut_nn_cand;
-    r_p->range_sphere_min_max(o, r, max(150.0, r * 1.5), donut_nn_cand); // automatically exclude p and a
+    // r_p->range_sphere_min_max(o, r, max(150.0, r * 1.5), donut_nn_cand); // automatically exclude p and a
+
+    // tmp sol. for the obj datasets -> or should be the final sol? -> could try q_07
+    double order = 1.0;
+    while (donut_nn_cand.size() == 0) {
+    	r_p->range_sphere_min_max(o, r * order, r * (order + 1.0), donut_nn_cand); // automatically exclude p and a
+    	order += 1.0;
+    }
+
+    // cout << donut_nn_cand.size() << endl;
 
     int donut_nn_i;
     double sq_d_min = numeric_limits<double>::max();

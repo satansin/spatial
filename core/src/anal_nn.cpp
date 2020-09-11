@@ -19,8 +19,15 @@ int main(int argc, char **argv) {
     srand(time(0));
 
     if (argc < 2) {
-        cerr << "Usage: " << argv[0] << " database_path" << endl;
+        cerr << "Usage: " << argv[0] << " database_path [-num_parts=...]" << endl;
         exit(1);
+    }
+    
+    int num_parts = 0;
+    for (int i = 0; i < argc; i++) {
+        string argv_str(argv[i]);
+        if (argv_str.rfind("-num_parts", 0) == 0)
+            num_parts = atoi(argv[i] + 11);
     }
 
     string db_path = argv[1];
@@ -31,8 +38,15 @@ int main(int argc, char **argv) {
     cout << "Total no. meshes: " << num_meshes << endl << endl;
 
     cout << "Reading database R-trees..." << endl;
-    vector<C_RTree> db_rtrees;
-    read_rtrees_from_db_meshes(&db_meshes, db_rtrees);
+    vector<C_RTree*> db_rtrees;
+    if (num_parts > 0) {
+        const int num_meshes_per_part = num_meshes / num_parts;
+        for (int i = 0; i < num_parts; i++) {
+            read_rtrees_comb(db_path, i, num_meshes_per_part, db_rtrees);
+        }
+    } else {
+        read_rtrees_from_db_meshes(&db_meshes, db_rtrees);
+    }
     
     cout << endl;
 
@@ -53,7 +67,7 @@ int main(int argc, char **argv) {
 
     		PtwID rand_pt(random, mesh);
     		int nn;
-    		db_rtrees[i].nn_sphere(rand_pt.pt, 0.01, &nn);
+    		db_rtrees[i]->nn_sphere(rand_pt.pt, 0.01, &nn);
     		PtwID nn_pt(nn, mesh);
 
     		num_cals++;

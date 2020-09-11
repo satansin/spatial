@@ -156,7 +156,9 @@ int rectangle_search_bundle(node_type *root, int no_query, R_TYPE **query, float
 // int rectangle_search_bundle(node_type *root, float *min, float *max, node_type **returnResult, rtree_info *aInfo);
 
 void save_rtree(node_type *root, const char save_tree_file[], rtree_info *aInfo);
+void save_rtree_comb(node_type *root, FILE *fp, rtree_info *aInfo);
 void read_rtree(node_type **root, const char save_tree_file[], rtree_info *aInfo);
+void read_rtree_comb(node_type **root, FILE *fp, rtree_info *aInfo);
 void free_tree(node_type *node, rtree_info *aInfo);
 
 #endif

@@ -4,6 +4,7 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <cstdio>
 #include <unordered_set>
 
 extern "C" {
@@ -12,6 +13,7 @@ extern "C" {
 
 #include "point.h"
 #include "mesh.h"
+#include "util.h"
 
 struct ID_Dist {
     int oid;
@@ -45,8 +47,10 @@ private:
 
 public:
 	C_RTree(Usage usage = PCD);
+	~C_RTree();
 
 	void read_from_mesh(const std::string mesh_filename);
+	void read_comb(FILE *fp);
 
 	double donut_nn(Pt3D* o, double r, Pt3D* n, int* ret, const std::unordered_set<int>& excl_id_set = {}, int k = 1);
 
@@ -62,6 +66,7 @@ public:
 
 };
 
-void read_rtrees_from_db_meshes(DB_Meshes* db_meshes, std::vector<C_RTree>& ret, bool verbose = true);
+void read_rtrees_comb(const std::string db_path, int part_i, int part_size, std::vector<C_RTree*>& ret);
+void read_rtrees_from_db_meshes(DB_Meshes* db_meshes, std::vector<C_RTree*>& ret, bool verbose = true);
 
 #endif

@@ -9,6 +9,7 @@ using namespace std;
 
 #include "trans.h"
 #include "mesh.h"
+#include "util.h"
 
 #include "jly_icp3d.hpp"
 #include "jly_sorting.hpp"
@@ -64,9 +65,15 @@ public:
 	TRANSNODE initNodeTrans;
 
 	DT3D dt;
-	// DB_Meshes* pDBMeshes;
-	// int dbID;
+	DB_Meshes* pDBMeshes;
+	int dbID;
 	// Mesh* pMeshQ;
+
+	float rotThresh;
+	float transThresh;
+
+	bool use_dt;
+	bool verbose;
 
 	ROTNODE optNodeRot;
 	TRANSNODE optNodeTrans;
@@ -133,7 +140,8 @@ GoICP::GoICP()
 	doTrim = false;
 	trimFraction = 0;
 
-	dt.SIZE = 300;
+	// dt.SIZE = 300;
+	dt.SIZE = 200;
 	dt.expandFactor = 2.0;
 }
 
@@ -174,14 +182,20 @@ float GoICP::ICP(Matrix& R_icp, Matrix& t_icp)
 
 		if(!doTrim)
 		{
-			dis = dt.Distance(pDataTempICP[i].x, pDataTempICP[i].y, pDataTempICP[i].z);
-			// dis = pDBMeshes->cal_corr_err(pDataTempICP[i].x, pDataTempICP[i].y, pDataTempICP[i].z, dbID);
+			if (use_dt) {
+				dis = dt.Distance(pDataTempICP[i].x, pDataTempICP[i].y, pDataTempICP[i].z);
+			} else {
+				dis = pDBMeshes->cal_corr_err(pDataTempICP[i].x, pDataTempICP[i].y, pDataTempICP[i].z, dbID);
+			}
 			error += dis*dis;
 		}
 		else
 		{
-			minDis[i] = dt.Distance(pDataTempICP[i].x, pDataTempICP[i].y, pDataTempICP[i].z);
-			// minDis[i] = pDBMeshes->cal_corr_err(pDataTempICP[i].x, pDataTempICP[i].y, pDataTempICP[i].z, dbID);
+			if (use_dt) {
+				minDis[i] = dt.Distance(pDataTempICP[i].x, pDataTempICP[i].y, pDataTempICP[i].z);
+			} else {
+				minDis[i] = pDBMeshes->cal_corr_err(pDataTempICP[i].x, pDataTempICP[i].y, pDataTempICP[i].z, dbID);
+			}
 		}
 	}
 
@@ -251,8 +265,9 @@ void GoICP::Initialize()
 
 	// Build ICP kdtree with model dataset
 	icp3d.Build(M_icp,Nm);
-	icp3d.err_diff_def = MSEThresh/10000;
-	// printf("icp3d.err_diff_def:%lf\n", icp3d.err_diff_def);
+	// icp3d.err_diff_def = MSEThresh/10000;
+	icp3d.err_diff_def = MSEThresh/100;
+	if (verbose) printf("icp3d.err_diff_def:%.6f\n", icp3d.err_diff_def);
 	icp3d.trim_fraction = trimFraction;
 	icp3d.do_trim = doTrim;
 
@@ -295,15 +310,15 @@ void GoICP::Clear()
 float GoICP::InnerBnB(float* maxRotDisL, TRANSNODE* nodeTransOut)
 {
 	int i, j;
-	float transX, transY, transZ;
-	float lb, ub, optErrorT;
-	float dis, maxTransDis;
-	TRANSNODE nodeTrans, nodeTransParent;
+	float t_transX, t_transY, t_transZ;
+	float t_lb, t_ub, t_optErrorT;
+	float t_dis, t_maxTransDis;
+	TRANSNODE t_nodeTrans, t_nodeTransParent;
 	priority_queue<TRANSNODE> queueTrans;
 
 	// Set optimal translation error to overall so-far optimal error
 	// Investigating translation nodes that are sub-optimal overall is redundant
-	optErrorT = optError;
+	t_optErrorT = optError;
 
 	// Push top-level translation node into the priority queue
 	queueTrans.push(initNodeTrans);
@@ -314,34 +329,41 @@ float GoICP::InnerBnB(float* maxRotDisL, TRANSNODE* nodeTransOut)
 		if(queueTrans.empty())
 			break;
 
-		nodeTransParent = queueTrans.top();
+		t_nodeTransParent = queueTrans.top();
 		queueTrans.pop();
 
-		if(optErrorT-nodeTransParent.lb < SSEThresh)
-		{
-			break;
-		}
+		// if(t_optErrorT-t_nodeTransParent.lb < SSEThresh)
+		// {
+		// 	break;
+		// }
 
-		nodeTrans.w = nodeTransParent.w/2;
-		maxTransDis = SQRT3/2.0*nodeTrans.w;
+		t_nodeTrans.w = t_nodeTransParent.w/2;
+		if (t_nodeTrans.w < transThresh) {
+			continue;
+		}
+		// cout << "Inner_w: " << t_nodeTrans.w << endl;
+		t_maxTransDis = SQRT3/2.0*t_nodeTrans.w;
 
 		for(j = 0; j < 8; j++)
 		{
-			nodeTrans.x = nodeTransParent.x + (j&1)*nodeTrans.w ;
-			nodeTrans.y = nodeTransParent.y + (j>>1&1)*nodeTrans.w ;
-			nodeTrans.z = nodeTransParent.z + (j>>2&1)*nodeTrans.w ;
+			t_nodeTrans.x = t_nodeTransParent.x + (j&1)*t_nodeTrans.w ;
+			t_nodeTrans.y = t_nodeTransParent.y + (j>>1&1)*t_nodeTrans.w ;
+			t_nodeTrans.z = t_nodeTransParent.z + (j>>2&1)*t_nodeTrans.w ;
 
-			transX = nodeTrans.x + nodeTrans.w/2;
-			transY = nodeTrans.y + nodeTrans.w/2;
-			transZ = nodeTrans.z + nodeTrans.w/2;
+			t_transX = t_nodeTrans.x + t_nodeTrans.w/2;
+			t_transY = t_nodeTrans.y + t_nodeTrans.w/2;
+			t_transZ = t_nodeTrans.z + t_nodeTrans.w/2;
 			
 			// For each data point, calculate the distance to it's closest point in the model cloud
 			for(i = 0; i < Nd; i++)
 			{
 				// Find distance between transformed point and closest point in model set ||R_r0 * x + t0 - y||
 				// pDataTemp is the data points rotated by R0
-				minDis[i] = dt.Distance(pDataTemp[i].x + transX, pDataTemp[i].y + transY, pDataTemp[i].z + transZ);
-				// minDis[i] = pDBMeshes->cal_corr_err(pDataTemp[i].x + transX, pDataTemp[i].y + transY, pDataTemp[i].z + transZ, dbID);
+				if (use_dt) {
+					minDis[i] = dt.Distance(pDataTemp[i].x + t_transX, pDataTemp[i].y + t_transY, pDataTemp[i].z + t_transZ);
+				} else {
+					minDis[i] = pDBMeshes->cal_corr_err(pDataTemp[i].x + t_transX, pDataTemp[i].y + t_transY, pDataTemp[i].z + t_transZ, dbID);
+				}
 
 				// Subtract the rotation uncertainty radius if calculating the rotation lower bound
 				// maxRotDisL == NULL when calculating the rotation upper bound
@@ -363,56 +385,60 @@ float GoICP::InnerBnB(float* maxRotDisL, TRANSNODE* nodeTransOut)
 			}
 
 			// For each data point, find the incremental upper and lower bounds
-			ub = 0;
+			t_ub = 0;
 			for(i = 0; i < inlierNum; i++)
 			{
-				ub += minDis[i]*minDis[i];
+				t_ub += minDis[i]*minDis[i];
 			}
 
-			lb = 0;
+			t_lb = 0;
 			for(i = 0; i < inlierNum; i++)
 			{
 				// Subtract the translation uncertainty radius
-				dis = minDis[i] - maxTransDis;
-				if(dis > 0)
-					lb += dis*dis;
+				t_dis = minDis[i] - t_maxTransDis;
+				if(t_dis > 0)
+					t_lb += t_dis*t_dis;
 			}
 			
 
-			// If upper bound is better than best, update optErrorT and optTransOut (optimal translation node)
-			if(ub < optErrorT)
+			// If upper bound is better than best, update t_optErrorT and optTransOut (optimal translation node)
+			if(t_ub < t_optErrorT)
 			{
-				optErrorT = ub;
+				t_optErrorT = t_ub;
 				if(nodeTransOut)
-					*nodeTransOut = nodeTrans;
+					*nodeTransOut = t_nodeTrans;
 			}
 
-			// Remove subcube from queue if lb is bigger than optErrorT
-			if(lb >= optErrorT)
+			// Remove subcube from queue if lb is bigger than t_optErrorT
+			if(t_lb >= t_optErrorT)
 			{
 				//discard
 				continue;
 			}
 
-			nodeTrans.ub = ub;
-			nodeTrans.lb = lb;
-			queueTrans.push(nodeTrans);
+			t_nodeTrans.ub = t_ub;
+			t_nodeTrans.lb = t_lb;
+			queueTrans.push(t_nodeTrans);
+		}
+
+		if(t_optErrorT <= SSEThresh)
+		{
+			break;
 		}
 	}
 
-	return optErrorT;
+	return t_optErrorT;
 }
 
 float GoICP::OuterBnB()
 {
 	int i, j;
-	ROTNODE nodeRot, nodeRotParent;
-	TRANSNODE nodeTrans;
-	float v1, v2, v3, t, ct, ct2,st, st2;
+	ROTNODE t_nodeRot, t_nodeRotParent;
+	TRANSNODE t_nodeTrans;
+	float v1, v2, v3, t, ct, ct2, st, st2;
 	float tmp121, tmp122, tmp131, tmp132, tmp231, tmp232;
 	float R11, R12, R13, R21, R22, R23, R31, R32, R33;
-	float lb, ub, error, dis;
-	clock_t clockBeginICP;
+	float t_lb, t_ub, t_error;
 	priority_queue<ROTNODE> queueRot;
 
 	// Calculate Initial Error
@@ -420,8 +446,11 @@ float GoICP::OuterBnB()
 
 	for(i = 0; i < Nd; i++)
 	{
-		minDis[i] = dt.Distance(pData[i].x, pData[i].y, pData[i].z);
-		// minDis[i] = pDBMeshes->cal_corr_err(pData[i].x, pData[i].y, pData[i].z, dbID);
+		if (use_dt) {
+			minDis[i] = dt.Distance(pData[i].x, pData[i].y, pData[i].z);
+		} else {
+			minDis[i] = pDBMeshes->cal_corr_err(pData[i].x, pData[i].y, pData[i].z, dbID);
+		}
 	}
 	if(doTrim)
 	{
@@ -434,27 +463,26 @@ float GoICP::OuterBnB()
 	{
 		optError += minDis[i]*minDis[i];
 	}
-	// cout << "Error*: " << optError << " (Init)" << endl;
-	printf("Error*: %.10f(sqrt) (Init)\n", sqrt(optError));
+	if (verbose) printf("Error*: %.6f (Init)\n", optError);
 
-	Matrix R_icp = optR;
-	Matrix t_icp = optT;
+	Matrix t_R_icp = optR;
+	Matrix t_T_icp = optT;
 
 	// Run ICP from initial state
-	clockBeginICP = clock();
-	error = ICP(R_icp, t_icp);
-	if(error < optError)
+	if (verbose) timer_start();
+	t_error = ICP(t_R_icp, t_T_icp);
+	if (verbose) cout << "ICP time: " << timer_end(SECOND) << "(s)" << endl;
+
+	if(t_error < optError)
 	{
-		optError = error;
-		optR = R_icp;
-		optT = t_icp;
-		// cout << "Error*: " << error << " (ICP " << (double)(clock()-clockBeginICP)/CLOCKS_PER_SEC << "s)" << endl;
-		printf("Error*: %.10f(sqrt) ", sqrt(error));
-		cout << "(ICP " << (double)(clock()-clockBeginICP)/CLOCKS_PER_SEC << "s)" << endl;
-		cout << "ICP-ONLY Rotation Matrix:" << endl;
-		cout << R_icp << endl;
-		cout << "ICP-ONLY Translation Vector:" << endl;
-		cout << t_icp << endl;
+		optError = t_error;
+		optR = t_R_icp;
+		optT = t_T_icp;
+		if (verbose) printf("Error*: %.6f \n", t_error);
+		// cout << "ICP-ONLY Rotation Matrix:" << endl;
+		// cout << t_R_icp << endl;
+		// cout << "ICP-ONLY Translation Vector:" << endl;
+		// cout << t_T_icp << endl;
 	}
 
 	// Push top-level rotation node into priority queue
@@ -466,47 +494,55 @@ float GoICP::OuterBnB()
 	{
 		if(queueRot.empty())
 		{
-		  cout << "Rotation Queue Empty" << endl;
-		  // cout << "Error*: " << optError << ", LB: " << lb << endl;
-		  printf("Error*: %.10f(sqrt) , LB: %.10f(sqrt)\n", sqrt(optError), sqrt(lb));
+		  if (verbose) cout << "Rotation Queue Empty" << endl;
+		  if (verbose) printf("Error*: %.6f, LB: %.6f\n", optError, t_lb);
 		  break;
 		}
 
 		// Access rotation cube with lowest lower bound...
-		nodeRotParent = queueRot.top();
+		t_nodeRotParent = queueRot.top();
 		// ...and remove it from the queue
 		queueRot.pop();
 
-		// Exit if the optError is less than or equal to the lower bound plus a small epsilon
-		if((optError-nodeRotParent.lb) <= SSEThresh)
-		{
-			// cout << "Error*: " << optError << ", LB: " << nodeRotParent.lb << ", epsilon: " << SSEThresh << endl;
-		  printf("Error*: %.10f(sqrt) , LB: %.10f(sqrt), epsilon: %.10f(sqrt)\n", sqrt(optError), sqrt(nodeRotParent.lb), sqrt(SSEThresh));
-			break;
+		// // Exit if the optError is less than or equal to the lower bound plus a small epsilon
+		// if((optError-t_nodeRotParent.lb) <= SSEThresh)
+		// {
+		// 	// cout << "Error*: " << optError << ", LB: " << t_nodeRotParent.lb << ", epsilon: " << SSEThresh << endl;
+		//   printf("Error*: %.6f, LB: %.6f, SSE: %.6f\n", optError, t_nodeRotParent.lb, SSEThresh);
+		// 	break;
+		// }
+
+		if (t_nodeRotParent.lb > SSEThresh) {
+			continue;
 		}
 
-		if(count>0 && count%300 == 0)
-			printf("Print for every 300 run: LB=%f  L=%d\n",nodeRotParent.lb,nodeRotParent.l);
+		if(verbose && count>0 && count%300 == 0)
+			printf("Print for every 300 run: LB=%f  L=%d\n", t_nodeRotParent.lb, t_nodeRotParent.l);
 		count ++;
 		
 		// Subdivide rotation cube into octant subcubes and calculate upper and lower bounds for each
-		nodeRot.w = nodeRotParent.w/2;
-		nodeRot.l = nodeRotParent.l+1;
+		t_nodeRot.w = t_nodeRotParent.w/2;
+		if (t_nodeRot.w < rotThresh) {
+			continue;
+		}
+		cout << "Outer_w: " << t_nodeRot.w << endl;
+		t_nodeRot.l = t_nodeRotParent.l+1;
+
 		// For each subcube,
 		for(j = 0; j < 8; j++)
 		{
 		  // Calculate the smallest rotation across each dimension
-			nodeRot.a = nodeRotParent.a + (j&1)*nodeRot.w ;
-			nodeRot.b = nodeRotParent.b + (j>>1&1)*nodeRot.w ;
-			nodeRot.c = nodeRotParent.c + (j>>2&1)*nodeRot.w ;
+			t_nodeRot.a = t_nodeRotParent.a + (j&1)*t_nodeRot.w ;
+			t_nodeRot.b = t_nodeRotParent.b + (j>>1&1)*t_nodeRot.w ;
+			t_nodeRot.c = t_nodeRotParent.c + (j>>2&1)*t_nodeRot.w ;
 
 			// Find the subcube centre
-			v1 = nodeRot.a + nodeRot.w/2;
-			v2 = nodeRot.b + nodeRot.w/2;
-			v3 = nodeRot.c + nodeRot.w/2;
+			v1 = t_nodeRot.a + t_nodeRot.w/2;
+			v2 = t_nodeRot.b + t_nodeRot.w/2;
+			v3 = t_nodeRot.c + t_nodeRot.w/2;
 
 			// Skip subcube if it is completely outside the rotation PI-ball
-			if(sqrt(v1*v1+v2*v2+v3*v3)-SQRT3*nodeRot.w/2 > PI)
+			if(sqrt(v1*v1+v2*v2+v3*v3)-SQRT3*t_nodeRot.w/2 > PI)
 			{
 				continue;
 			}
@@ -551,15 +587,16 @@ float GoICP::OuterBnB()
 			// Run Inner Branch-and-Bound to find rotation upper bound
 			// Calculates the rotation upper bound by finding the translation upper bound for a given rotation,
 			// assuming that the rotation is known (zero rotation uncertainty radius)
-			ub = InnerBnB(NULL /*Rotation Uncertainty Radius*/, &nodeTrans);
+			t_ub = InnerBnB(NULL /*Rotation Uncertainty Radius*/, &t_nodeTrans);
+			// printf("Current UB: %.6f, optError: %.6f\n", t_ub, optError);
 
 			// If the upper bound is the best so far, run ICP
-			if(ub < optError)
+			if(t_ub < optError)
 			{
 				// Update optimal error and rotation/translation nodes
-				optError = ub;
-				optNodeRot = nodeRot;
-				optNodeTrans = nodeTrans;
+				optError = t_ub;
+				optNodeRot = t_nodeRot;
+				optNodeTrans = t_nodeTrans;
 
 				optR.val[0][0] = R11; optR.val[0][1] = R12; optR.val[0][2] = R13;
 				optR.val[1][0] = R21; optR.val[1][1] = R22; optR.val[1][2] = R23;
@@ -568,25 +605,24 @@ float GoICP::OuterBnB()
 				optT.val[1][0] = optNodeTrans.y+optNodeTrans.w/2;
 				optT.val[2][0] = optNodeTrans.z+optNodeTrans.w/2;
 
-				// cout << "Error*: " << optError << endl;
-				printf("Error*: %.10f(sqrt)\n", sqrt(optError));
+				if (verbose) printf("Error*: %.6f\n", optError);
 
 				// Run ICP
-				clockBeginICP = clock();
-				R_icp = optR;
-				t_icp = optT;
-				error = ICP(R_icp, t_icp);
+				if (verbose) timer_start();
+				t_R_icp = optR;
+				t_T_icp = optT;
+				t_error = ICP(t_R_icp, t_T_icp);
+				if (verbose) cout << "ICP time: " << timer_end(SECOND) << "(s)" << endl;
+
 				//Our ICP implementation uses kdtree for closest distance computation which is slightly different from DT approximation, 
 				//thus it's possible that ICP failed to decrease the DT error. This is no big deal as the difference should be very small.
-				if(error < optError)
+				if(t_error < optError)
 				{
-					optError = error;
-					optR = R_icp;
-					optT = t_icp;
+					optError = t_error;
+					optR = t_R_icp;
+					optT = t_T_icp;
 					
-					// cout << "Error*: " << error << "(ICP " << (double)(clock() - clockBeginICP)/CLOCKS_PER_SEC << "s)" << endl;
-					printf("Error*: %.10f(sqrt) ", sqrt(error));
-					cout << "(ICP " << (double)(clock() - clockBeginICP)/CLOCKS_PER_SEC << "s)" << endl;
+					if (verbose) printf("Error*: %.6f\n", t_error);
 				}
 
 				// Discard all rotation nodes with high lower bounds in the queue
@@ -608,18 +644,24 @@ float GoICP::OuterBnB()
 			// Calculates the rotation lower bound by finding the translation upper bound for a given rotation,
 			// assuming that the rotation is uncertain (a positive rotation uncertainty radius)
 			// Pass an array of rotation uncertainties for every point in data cloud at this level
-			lb = InnerBnB(maxRotDis[nodeRot.l], NULL /*Translation Node*/);
+			t_lb = InnerBnB(maxRotDis[t_nodeRot.l], NULL /*Translation Node*/);
+			// printf("Current LB: %.6f, optError: %.6f\n", t_lb, optError);
 
 			// If the best error so far is less than the lower bound, remove the rotation subcube from the queue
-			if(lb >= optError)
+			if(t_lb >= optError)
 			{
 				continue;
 			}
 
 			// Update node and put it in queue
-			nodeRot.ub = ub;
-			nodeRot.lb = lb;
-			queueRot.push(nodeRot);
+			t_nodeRot.ub = t_ub;
+			t_nodeRot.lb = t_lb;
+			queueRot.push(t_nodeRot);
+		}
+
+		if (optError <= SSEThresh) {
+			if (verbose) printf("Accepted, optError: %.6f, SSE: %.6f\n", optError, SSEThresh);
+			break;
 		}
 	}
 
@@ -648,6 +690,16 @@ void GoICP::printParams() {
 	// cout << "Trim? " << doTrim << endl;
 }
 
+// Run ICP and calculate sum squared L2 error
+float GoICP::ICP(Trans* xf) {
+	Matrix rot(3, 3), tra(3, 1);
+	rot.val[0][0] = xf->r11; rot.val[0][1] = xf->r12; rot.val[0][2] = xf->r13;
+	rot.val[1][0] = xf->r21; rot.val[1][1] = xf->r22; rot.val[1][2] = xf->r23;
+	rot.val[2][0] = xf->r31; rot.val[2][1] = xf->r32; rot.val[2][2] = xf->r33;
+	tra.val[0][0] = xf->tx;  tra.val[1][0] = xf->ty;  tra.val[2][0] = xf->tz;
+	return ICP(rot, tra);
+}
+
 void loadPointCloud(Mesh* mesh, POINT3D** p) {
 	*p = (POINT3D *) malloc(sizeof(POINT3D) * mesh->size());
 	for (int i = 0; i < mesh->size(); i++) {
@@ -658,40 +710,51 @@ void loadPointCloud(Mesh* mesh, POINT3D** p) {
 }
 
 // convert data to GoICP structure
-void loadGoICP(Mesh* mesh_p, Mesh* mesh_q, double delta, GoICP& goicp) {
-    // load GoICP model (DB)
-    loadPointCloud(mesh_p, &goicp.pModel);
-	goicp.Nm = mesh_p->size();
-	// goicp.pDBMeshes = db_meshes;
-	// goicp.dbID = 0;
-	
+void loadGoICP(DB_Meshes* db_meshes, int db_id, Mesh* mesh_q, double sse, double mse, GoICP* goicp, bool verbose=false, bool use_dt=true, int dt_size=200) {
+	// load GoICP model (DB)
+	auto mesh_p = db_meshes->get_mesh(db_id);
+	loadPointCloud(mesh_p, &goicp->pModel);
+	goicp->Nm = mesh_p->size();
+	goicp->pDBMeshes = db_meshes;
+	goicp->dbID = db_id;
+
 	double max_scale = mesh_p->box_max_scale();
-	// goicp.initNodeTrans.x = (mesh_p->get_box_min(0) + mesh_p->get_box_max(0)) * 0.5 - max_scale;
-	// goicp.initNodeTrans.y = (mesh_p->get_box_min(1) + mesh_p->get_box_max(1)) * 0.5 - max_scale;
-	// goicp.initNodeTrans.z = (mesh_p->get_box_min(2) + mesh_p->get_box_max(2)) * 0.5 - max_scale;
-	// goicp.initNodeTrans.w = max_scale * 2.0;
-	goicp.initNodeTrans.x = 1400.0;
-	goicp.initNodeTrans.y = 2000.0;
-	goicp.initNodeTrans.z = 500.0;
-	goicp.initNodeTrans.w = 1000.0;
+	goicp->initNodeTrans.x = (mesh_p->get_box_min(0) + mesh_p->get_box_max(0)) * 0.5 - max_scale;
+	goicp->initNodeTrans.y = (mesh_p->get_box_min(1) + mesh_p->get_box_max(1)) * 0.5 - max_scale;
+	goicp->initNodeTrans.z = (mesh_p->get_box_min(2) + mesh_p->get_box_max(2)) * 0.5 - max_scale;
+	goicp->initNodeTrans.w = max_scale * 2.0;
+	// goicp->initNodeTrans.x = 1400.0;
+	// goicp->initNodeTrans.y = 2000.0;
+	// goicp->initNodeTrans.z = 500.0;
+	// goicp->initNodeTrans.w = 1000.0;
+
+	// goicp->rotThresh = 0.3; // loose
+	goicp->rotThresh = 0.01; // tight
+	// goicp->transThresh = goicp->initNodeTrans.w / 4.0 - 10.0 // loose
+	// goicp->transThresh = goicp->initNodeTrans.w / 32.0 - 1.0; // tight
+	goicp->transThresh = goicp->initNodeTrans.w / 64.0 - 1.0; // tight
 
 	// load GoICP data (query)
-	loadPointCloud(mesh_q, &goicp.pData);
-	goicp.Nd = mesh_q->size();
-	// goicp.pMeshQ = mesh_q;
+	loadPointCloud(mesh_q, &goicp->pData);
+	goicp->Nd = mesh_q->size();
+	// goicp->pMeshQ = mesh_q;
 
-	goicp.SSEThresh = sq(delta);
-	goicp.MSEThresh = goicp.SSEThresh / (double) goicp.Nd;
-}
+	goicp->SSEThresh = sse;
+	goicp->MSEThresh = mse;
 
-// Run ICP and calculate sum squared L2 error
-float GoICP::ICP(Trans* xf) {
-	Matrix rot(3, 3), tra(3, 1);
-	rot.val[0][0] = xf->r11; rot.val[0][1] = xf->r12; rot.val[0][2] = xf->r13;
-	rot.val[1][0] = xf->r21; rot.val[1][1] = xf->r22; rot.val[1][2] = xf->r23;
-	rot.val[2][0] = xf->r31; rot.val[2][1] = xf->r32; rot.val[2][2] = xf->r33;
-	tra.val[0][0] = xf->tx;  tra.val[1][0] = xf->ty;  tra.val[2][0] = xf->tz;
-	return ICP(rot, tra);
+	goicp->verbose = verbose;
+
+	goicp->use_dt = use_dt;
+	if (goicp->use_dt) {
+		goicp->dt.SIZE = dt_size;
+
+		// Build Distance Transform
+		if (verbose) cout << "Building Distance Transform..." << endl;
+		if (verbose) timer_start();
+		goicp->BuildDT();
+		if (verbose) cout << "DT built in " << timer_end(SECOND) << "(s)" << endl;
+		if (verbose) cout << endl;
+	}
 }
 
 #endif

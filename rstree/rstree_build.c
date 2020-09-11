@@ -1761,6 +1761,25 @@ void save_rtree(node_type *root, const char save_tree_file[], rtree_info *aInfo)
 	
 }
 
+void save_rtree_comb(node_type *root, FILE *fp, rtree_info *aInfo)
+{
+	// FILE *fp;
+	
+	//fp = fopen(SAVE_RTREE_FILE, "w");
+	// fp = fopen(save_tree_file, "a");
+	if (!fp) {
+		printf("Can't write R-tree\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	write_inter_node(root, fp, aInfo);
+	
+	// fclose(fp);
+	
+	return;
+	
+}
+
 // int main3(int argc, char *argv[])
 // { 
 // 	rtree_info aInfo;

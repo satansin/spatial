@@ -130,20 +130,18 @@ export LD_LIBRARY_PATH
 	# done
 
 
+# mkdir -p "$DIR_OBJ_DB"/
+# mkdir -p "$DIR_OBJ_QUERY"/
+# spec_list=( 05842 06284 00942 06274 08719 ) # version 1: 214, 400, 601, 801, 1025; resp. id: 176, 231, 48, 228, 373
+spec_list=( 07216 08279 09937 00074 06192 ) # version 2: 40, 80, 120, 161, 199; resp. id: 300, 340, 432, 13, 213
 
 ### from raw to db - obj_scans
 
 	# mkdir -p "$DIR_OBJ_DB"/origin/
-	# ./out/filter.out "$DIR_RAW"/obj_scans/obj_scans_7/ "$DIR_OBJ_DB"/origin/ 1000 -batch
+	# ./out/filter.out "$DIR_RAW"/obj_scans/obj_scans_8/ "$DIR_OBJ_DB"/origin/ 1000 -batch
 
 	# mkdir -p "$DIR_OBJ_DB"/all/
 	# ./out/obj_gen.out "$DIR_OBJ_DB"/origin/ 10000 "$DIR_OBJ_DB"/all/ -batch
-
-### build rstree index for db - obj_scans
-
-	# for i in {0..440}; do
-	# 	./out/pre_index.out "$DIR_OBJ_DB"/all/ "$i" -batch -nb=441
-	# done
 
 ### pre-process the spec queries
 
@@ -151,118 +149,67 @@ export LD_LIBRARY_PATH
 	# prop=0.1
 	# sigma=1
 	# num=49
-	# ./out/noise.out "$DIR_OBJ_DB"/origin/05842.ply "$prop" "$sigma" "$num" "$DIR_OBJ_DB"/sel_queries/05842
-	# ./out/noise.out "$DIR_OBJ_DB"/origin/06284.ply "$prop" "$sigma" "$num" "$DIR_OBJ_DB"/sel_queries/06284
-	# ./out/noise.out "$DIR_OBJ_DB"/origin/00942.ply "$prop" "$sigma" "$num" "$DIR_OBJ_DB"/sel_queries/00942
-	# ./out/noise.out "$DIR_OBJ_DB"/origin/06274.ply "$prop" "$sigma" "$num" "$DIR_OBJ_DB"/sel_queries/06274
-	# ./out/noise.out "$DIR_OBJ_DB"/origin/08719.ply "$prop" "$sigma" "$num" "$DIR_OBJ_DB"/sel_queries/08719
+	# for sp_id in "${spec_list[@]}"; do
+	# 	./out/noise.out "$DIR_OBJ_DB"/origin/"$sp_id".ply "$prop" "$sigma" "$num" "$DIR_OBJ_DB"/sel_queries/"$sp_id"
+	# done
 
-### build rstree for the pre-processed spec queries
+### make soft links to select / create varied no. of object scans
 
-	# for i in 05842 06284 00942 06274 08719; do
-	# 	for j in {0..49}; do
-	# 		if [ $j -lt 10 ]; then
-	# 			./out/pre_index.out "$DIR_OBJ_DB"/sel_queries/"$i"s0"$j".ply
-	# 		else
-	# 			./out/pre_index.out "$DIR_OBJ_DB"/sel_queries/"$i"s"$j".ply
-	# 		fi
+	# mkdir -p "$DIR_OBJ_DB"/1_sel_100i/
+	# mkdir -p "$DIR_OBJ_DB"/2_sel_001k/
+	# mkdir -p "$DIR_OBJ_DB"/3_sel_010k/
+	# mkdir -p "$DIR_OBJ_DB"/4_sel_100k/
+	# mkdir -p "$DIR_OBJ_DB"/5_sel_001m/
+
+	# ./out/obj_batch_sel.out "$DIR_OBJ_DB"/origin/ "$DIR_OBJ_DB"/all/ "$DIR_OBJ_DB"/sel_queries/ "$DIR_OBJ_DB" # need remake
+
+### build rstree index for db
+
+	# ./out/obj_pre_index.out "$DIR_OBJ_DB"/1_sel_100i/
+	# ./out/obj_pre_index.out "$DIR_OBJ_DB"/2_sel_001k/
+	# ./out/obj_pre_index.out "$DIR_OBJ_DB"/3_sel_010k/
+	# ./out/obj_pre_index.out "$DIR_OBJ_DB"/4_sel_100k/
+	# for i in {0..9}; do
+	# 	./out/obj_pre_index.out "$DIR_OBJ_DB"/5_sel_001m/ -part_i="$i"
+	# done
+	
+### extract queries from db - obj_scans (Spec)
+
+	# mkdir -p "$DIR_OBJ_QUERY"/spec/
+	# for nl in {0..4}; do
+	# 	for i in {0..4}; do
+	# 		./out/obj_query_spec.out "$DIR_OBJ_DB"/sel_queries/"${spec_list[i]}"s00.ply "$nl" "$DIR_OBJ_QUERY"/spec/q_0"$((i+1))"."$nl".ply
 	# 	done
 	# done
 
-### make soft links to select varied no. of object scans | TODO: there is a small bug causing the spec objects repeatedly appear, and total number of links are smaller than expected, not concern much
+### build rstree index for query - obj_scans (Spec)
 
-	# mkdir -p "$DIR_OBJ_DB"/sel_100i/
-	# ./out/obj_batch_sel.out "$DIR_OBJ_DB"/origin/ "$DIR_OBJ_DB"/all/ "$DIR_OBJ_DB"/sel_queries/ "$DIR_OBJ_DB"/sel_100i/ 100 1 1
+	# for j in {1..5}; do # j->query id
+	# 	for k in {0..4}; do # k->noise level
+	# 		./out/pre_index.out "$DIR_OBJ_QUERY"/spec/q_0"$j"."$k".ply
+	# 	done
+	# done
 
-	# mkdir -p "$DIR_OBJ_DB"/sel_001k/
-	# ./out/obj_batch_sel.out "$DIR_OBJ_DB"/origin/ "$DIR_OBJ_DB"/all/ "$DIR_OBJ_DB"/sel_queries/ "$DIR_OBJ_DB"/sel_001k/ 250 4 2
+### extract queries from db - obj_scans (Rand)
 
-	# mkdir -p "$DIR_OBJ_DB"/sel_010k/
-	# ./out/obj_batch_sel.out "$DIR_OBJ_DB"/origin/ "$DIR_OBJ_DB"/all/ "$DIR_OBJ_DB"/sel_queries/ "$DIR_OBJ_DB"/sel_010k/ 400 25 5
+	# mkdir -p "$DIR_OBJ_QUERY"/rand/
+	# mkdir -p "$DIR_OBJ_QUERY"/rand/rand_1/
+	# mkdir -p "$DIR_OBJ_QUERY"/rand/rand_2/
+	# mkdir -p "$DIR_OBJ_QUERY"/rand/rand_3/
+	# mkdir -p "$DIR_OBJ_QUERY"/rand/rand_4/
+	# mkdir -p "$DIR_OBJ_QUERY"/rand/rand_5/
+	# ./out/obj_query_rand.out "$DIR_OBJ_DB"/1_sel_100i/ 10 "$DIR_OBJ_QUERY"/rand/rand_1
+	# ./out/obj_query_rand.out "$DIR_OBJ_DB"/2_sel_001k/ 10 "$DIR_OBJ_QUERY"/rand/rand_2
+	# ./out/obj_query_rand.out "$DIR_OBJ_DB"/3_sel_010k/ 10 "$DIR_OBJ_QUERY"/rand/rand_3
+	# ./out/obj_query_rand.out "$DIR_OBJ_DB"/4_sel_100k/ 10 "$DIR_OBJ_QUERY"/rand/rand_4
+	# ./out/obj_query_rand.out "$DIR_OBJ_DB"/5_sel_001m/ 10 "$DIR_OBJ_QUERY"/rand/rand_5
 
-	# mkdir -p "$DIR_OBJ_DB"/sel_100k/
-	# ./out/obj_batch_sel.out "$DIR_OBJ_DB"/origin/ "$DIR_OBJ_DB"/all/ "$DIR_OBJ_DB"/sel_queries/ "$DIR_OBJ_DB"/sel_100k/ 400 250 10
+### build rstree index for query - obj_scans (Spec)
 
-	# mkdir -p "$DIR_OBJ_DB"/sel_001m/
-	# ./out/obj_batch_sel.out "$DIR_OBJ_DB"/origin/ "$DIR_OBJ_DB"/all/ "$DIR_OBJ_DB"/sel_queries/ "$DIR_OBJ_DB"/sel_001m/ 400 2500 50
-
-### combine each DB for efficient I/O
-
-	# ./out/obj_combine.out "$DIR_OBJ_DB"/sel_100i/ # 600K
-	# ./out/obj_combine.out "$DIR_OBJ_DB"/sel_001k/ # 5.7M
-	# ./out/obj_combine.out "$DIR_OBJ_DB"/sel_010k/ # 58M
-	for i in {0..4}; do
-		./out/obj_combine.out "$DIR_OBJ_DB"/sel_100k/ -num_parts=5 -part_i="$i" # 578M
-	done
-	for i in {0..49}; do
-		./out/obj_combine.out "$DIR_OBJ_DB"/sel_001m/ -num_parts=50 -part_i="$i" # 110M-120M * 50 = 6G
-	done
-
-### extract queries from db - obj_scans
-
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_2/	0.2	1.0	"$DIR_QUERY"/obj_scans_2_test/q.020.100.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_2/	0.2	0.9	"$DIR_QUERY"/obj_scans_2_test/q.020.090.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_2/	0.2	0.8	"$DIR_QUERY"/obj_scans_2_test/q.020.080.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_2/	0.2	0.7	"$DIR_QUERY"/obj_scans_2_test/q.020.070.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_2/	0.2	0.6	"$DIR_QUERY"/obj_scans_2_test/q.020.060.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_2/	0	0.9	"$DIR_QUERY"/obj_scans_2_test/q.000.090.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_2/	0.1	0.9	"$DIR_QUERY"/obj_scans_2_test/q.010.090.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_2/	0.2	0.9	"$DIR_QUERY"/obj_scans_2_test/q.020.090.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_2/	0.3	0.9	"$DIR_QUERY"/obj_scans_2_test/q.030.090.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_2/	0.4	0.9	"$DIR_QUERY"/obj_scans_2_test/q.040.090.ply
-
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_17/	0.2	1.0	"$DIR_QUERY"/obj_scans_17_test/q.020.100.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_17/	0.2	0.9	"$DIR_QUERY"/obj_scans_17_test/q.020.090.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_17/	0.2	0.8	"$DIR_QUERY"/obj_scans_17_test/q.020.080.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_17/	0.2	0.7	"$DIR_QUERY"/obj_scans_17_test/q.020.070.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_17/	0.2	0.6	"$DIR_QUERY"/obj_scans_17_test/q.020.060.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_17/	0	0.9	"$DIR_QUERY"/obj_scans_17_test/q.000.090.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_17/	0.1	0.9	"$DIR_QUERY"/obj_scans_17_test/q.010.090.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_17/	0.2	0.9	"$DIR_QUERY"/obj_scans_17_test/q.020.090.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_17/	0.3	0.9	"$DIR_QUERY"/obj_scans_17_test/q.030.090.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_17/	0.4	0.9	"$DIR_QUERY"/obj_scans_17_test/q.040.090.ply
-
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_100/	0	1.0	"$DIR_QUERY"/obj_scans_100/q1.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_100/	0.1	1.0	"$DIR_QUERY"/obj_scans_100/q2.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_100/	0	0.9	"$DIR_QUERY"/obj_scans_100/q3.ply
-# ./out/extract_query_batch.out	"$DIR_DB"/obj_scans_100/	0.1	0.9	"$DIR_QUERY"/obj_scans_100/q4.ply
-
-
-### build rstree index for query - obj_scans
-
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_2/q1.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_2/q2.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_2/q3.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_2/q4.ply
-
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_2_test/q.020.100.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_2_test/q.020.090.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_2_test/q.020.080.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_2_test/q.020.070.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_2_test/q.020.060.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_2_test/q.000.090.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_2_test/q.010.090.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_2_test/q.020.090.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_2_test/q.030.090.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_2_test/q.040.090.ply
-
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_17/q1.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_17/q2.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_17/q3.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_17/q4.ply
-
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_17_test/q.020.100.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_17_test/q.020.090.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_17_test/q.020.080.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_17_test/q.020.070.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_17_test/q.020.060.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_17_test/q.000.090.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_17_test/q.010.090.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_17_test/q.020.090.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_17_test/q.030.090.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_17_test/q.040.090.ply
-
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_100/q1.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_100/q2.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_100/q3.ply
-# ./out/pre_index.out "$DIR_QUERY"/obj_scans_100/q4.ply
+	# for i in 2; do #{1..5}; do
+	# 	for j in {0..9}; do # j->query id
+	# 		for k in {0..4}; do # k->noise level
+	# 			./out/pre_index.out "$DIR_OBJ_QUERY"/rand/rand_"$i"/q_"$j"."$k".ply
+	# 		done
+	# 	done
+	# done

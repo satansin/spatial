@@ -408,6 +408,26 @@ void read_inter_node(node_type *node, FILE *fp, rtree_info *aInfo)
 	
 } 
 
+void read_rtree_comb(node_type **root, FILE *fp, rtree_info *aInfo)
+{
+	// FILE *fp;
+	
+	tree_node_allocate(root, aInfo);
+	
+	//fp = fopen(SAVE_RTREE_FILE, "r");
+	// fp = fopen(save_tree_file, "r");
+	if (!fp) {
+		printf("Can't open R-tree file\n");
+		exit(EXIT_FAILURE);
+	}
+
+	read_inter_node(*root, fp, aInfo);
+	
+	// fclose(fp);
+	
+	return;
+
+}
 
 
 void read_rtree(node_type **root, const char save_tree_file[], rtree_info *aInfo)

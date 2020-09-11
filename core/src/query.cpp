@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <limits>
+#include <map>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -111,26 +112,31 @@ public:
     bool load() {
 
         cout << "Reading database files from " << db_path << endl;
-        int num_meshes = db_meshes.read_from_path(db_path);
+        const int num_meshes = db_meshes.read_from_path(db_path);
+        if (num_meshes < 0) {
+            cerr << "Error reading database files" << endl;
+            return false;
+        }
         cout << "Total no. meshes: " << num_meshes << endl << endl;
 
-        db_meshes.build_kd();
-
-        string grid_bin_filename = get_bin_filename(grid_filename);
-
         // load the DB structure
+        string grid_bin_filename = get_bin_filename(grid_filename);
         cout << "Loading DB structure from " << grid_bin_filename << endl;
         if (!s_db.read_bin(grid_bin_filename, &db_meshes)) {
-            cout << "Error loading DB structure" << endl;
+            cerr << "Error loading DB structure" << endl;
             return false;
         }
         cout << "Total no. cells: " << s_db.get_total_cells_count() << endl;
 
+        cout << "Building KDtrees for DB meshes" << endl;
+        db_meshes.build_kd();
+
+        // db_meshes.free_mesh();
+
         cos_phi = cos(s_db.ang_min * PI / 180.0);
 
-        string idx_filename = get_idx_filename(grid_filename);
-
         // load the index entries tree
+        string idx_filename = get_idx_filename(grid_filename);
         cout << "Loading index entries from " << idx_filename << endl;
         if (!tree.Load(idx_filename.c_str())) {
             cout << "Error loading index entries tree" << endl;
@@ -257,9 +263,9 @@ int cal_entries_3nn_nonsim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
 
     vector<int> range;
     #if VERBOSE > 0
-        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), err, qc, range);
+        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), 1.2 * err, qc, range); // set to (1.2 * err) instead of err to ensure the accuracy
     #else
-        nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), err, qc, range);
+        nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), 1.2 * err, qc, range);
     #endif
 
     int range_size = range.size();
@@ -860,7 +866,7 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
             }
 
             // if (it_a == 29287 && it_b == 36328) {
-            //     cout << "fuck" << endl;
+            //     cout << "here" << endl;
             //     print_pt(&m);
             //     cout << endl;
             //     print_pt(ten_a.pt);
@@ -896,10 +902,6 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
 
                 ten_c.set(it_c, &qc->mesh_q);
 
-                if (it_a == 29287 && it_b == 36328) {
-                    cout << "real dist: " << eucl_dist(ten_c.pt, &ten_c_est) << endl;
-                }
-
                 // currently the ratio set (including the volume and volume ratio) is not required
                 // since the indexing key are the side length
                 // auto ratio_set = get_ratio_set_vol(q->pt, ten_a.pt, ten_b.pt, ten_c.pt);
@@ -929,7 +931,7 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
     return ret;
 }
 
-bool recheck_congr(const Entry* e, const Entry* f, double err) {
+bool recheck_congr(const Entry* e, const Entry_trim* f, double err) {
 
     // #ifdef _3NN
         if (abs(e->sides[0] - f->sides[0]) > err) {
@@ -969,14 +971,14 @@ int retrieve_congr_entry(vector<Entry*>& e_list, Query_Context* qc, vector<Entry
         vector<int> rr_ret;
         int rr_num = window_query(&qc->tree, e, corr_err, rr_ret);
 
-        #if VERBOSE > 4
+        #if VERBOSE > 0
             cout << "For entry #" << index << ", get " << rr_num << " window query results" << endl;
         #endif
 
 	    for (auto &hit: rr_ret) {
             int hit_key = hit;
 
-	        Entry* f = qc->s_db.get_entry(hit_key);
+	        auto f = qc->s_db.get_entry(hit_key);
 
             #ifdef IDX_3
                 if (!recheck_congr(e, f, corr_err)) {
@@ -985,7 +987,7 @@ int retrieve_congr_entry(vector<Entry*>& e_list, Query_Context* qc, vector<Entry
             #endif
 
             total_nhits++;
-	        Entry_Pair* new_pair = new Entry_Pair(e, f, qc->s_db.get_grid_id_by_global_cell_id(hit_key));
+	        auto new_pair = new Entry_Pair(e, f, qc->s_db.get_grid_id_by_global_cell_id(hit_key));
 	        ret.push_back(new_pair);
 
             #if VERBOSE > 4
@@ -1086,9 +1088,10 @@ class CPQ_Detector {
 public:
 	struct Single_Coll_Tree {
 	    unordered_set<int> inserted_pt_id_set;
+        vector<Pt3D*> inserted_pt_list;
 	    CollTree* tree;
 	    Single_Coll_Tree() {
-	        tree = new CollTree();
+            tree = nullptr;
 	    }
 	    bool exists(int pt_id) {
 	        if (inserted_pt_id_set.find(pt_id) == inserted_pt_id_set.end()) {
@@ -1097,31 +1100,52 @@ public:
 	            return true;
 	        }
 	    }
-	    void insert(PtwID* p) {
-	        int pt_box_min[3], pt_box_max[3];
-	        pt_box_min[0] = pt_box_max[0] = (int) (p->pt->x * RSTREE_SCALE);
-	        pt_box_min[1] = pt_box_max[1] = (int) (p->pt->y * RSTREE_SCALE);
-	        pt_box_min[2] = pt_box_max[2] = (int) (p->pt->z * RSTREE_SCALE);
-	        // cout << pt_box_min[0] << endl << pt_box_max[0] << endl << pt_box_min[1] << endl << pt_box_max[1] << endl << pt_box_min[2] << endl << pt_box_max[2] << endl;
-	        tree->Insert(pt_box_min, pt_box_max, p->id);
-	        inserted_pt_id_set.insert(p->id);
-	    }
-        // bool check_coll(Pt3D* q, double d, double& acc_time) {
-        bool check_coll(Pt3D* q, double d) {
-	        double center[3] = { q->x, q->y, q->z };
-	        vector<int> v_ret;
-            int query_box_min[3], query_box_max[3];
-            for (int i = 0; i < 3; i++) {
-                query_box_min[i] = (int) ((center[i] - d - 0.01) * RSTREE_SCALE);
-                query_box_max[i] = (int) ((center[i] + d + 0.01) * RSTREE_SCALE);
+        void insert_single(int pt_id, Pt3D* pt) {
+            int pt_box_min[3], pt_box_max[3];
+            pt_box_min[0] = pt_box_max[0] = (int) (pt->x * RSTREE_SCALE);
+            pt_box_min[1] = pt_box_max[1] = (int) (pt->y * RSTREE_SCALE);
+            pt_box_min[2] = pt_box_max[2] = (int) (pt->z * RSTREE_SCALE);
+            // cout << pt_box_min[0] << endl << pt_box_max[0] << endl << pt_box_min[1] << endl << pt_box_max[1] << endl << pt_box_min[2] << endl << pt_box_max[2] << endl;
+            tree->Insert(pt_box_min, pt_box_max, 0);
+        }
+	    void insert(int pt_id, Pt3D* pt) {
+            inserted_pt_id_set.insert(pt_id);
+            inserted_pt_list.emplace_back(pt);
+            if (tree != nullptr) {
+                insert_single(pt_id, pt);
+            } else {
+                if (inserted_pt_list.size() > TREE_BUILD_THRESHOLD) {
+                    // cout << "start a tree" << endl;
+                    tree = new CollTree();
+                    for (auto &v: inserted_pt_list) {
+                        insert_single(0, v);
+                    }
+                }
             }
-	        // timer_start();
-            bool got = tree->YoNSearch(query_box_min, query_box_max); // TODO: use a fast SphereSearch instead
-            // acc_time += timer_end(SECOND);
-            return got;
+	    }
+        bool check_coll(Pt3D* q, double d, double sq_d) {
+            if (tree != nullptr) {
+                double center[3] = { q->x, q->y, q->z };
+                int query_box_min[3], query_box_max[3];
+                for (int i = 0; i < 3; i++) {
+                    query_box_min[i] = (int) ((center[i] - d) * RSTREE_SCALE);
+                    query_box_max[i] = (int) ((center[i] + d) * RSTREE_SCALE);
+                }
+                bool got = tree->YoNSearch(query_box_min, query_box_max); // TODO: use a fast SphereSearch instead
+                return got;
+            } else {
+                for (auto &v: inserted_pt_list) {
+                    if (sq_dist(v, q) <= sq_d) {
+                        return true;
+                    }
+                }
+                return false;
+            }
 	    }
         virtual ~Single_Coll_Tree() {
-            delete tree;
+            if (tree != nullptr) {
+                delete tree;
+            }
         }
 	};
 
@@ -1129,103 +1153,59 @@ public:
     double nn_dist;
 
     void set_coll_map(vector<Entry_Pair*>& nn_v_pairs, double t_nn_dist, Query_Context* qc) {
+    	coll_map.reserve(min(static_cast<int>(nn_v_pairs.size()), qc->db_meshes.size()));
         for (auto &i: nn_v_pairs) {
-            auto pi = PtwID(i->e_database->repre->id, qc->db_meshes.get_mesh(i->id_db));
-
-            if (coll_map.find(i->id_db) == coll_map.end()) {
-                // i->id_db not exists in coll_map
+            auto got = coll_map.find(i->id_db);
+            if (got == coll_map.end()) { // i->id_db not exists in coll_map
                 Single_Coll_Tree* sct = new Single_Coll_Tree;
+                sct->insert(i->e_database->repre->id, i->e_database->repre->pt);
                 coll_map[i->id_db] = sct;
-            }
-            if (!coll_map[i->id_db]->exists(pi.id)) {
-                coll_map[i->id_db]->insert(&pi);
+            } else {
+                if (!got->second->exists(i->e_database->repre->id)) {
+                    got->second->insert(i->e_database->repre->id, i->e_database->repre->pt);
+                }
             }
         }
 
         for (auto &i: coll_map) {
-            i.second->tree->SortDim0();
+            if (i.second->tree != nullptr) {
+                i.second->tree->SortDim0();
+            }
         }
 
         nn_dist = t_nn_dist;
     }
 
 private:
-	// bool check_coll(int id_db, Pt3D* pt, Query_Context* qc, double& acc_time, double& test_time) {
-    bool check_coll(int id_db, Pt3D* pt, Query_Context* qc) {
-        if (coll_map.find(id_db) == coll_map.end()) {
+    static const int TREE_BUILD_THRESHOLD = 10;
+
+    bool check_coll(int id_db, Pt3D* pt, double nn_dist_thresh, double sq_dist_thresh) {
+    	auto got = coll_map.find(id_db);
+        if (got == coll_map.end()) {
             return false;
         }
 
-        // timer_start();
-        // bool pass = coll_map[id_db]->check_coll(pt, nn_dist + 2 * qc->epsilon, acc_time);
-        bool pass = coll_map[id_db]->check_coll(pt, nn_dist + 2 * qc->epsilon);
-        // test_time += timer_end(SECOND);
+        bool pass = got->second->check_coll(pt, nn_dist_thresh, sq_dist_thresh);
 
         return pass;
     }
 
 public:
     void check_coll_filter(vector<Entry_Pair*>& v_pairs, Query_Context* qc, vector<Entry_Pair*>& v_ret) {
+        double nn_dist_thresh = nn_dist + 2 * qc->epsilon + 0.01;
+        double sq_dist_thresh = sq(nn_dist_thresh);
 
-        // double check_time = 0.0;
-        // double query_time = 0.0;
-        // double test_time = 0.0;
-
+        v_ret.reserve(v_pairs.size());
         for (auto &i: v_pairs) {
-            PtwID pi(i->e_database->repre->id, qc->db_meshes.get_mesh(i->id_db));
-            bool collision = false;
-
-            // timer_start();
-            // collision = check_coll(i->id_db, pi.pt, qc, query_time, test_time);
-            collision = check_coll(i->id_db, pi.pt, qc);
-            // check_time += timer_end(SECOND);
-
-            if (collision) {
+            if (check_coll(i->id_db, i->e_database->repre->pt, nn_dist_thresh, sq_dist_thresh)) {
                 // #if VERBOSE > 0
                 //    cout << "Found collision: " << pi.id << endl;
                 // #endif
                 v_ret.push_back(i);
             }
         }
-
-        // cout << "Total check time: " << check_time << endl;
-        // cout << "Total query time: " << query_time << endl;
-        // cout << "Total test time: " << test_time << endl;
+        v_ret.shrink_to_fit();
     }
-
-    void check_coll_filter_bf(vector<Entry_Pair*>& v_pairs, Query_Context* qc) {
-
-        // for (auto itr = v_pairs.begin(); itr != v_pairs.end(); itr++) {
-        //     auto i = *itr;
-        //     auto pi = PtwID(i->e_database->repre->id, qc->db_meshes.get_mesh(i->id_db));
-        //     bool collision = false;
-
-        //     for (auto jtr = nn_v_pairs.begin(); jtr != nn_v_pairs.end(); jtr++) {
-        //         auto j = *jtr;
-
-        //         if (i->id_db != j->id_db) {
-        //             continue;
-        //         }
-
-        //         auto pj = PtwID(j->e_database->repre->id, qc->db_meshes.get_mesh(j->id_db));
-
-        //         double dist_ij = eucl_dist(&pi.pt, &pj.pt);
-        //         if (dist_ij > nn_q_d + 2 * qc->epsilon) {
-        //             continue;
-        //         }
-
-        //         // #if VERBOSE > 0
-        //         //     cout << "Found collision: " << pi.id << " & " << pj.id << ", dist = " << dist_ij << endl;
-        //         // #endif
-        //         collision = true;
-        //         break;
-        //     }
-
-        //     if (!collision) {
-        //         v_pairs.erase(itr--);
-        //     }
-        // }
-	}
 
     virtual ~CPQ_Detector() {
         for (auto &p: coll_map) {
@@ -1241,9 +1221,7 @@ struct Proposal_Stat {
     // int num_hits;
 };
 
-void pair_proposal(PtwID* q, Query_Context* qc, vector<Entry_Pair*>& v_pairs, Proposal_Stat& ps) {
-
-	vector<Entry*> v_entries;
+void pair_proposal(PtwID* q, Query_Context* qc, vector<Entry*>& v_entries, vector<Entry_Pair*>& v_pairs, Proposal_Stat& ps) {
 
     #if VERBOSE > 0
         cout << endl << "Calculating entry list for query pt #" << q->id << " with min=" << qc->s_db.ann_min << endl;
@@ -1321,12 +1299,30 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
     timer_start();
 
     PtwID q;
+    vector<Entry*> v_entries;
     vector<Entry_Pair*> v_pairs;
     Proposal_Stat prop_stat = (const struct Proposal_Stat){ 0 };
 
-    while (v_pairs.size() == 0 || v_pairs.size() > 50000) {
+    do {
 
-        v_pairs.clear();
+        if (!v_entries.empty()) {
+            for (auto &v: v_entries) {
+                if (v != nullptr) {
+                    delete v;
+                    v = nullptr;
+                }
+            }
+            vector<Entry*>().swap(v_entries);
+        }
+        if (!v_pairs.empty()) {
+            for (auto &v: v_pairs) {
+                if (v != nullptr) {
+                    delete v;
+                    v = nullptr;
+                }
+            }
+            vector<Entry_Pair*>().swap(v_pairs);
+        }
 
         int selected_pt_id = rand() % qc->mesh_q.size();
 
@@ -1359,9 +1355,9 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
             }
         #endif
 
-        pair_proposal(&q, qc, v_pairs, prop_stat);
+        pair_proposal(&q, qc, v_entries, v_pairs, prop_stat);
 
-    }
+    } while (false); // (v_pairs.size() > 50000); // reselect when exceeding 50000, this helps to accelerate for large return set
 
     stat.prop_time = timer_end(SECOND);
     stat.cal_entries_time = prop_stat.cal_entries_time;
@@ -1384,11 +1380,12 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
            cout << "Pair proposal for query NN pt " << qc->s_q.id_q_to_str(nn_q_id) << " of dist = " << nn_q_d << endl;
         #endif
 
+        vector<Entry*> nn_v_entries;
         vector<Entry_Pair*> nn_v_pairs;
         Proposal_Stat nn_prop_stat = (const struct Proposal_Stat){ 0 };
 
         timer_start();
-        pair_proposal(&nn_q, qc, nn_v_pairs, nn_prop_stat);
+        pair_proposal(&nn_q, qc, nn_v_entries, nn_v_pairs, nn_prop_stat);
         stat.cpq_prop_time = timer_end(SECOND);
 
         vector<Entry_Pair*> v_pairs_ret;
@@ -1433,11 +1430,13 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
     for (auto &h: *ptr_v_pairs) {
         h->cal_xf();
         // h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q, h->id_db, &h->xf); // TODO: use another unimplemented interface
+        // cout << "Cal dist for\n" << h->e_query->to_str() << "\nand\n" << h->e_database->to_str() << "\n in db obj#" << h->id_db << endl;
         h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q, h->id_db, &h->xf, qc->delta); // TODO: simplified method, stops when error is larger
         // cout << "Initial distance: " << h->init_dist << " for pair: " << h->to_str(10) << endl;
 
         // if (h->init_dist <= sq(qc->delta)) {
         if (h->init_dist >= 0) {
+            // cout << "Matched with DB #" << h->id_db << ": " << qc->db_meshes.get_mesh(h->id_db)->get_filename() << endl;
             stat.num_verified++;
             if (stat.num_verified == 1 && !found_one_iter) {
                 first_time_iter = timer_end(SECOND);
@@ -1494,6 +1493,46 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
     stat.user_time = (stat.prop_time + stat.veri_time);
 
     cout << "# verified: " << stat.num_verified << endl;
+
+    if (!v_entries.empty()) {
+        for (auto &v: v_entries) {
+            if (v != nullptr) {
+                delete v;
+                v = nullptr;
+            }
+        }
+        vector<Entry*>().swap(v_entries);
+    }
+    if (!v_pairs.empty()) {
+        for (auto &v: v_pairs) {
+            if (v != nullptr) {
+                delete v;
+                v = nullptr;
+            }
+        }
+        vector<Entry_Pair*>().swap(v_pairs);
+    }
+
+    #ifdef _CPQ
+        if (!nn_v_entries.empty()) {
+            for (auto &v: nn_v_entries) {
+                if (v != nullptr) {
+                    delete v;
+                    v = nullptr;
+                }
+            }
+            vector<Entry*>().swap(nn_v_entries);
+        }
+        if (!nn_v_pairs.empty()) {
+            for (auto &v: nn_v_pairs) {
+                if (v != nullptr) {
+                    delete v;
+                    v = nullptr;
+                }
+            }
+            vector<Entry_Pair*>().swap(nn_v_pairs);
+        }
+    #endif
 
     if (stat.num_verified > 0)
         return true;

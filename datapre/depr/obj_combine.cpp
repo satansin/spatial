@@ -82,6 +82,9 @@ int main(int argc, char** argv) {
 	}
 	int sum_pts = 0;
 	ofstream meta_ofs(output_metafile);
+	if (num_parts == 1) {
+		meta_ofs << 1 << endl;
+	}
 	for (auto &m: db_meshes) {
 		meta_ofs << m->vertices.size() << endl;
 		sum_pts += m->vertices.size();

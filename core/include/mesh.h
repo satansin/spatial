@@ -16,6 +16,8 @@
 #include "point.h"
 #include "trans.h"
 
+struct PtwID;
+
 class Mesh {
 
 private:
@@ -25,6 +27,7 @@ private:
 	std::string m_filename;
 
 	std::vector<Pt3D> m_pt_list;
+	std::vector<PtwID> m_ptwid_list;
 
 	friend class DB_Meshes;
 
@@ -39,11 +42,16 @@ public:
 
 	Mesh() : Mesh(0) { }
 
+	~Mesh();
+
+	void free_mesh();
+
 	void read_from_path(const std::string s_file);
 
 	int size() const;
 
 	Pt3D* get_pt(int idx);
+	PtwID* get_ptwid(int idx);
 
 	const std::string get_filename() const;
 
@@ -60,6 +68,10 @@ public:
 
 	void scale_by(double s);
 
+	static PtwID DEFAULT_PT;
+
+	void write(std::string filename);
+
 private:
 	static void pt(trimesh::point p, Pt3D& ret) {
 		ret.x = p[0];
@@ -71,7 +83,7 @@ private:
 class DB_Meshes {
 
 private:
-	std::vector<Mesh> m_db_meshes;
+	std::vector<Mesh*> m_db_meshes;
 	int m_total;
 	int m_size;
 
@@ -79,10 +91,15 @@ private:
 	std::vector<trimesh::KDtree*> m_db_kds;
 
 private:
-	std::string get_meta_filename(const std::string path) const;
+	void read_normal(std::ifstream& ifs_meta);
+	void read_combined(std::ifstream& ifs_meta, std::ifstream& ifs_combined, std::string folder);
 
 public:
 	DB_Meshes();
+	
+	~DB_Meshes();
+
+	void free_mesh();
 
 	int read_from_path(const std::string db_path);
 
@@ -110,6 +127,30 @@ public:
 
 	void retrieve(Mesh* mesh_q, int id, std::unordered_set<int>& ret, Trans* xf = NULL);
 
+};
+
+struct PtwID {
+	int id;
+	Pt3D* pt;
+	void set(int id, Pt3D* pt) {
+		this->id = id;
+		this->pt = pt;
+	}
+	void set(int id, Mesh* mesh) {
+		set(id, mesh->get_pt(id));
+	}
+	PtwID() {
+		this->id = -1;
+	}
+	PtwID(int id, Pt3D* pt) {
+		set(id, pt);
+	}
+	PtwID(int id, Mesh* mesh) {
+		set(id, mesh);
+	}
+	PtwID(PtwID* from) {
+		set(from->id, from->pt);
+	}
 };
 
 #endif

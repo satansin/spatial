@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
             // }
         	auto mesh = db_meshes.get_mesh(i);
             double diam = mesh->get_bsphere_d();
-            cout << diam << endl;
+            // cout << diam << endl;
 
             sum += diam;
         }

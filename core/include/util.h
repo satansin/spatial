@@ -2,6 +2,7 @@
 #define __UTIL_S_H_
 
 #include <string>
+#include <vector>
 
 extern const char* TAB;
 extern const char* TABTAB;

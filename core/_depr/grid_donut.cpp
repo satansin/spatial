@@ -18,115 +18,90 @@
 using namespace std;
 
 struct Entry_Stat {
-    int global_id;
-    Entry_Stat(int id) {
-        global_id = id;
-    }
-
-	int num_discarded;
+	int global_id;
+	Entry_Stat(int id) {
+		global_id = id;
+	}
+	
 	double nn_dist[3];
 };
 
-bool verify_angle(vector<Pt3D>& accepted_pa, Pt3D* pb, double cos_min_ang) {
-    for (auto &pa: accepted_pa) {
-        double ct = cos_theta(&pa, pb);
-        if (ct > cos_min_ang) {
-            return false;
-        }
-    }
-    return true;
-}
+void cal_donut_entry(PtwID* p, double min, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, bool small_set, Entry* prem_entry, Entry_Stat& es) {
 
-void cal_3nn_entry(PtwID* p, double min, double cos_min_ang, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, Entry* prem_entry, Entry_Stat& es) {
+	PtwID a, b, c;
 
-	const int TENT = 40;
+    if (debug_mode) cout << TAB << "Pt #" << p->id << endl;
 
-    int nn[TENT];
-    r_p->nn_sphere(p->pt, min, nn, {}, TENT);
+    // start looking for the first subsidiary pt a
+    if (debug_mode) timer_start();
 
-    PtwID a, b, c;
+    int nn_a;
+    auto nn_d_a = r_p->nn_sphere(p->pt, min, &nn_a);
 
-    int accepted = 0, discarded = 0;
-    vector<Pt3D> accepted_pa;
+    if (debug_mode) cout << TABTAB << "First pt #" << nn_a << " dist=" << nn_d_a << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
-    a = PtwID(nn[0], mesh_p);
-    accepted++;
-    accepted_pa.push_back(*a.pt - *p->pt);
-
-    for (int i = 1; i < TENT; i++) {
-        if (accepted >= 3) {
-            break;
-        }
-        PtwID t = PtwID(nn[i], mesh_p);
-        auto pt = *t.pt - *p->pt;
-        if (verify_angle(accepted_pa, &pt, cos_min_ang)) {
-            switch (accepted) {
-            case 1:
-                b = t;
-                accepted++;
-                accepted_pa.push_back(pt);
-                break;
-            case 2:
-                c = t;
-                accepted++;
-                accepted_pa.push_back(pt);
-                break;
-            default:
-                break;
-            }
-        } else {
-            discarded++;
-        }
+    if (nn_a >= 0) {
+     	a.set(nn_a, mesh_p);
+     	es.nn_dist[0] = nn_d_a;
+    } else {
+    	return;
     }
 
-    // cout << "# accepted: " << accepted << endl;
-    // cout << "# discarded: " << discarded << endl;
+    // start looking for the second pt b
+    if (debug_mode) timer_start();
 
-    // cout << "pa = " << accepted_pa[0].mode() << endl;
-    // cout << "pb = " << accepted_pa[1].mode() << endl;
-    // cout << "pc = " << accepted_pa[2].mode() << endl;
+    Pt3D m; middle_pt(p->pt, a.pt, m);
+    auto pa = *p->pt - *a.pt;
 
-    // auto cos_a0pa1 = dot_prd(&pa0, &pa1) / (pa0_mode * pa1_mode);
-    // auto cos_a0pa2 = dot_prd(&pa0, &pa2) / (pa0_mode * pa2_mode);
-    // auto cos_a1pa2 = dot_prd(&pa1, &pa2) / (pa1_mode * pa2_mode);
+    double d_pm = eucl_dist(p->pt, &m);
 
-    // cout << "cos_a0pa1 = " << cos_a0pa1 << endl;
-    // cout << "cos_a0pa2 = " << cos_a0pa2 << endl;
-    // cout << "cos_a1pa2 = " << cos_a1pa2 << endl;
+    double r_donut = d_pm * 1.73205080757;
 
-
-    if (accepted >= 3) {
-        // get the ratio set
-        auto ratio_set = get_ratio_set_vol(p->pt, a.pt, b.pt, c.pt);
-        prem_entry->set(p, &a, &b, &c, ratio_set.volume, ratio_set.ratio);
-        prem_entry->fail = false;
+    int nn_b;
+    // auto nn_d_b = r_p->donut_nn(&m, r_donut, &pa, &nn_b);
+    double nn_d_b;
+    if (small_set) {
+        nn_d_b = donut_nn_quick(&m, &pa, r_donut, mesh_p, r_p, &nn_b);
+    } else {
+        nn_d_b = donut_nn(&m, &pa, r_donut, mesh_p, r_p, &nn_b);
     }
 
-    es.num_discarded = discarded;
-    for (int i = 0; i < 3; i++) {
-        if (i < accepted_pa.size()) {
-            es.nn_dist[i] = accepted_pa[i].mode();
-        } else {
-            es.nn_dist[i] = 0;
-        }
+    if (debug_mode) cout << TABTAB << "Second pt #" << nn_b << " dist=" << nn_d_b << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
+
+    if (nn_b >= 0) {
+        b.set(nn_b, mesh_p);
+        es.nn_dist[1] = nn_d_b;
+    } else {
+        return;
     }
 
-}
+    // start looking for the third pt c
+    if (debug_mode) timer_start();
 
-void cal_3nn_entry_sim(PtwID* p, double min, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, Entry* prem_entry, Entry_Stat& es) {
+    Pt3D b_est, c_est; // but b_est will not be used
+    auto got_b_c = get_est_b_c(&m, a.pt, b.pt, b_est, c_est);
+    if (!got_b_c) {
+    	return;
+    }
 
-    int nn[3];
-    r_p->nn_sphere(p->pt, min, nn, {}, 3);
+    int nn_c = -1;
+    auto nn_d_c = r_p->nn_sphere(&c_est, 0.0, &nn_c, { p->id, a.id, b.id });
+    if (nn_c >= 0 && nn_c < mesh_p->size()) {
+     	c = PtwID(nn_c, mesh_p);
+    	es.nn_dist[2] = nn_d_c;
+    } else {
+    	return;
+    }
 
-    PtwID a, b, c;
-    a = PtwID(nn[0], mesh_p);
-    b = PtwID(nn[1], mesh_p);
-    c = PtwID(nn[2], mesh_p);
+    if (debug_mode) cout << TABTAB << "Third pt #" << nn_c << " dist=" << nn_d_c << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
     // get the ratio set
     auto ratio_set = get_ratio_set_vol(p->pt, a.pt, b.pt, c.pt);
-    prem_entry->set(p, &a, &b, &c, ratio_set.volume, ratio_set.ratio);
-    prem_entry->fail = false;
+
+    if (ratio_set.ratio - prem_entry->meas > 0) {
+    	prem_entry->set(p, &a, &b, &c, ratio_set.volume, ratio_set.ratio);
+    	prem_entry->fail = false;
+    }
 
 }
 
@@ -135,18 +110,20 @@ int main(int argc, char **argv) {
     srand(time(0));
 
     if (argc < 4) {
-        cerr << "Usage: " << argv[0] << " database_path ann_min (ang_min) output_grid_filename [-simple] [-show_prog_bar] [-debug]" << endl;
+        cerr << "Usage: " << argv[0] << " database_path ann_min output_grid_filename [-sort_entry] [-show_prog_bar] [-small] [-debug]" << endl;
         exit(1);
     }
 
-    bool show_prog_bar = false, debug_mode = false, simple = false;
+    bool show_prog_bar = false, debug_mode = false, sort_entry = false, small_set = false;
     for (int i = 0; i < argc; i++) {
         if (string(argv[i]) == "-show_prog_bar")
             show_prog_bar = true;
         else if (string(argv[i]) == "-debug")
             debug_mode = true;
-        else if (string(argv[i]) == "-simple")
-            simple = true;
+        else if (string(argv[i]) == "-sort_entry")
+            sort_entry = true;
+        else if (string(argv[i]) == "-small")
+            small_set = true;
     }
 
     int argi = 0;
@@ -156,9 +133,6 @@ int main(int argc, char **argv) {
     double ann_mid = 0.0;
     double ann_max = 0.0;
     double ang_min = 0.0;
-    if (!simple) {
-        ang_min = atof(argv[++argi]);
-    }
     string outgrid_filename = argv[++argi];
 
     cout << "Parameters:" << endl;
@@ -176,13 +150,22 @@ int main(int argc, char **argv) {
     cout << "Reading database files from " << db_path << endl;
     DB_Meshes db_meshes;
     int num_meshes = db_meshes.read_from_path(db_path);
-    cout << "Total no. meshes: " << num_meshes << endl << endl;
+    cout << "Total no. meshes: " << num_meshes << endl;
 
     int n = db_meshes.total();
+    cout << "Total points: " << n << endl << endl;
 
     cout << "Reading database R-trees..." << endl;
     vector<C_RTree> db_rtrees;
-    read_rtrees_from_db_meshes(&db_meshes, db_rtrees);
+    for (int i = 0; i < 10; i++) {
+        read_rtrees_comb(db_path, i, num_meshes / 10, db_rtrees);
+    }
+    // read_rtrees_comb(db_path, 0, num_meshes, db_rtrees);
+    // TODO: batch? switch to origin?
+
+    // cout << "Reading database R-trees..." << endl;
+    // vector<C_RTree> db_rtrees;
+    // read_rtrees_from_db_meshes(&db_meshes, db_rtrees);
     
     cout << endl;
 
@@ -196,7 +179,7 @@ int main(int argc, char **argv) {
 
     ofstream ofs(outgrid_filename);
 
-    vector<Entry_Stat> v_es;
+    // vector<Entry_Stat> v_es;
 
     // write grid headers
     ofs << w << " " << ann_min << " " << ann_mid << " " << ann_max << " " << ang_min << " " << num_meshes << " " << db_meshes.total() << endl;
@@ -208,9 +191,11 @@ int main(int argc, char **argv) {
     int fail_count = 0;
     int global_cell_id = 0;
 
+    Entry_Stat es(0); // use a global ES to save memory
+
     cout << setiosflags(ios::fixed) << setprecision(2);
 
-    const double cos_phi = cos(ang_min * PI / 180.0);
+    PtwID p;
 
     for (int mesh_id = 0; mesh_id < db_meshes.size(); mesh_id++) {
         auto mesh_p = db_meshes.get_mesh(mesh_id);
@@ -226,18 +211,14 @@ int main(int argc, char **argv) {
                 bar.display();
             }
 
-            PtwID p = PtwID(i, mesh_p);
+            p.set(i, mesh_p);
 
             auto prem_entry = new Entry();
             prem_entry->fail = true;
 
-            Entry_Stat es(global_cell_id);
+            // Entry_Stat es(global_cell_id);
 
-            if (simple) {
-                cal_3nn_entry_sim(&p, ann_min, mesh_p, &r_p, debug_mode, prem_entry, es);
-            } else {
-                cal_3nn_entry(&p, ann_min, cos_phi, mesh_p, &r_p, debug_mode, prem_entry, es);
-            }
+            cal_donut_entry(&p, ann_min, mesh_p, &r_p, debug_mode, small_set, prem_entry, es);
 
             if (prem_entry->fail) {
                 if (debug_mode) cout << TAB << "Fail in finding prem entry" << endl;
@@ -247,6 +228,9 @@ int main(int argc, char **argv) {
 
                 // for edge index
                 prem_entry->fill_sides();
+                if (sort_entry) {
+                    prem_entry->sort_sides();
+                }
             }
 
             // s_db.append_entry(prem_entry);
@@ -254,10 +238,20 @@ int main(int argc, char **argv) {
             ofs << mesh_id << " " << i << " " << global_cell_id << " 0 0 0 1 " << i << endl;
             ofs << mesh_id << " " << prem_entry->to_str(12) << endl;
 
-            v_es.push_back(es);
+            // v_es.push_back(es);
+
+            delete prem_entry;
 
             global_cell_id++;
 
+            if (debug_mode && i >= 1000) {
+                break;
+            }
+
+        }
+
+        if (debug_mode) {
+            break;
         }
 
         if (show_prog_bar) {
@@ -273,7 +267,7 @@ int main(int argc, char **argv) {
 
     cout << "Total # of failed cells: " << fail_count << endl << endl;
 
-    cout << "Total user time: " << user_time << "(s)" << endl << endl;
+    cout << "Total user time: " << timer_end(SECOND) << "(s)" << endl << endl;
 
 
     string outgrid_stat_filename = outgrid_filename + ".gstat";
@@ -286,7 +280,6 @@ int main(int argc, char **argv) {
 
     // for (auto &es: v_es) {
     //     ofs_stat << es.global_id;
-    //     ofs_stat << " " << es.num_discarded;
     //     for (int j = 0; j < 3; j++) {
     //         ofs_stat << " " << es.nn_dist[j];
     //     }

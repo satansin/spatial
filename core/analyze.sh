@@ -2,35 +2,21 @@
 
 source ../common/config/dir_loc.sh
 
-# ./out/analyze.out "$DIR_DB"/redwood-01-livingroom.ply "$DIR_RSTREE"/redwood-01-livingroom.rstree.1 "$DIR_INDEX"/redwood-01-livingroom.side.idx 20
-
-# ./out/analyze.out "$DIR_DB"/redwood-02-office.ply "$DIR_RSTREE"/redwood-02-office.rstree.1 "$DIR_INDEX"/redwood-02-office.side.idx 20
-
-
-# ./out/analyze.out "$DIR_DB"/obj_scans_2/ "$DIR_INDEX"/obj_scans_2/obj_scans_2.100.grid 20
-# ./out/analyze.out "$DIR_DB"/obj_scans_2/ "$DIR_INDEX"/obj_scans_2/obj_scans_2.200.grid 20
-
-# ./out/analyze.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17.new.100.idx 20
-# ./out/analyze.out "$DIR_DB"/obj_scans_17/ "$DIR_INDEX"/obj_scans_17.new.200.idx 20
-
-# ./out/analyze.out "$DIR_DB"/obj_scans_100/ "$DIR_INDEX"/obj_scans_100.new.100.idx 20
-# ./out/analyze.out "$DIR_DB"/obj_scans_100/ "$DIR_INDEX"/obj_scans_100.new.200.idx 20
-
-# ./out/analyze.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ "$DIR_INDEX"/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid 20
-# ./out/analyze.out "$DIR_DB"/indoor_scans/recon_bedroom_2/ "$DIR_INDEX"/indoor_scans/recon_bedroom_2/recon_bedroom_2.024.120.grid 20
-# ./out/analyze.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ "$DIR_INDEX"/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid 20
-# ./out/analyze.out "$DIR_DB"/indoor_scans/recon_bedroom_1/ "$DIR_INDEX"/indoor_scans/recon_bedroom_1/recon_bedroom_1.016.080.grid 20
 
 # ./out/anal_nn.out "$DIR_DB"/indoor_scans/comp_5/
-./out/anal_nn.out "$DIR_DB"/indoor_scans/comp_1/
+# ./out/anal_nn.out "$DIR_DB"/indoor_scans/comp_1/
 # ./out/anal_nn.out "$DIR_DB"/indoor_scans/comp_6/
 # ./out/anal_nn.out "$DIR_DB"/indoor_scans/comp_7/
 
-# ./out/anal_nn.out "$DIR_OBJ_DB"/sel_001k/
+# ./out/anal_nn.out "$DIR_OBJ_DB"/1_sel_100i/ -num_parts=1
 
 # ./out/anal_diam.out "$DIR_DB"/indoor_scans/comp_5/
 
-# ./out/anal_diam.out "$DIR_OBJ_DB"/sel_010k/
+# ./out/anal_diam.out "$DIR_OBJ_DB"/1_sel_100i/
+# ./out/anal_diam.out "$DIR_OBJ_DB"/2_sel_001k/
+# ./out/anal_diam.out "$DIR_OBJ_DB"/3_sel_010k/
+# ./out/anal_diam.out "$DIR_OBJ_DB"/4_sel_100k/
+./out/anal_diam.out "$DIR_OBJ_DB"/5_sel_001m/
 # ./out/anal_diam.out "$DIR_OBJ_DB"/origin/
 
 # ./out/anal_diam.out "$DIR_QUERY"/indoor_scans_pro_noise/comp_5/q_01.0.ply -single

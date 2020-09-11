@@ -4,10 +4,28 @@
 using namespace std;
 using namespace trimesh;
 
+PtwID Mesh::DEFAULT_PT = { -1, (Pt3D *) nullptr };
+
 Mesh::Mesh(int id) {
 	m_id = id;
 	m_size = 0;
 	m_bbox_built = false;
+}
+
+Mesh::~Mesh() {
+    free_mesh();
+}
+
+void Mesh::free_mesh() {
+    if (m_mesh != nullptr) {
+        m_mesh->clear();
+        delete m_mesh;
+        m_mesh = nullptr;
+    }
+}
+
+void Mesh::write(string filename) {
+    m_mesh->write(filename);
 }
 
 void Mesh::read_from_path(const string s_file) {
@@ -17,12 +35,16 @@ void Mesh::read_from_path(const string s_file) {
 
     m_pt_list.clear();
     m_pt_list.reserve(m_size);
+    m_ptwid_list.clear();
+    m_ptwid_list.reserve(m_size);
+    Pt3D t_pt;
     for (int i = 0; i < m_size; i++) {
-        Pt3D t_pt;
         pt(m_mesh->vertices[i], t_pt);
         m_pt_list.push_back(t_pt);
+        m_ptwid_list.push_back(PtwID(i, &m_pt_list[i]));
     }
     m_pt_list.shrink_to_fit();
+    m_ptwid_list.shrink_to_fit();
 }
 
 int Mesh::size() const {
@@ -32,6 +54,14 @@ int Mesh::size() const {
 Pt3D* Mesh::get_pt(int idx) {
 	assert(idx >= 0 && idx < m_size);
 	return &(m_pt_list[idx]);
+}
+
+PtwID* Mesh::get_ptwid(int idx) {
+    if (idx >= 0 && idx < m_size) {
+        return &(m_ptwid_list[idx]);
+    } else {
+        return &DEFAULT_PT;
+    }
 }
 
 const string Mesh::get_filename() const {
@@ -100,34 +130,124 @@ void Mesh::scale_by(double s) {
 }
 
 
-string DB_Meshes::get_meta_filename(const string path) const {
-	string folder = get_foldername(path);
-	return (folder + "meta.txt");
-}
-
 DB_Meshes::DB_Meshes() {
 	m_total = 0;
 	m_size = 0;
 	m_kd_built = false;
 }
 
-int DB_Meshes::read_from_path(const string db_path) {
-    ifstream ifs(get_meta_filename(db_path));
+DB_Meshes::~DB_Meshes() {
+    for (auto &m: m_db_meshes) {
+        if (m != nullptr)
+            delete m;
+    }
+    for (auto &v: m_db_kds) {
+        if (v != nullptr)
+            delete v;
+    }
+}
 
-    ifs >> m_size;
+void DB_Meshes::free_mesh() {
+    for (auto &v: m_db_meshes) {
+        v->free_mesh();
+    }
+}
 
+void DB_Meshes::read_normal(ifstream& ifs_meta) {
     int id;
     string s_file;
     for (int i = 0; i < m_size; i++) {
-        ifs >> id >> s_file;
+        ifs_meta >> id >> s_file;
 
-        Mesh new_mesh(id);
-        new_mesh.read_from_path(s_file);
+        Mesh* new_mesh = new Mesh(id);
+        new_mesh->read_from_path(s_file);
 
-        m_total += new_mesh.size();
+        m_total += new_mesh->size();
         m_db_meshes.push_back(new_mesh);
     }
+}
 
+void DB_Meshes::read_combined(ifstream& ifs_meta, ifstream& ifs_combined, string folder) {
+    int num_parts;
+    ifs_combined >> num_parts;
+    cout << "num_parts: " << num_parts << endl;
+
+    int part_size;
+    for (int i = 0; i < num_parts; i++) {
+        ifs_combined >> part_size;
+
+        vector<int> pt_sizes;
+        ifstream ifs_combined_part(folder + "combined.meta." + to_string(i));
+        int pts;
+        for (int j = 0; j < part_size; j++) {
+            ifs_combined_part >> pts;
+            pt_sizes.push_back(pts);
+        }
+        ifs_combined_part.close();
+
+        TriMesh* mesh_part = TriMesh::read(folder + "combined.ply." + std::to_string(i));
+        
+        int id;
+        string s_file;
+        int from = 0;
+        for (int j = 0; j < part_size; j++) {
+            ifs_meta >> id >> s_file;
+
+            // cout << from << " " << pt_sizes[j] << endl;
+
+            Mesh* new_mesh = new Mesh(id);
+            new_mesh->m_filename = s_file;
+            new_mesh->m_mesh = new TriMesh;
+            new_mesh->m_size = pt_sizes[j];
+            new_mesh->m_pt_list.clear();
+            new_mesh->m_pt_list.reserve(pt_sizes[j]);
+            new_mesh->m_ptwid_list.clear();
+            new_mesh->m_ptwid_list.reserve(pt_sizes[j]);
+            Pt3D t_pt;
+            for (int k = 0; k < pt_sizes[j]; k++) {
+                new_mesh->m_mesh->vertices.push_back(mesh_part->vertices[from + k]);
+                Mesh::pt(mesh_part->vertices[from + k], t_pt);
+                new_mesh->m_pt_list.push_back(t_pt);
+                new_mesh->m_ptwid_list.push_back(PtwID(k, &(new_mesh->m_pt_list[k])));
+            }
+            new_mesh->m_pt_list.shrink_to_fit();
+            new_mesh->m_ptwid_list.shrink_to_fit();
+
+            m_db_meshes.push_back(new_mesh);
+
+            from += pt_sizes[j];
+        }
+
+        m_total += mesh_part->vertices.size();
+
+        mesh_part->clear();
+        delete mesh_part;
+        vector<int>().swap(pt_sizes);
+    }
+
+}
+
+int DB_Meshes::read_from_path(const string db_path) {
+    const string folder = get_foldername(db_path);
+    const string meta_filename = folder + "meta.txt";
+
+    ifstream ifs(meta_filename);
+    if (!ifs.is_open()) {
+        return -1;
+    }
+    ifs >> m_size;
+
+    ifstream ifs_combined(folder + "combined.meta");
+
+    if (ifs_combined.is_open()) {
+        cout << "Start combined reading" << endl;
+        read_combined(ifs, ifs_combined, folder);
+    } else {
+        cout << "Start normal reading" << endl;
+        read_normal(ifs);
+    }
+
+    ifs_combined.close();
     ifs.close();
 
     return m_size;
@@ -135,7 +255,7 @@ int DB_Meshes::read_from_path(const string db_path) {
 
 void DB_Meshes::build_kd() {
     for (auto &t: m_db_meshes) {
-        m_db_kds.push_back(new KDtree(t.m_mesh->vertices));
+        m_db_kds.push_back(new KDtree(t->m_mesh->vertices));
     }
     m_kd_built = true;
 }
@@ -154,7 +274,7 @@ int DB_Meshes::total() const {
 
 Mesh* DB_Meshes::get_mesh(int id) {
 	assert(id >= 0 && id < m_size);
-	return &m_db_meshes[id];
+	return m_db_meshes[id];
 }
 
 // const KDtree* get_kd(int id) {
@@ -216,7 +336,7 @@ void DB_Meshes::retrieve(Mesh* mesh_q, int id, std::unordered_set<int>& ret, Tra
         if (!nn)
             continue;
 
-        int db_pt_id = distance((const float *) &m_db_meshes[id].m_mesh->vertices[0], nn) / 3;
+        int db_pt_id = distance((const float *) &m_db_meshes[id]->m_mesh->vertices[0], nn) / 3;
 
         ret.insert(db_pt_id);
     }

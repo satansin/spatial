@@ -1,7 +1,4 @@
-#include <string>
-#include <fstream>
 #include <iostream>
-#include <unordered_set>
 #include <stack>
 
 #include "c_rtree.h"
@@ -62,6 +59,12 @@ C_RTree::C_RTree(Usage usage) {
 		read_rstree_info(get_info_filename(usage));
 		m_info_created = true;
 	}
+}
+
+C_RTree::~C_RTree() {
+    if (m_root != nullptr) {
+        free_tree(m_root, &m_info);
+    }
 }
 
 double C_RTree::donut_nn(Pt3D* o, double r, Pt3D* n, int* ret, const unordered_set<int>& excl_id_set, int k) {
@@ -139,6 +142,10 @@ double C_RTree::nn_sphere(Pt3D* p, double r, int* ret, const unordered_set<int>&
 
 void C_RTree::read_from_mesh(const string mesh_filename) {
 	read_rtree(&m_root, get_rst_filename(mesh_filename).c_str(), &m_info);
+}
+
+void C_RTree::read_comb(FILE *fp) {
+    read_rtree_comb(&m_root, fp, &m_info);
 }
 
 void C_RTree::range_sphere_min_max(Pt3D* p, double r_min, double r_max, vector<int>& ret, const unordered_set<int>& excl_id_set) {
@@ -242,13 +249,34 @@ void C_RTree::nn_sphere_range(Pt3D* p, double sq_dist, double err, vector<int>& 
 // 	return num;
 // }
 
-void read_rtrees_from_db_meshes(DB_Meshes* db_meshes, vector<C_RTree>& ret, bool verbose) {
+void read_rtrees_from_db_meshes(DB_Meshes* db_meshes, vector<C_RTree*>& ret, bool verbose) {
+    string db_rtree_filename;
+    C_RTree* rtree;
     for (int i = 0; i < db_meshes->size(); i++) {
-        string db_rtree_filename = db_meshes->get_mesh(i)->get_filename();
+        db_rtree_filename = db_meshes->get_mesh(i)->get_filename();
         if (verbose) cout << "Reading R-tree for " << db_rtree_filename << endl;
 
-        C_RTree rtree;
-        rtree.read_from_mesh(db_rtree_filename);
+        rtree = new C_RTree;
+        rtree->read_from_mesh(db_rtree_filename);
         ret.push_back(rtree);
     }
+}
+
+void read_rtrees_comb(const string db_path, int part_i, int part_size, vector<C_RTree*>& ret) {
+    const string folder = get_foldername(db_path);
+    const string filename = folder + "combined.ply." + to_string(part_i) + ".rst.0";
+
+    cout << "Reading combined R-tree file: " << filename << endl;
+
+    FILE *c_fp;
+    c_fp = fopen(filename.c_str(), "r");
+
+    C_RTree* rtree;
+    for (int i = 0; i < part_size; i++) {
+        rtree = new C_RTree;
+        rtree->read_comb(c_fp);
+        ret.push_back(rtree);
+    }
+
+    fclose(c_fp);
 }

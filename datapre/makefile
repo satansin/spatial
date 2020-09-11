@@ -13,7 +13,7 @@ SRC=src
 OBJ=obj
 OUT=out
 
-all: clean filter extract_query_rand extract_query_spec pre_index obj_batch_sel obj_gen obj_combine noise
+all: clean filter extract_query_rand extract_query_spec pre_index obj_batch_sel obj_gen obj_pre_index obj_query_spec obj_query_rand noise
 
 filter:
 	$(CXX) $(INC) $(USE_TM) $(SRC)/filter.cpp -o $(OUT)/filter.out -ltrimesh -lgluit -fopenmp
@@ -33,8 +33,14 @@ obj_gen:
 obj_batch_sel:
 	$(CXX) $(INC) $(USE_TM) $(SRC)/obj_batch_sel.cpp -o $(OUT)/obj_batch_sel.out -ltrimesh -lgluit -fopenmp
 
-obj_combine:
-	$(CXX) $(INC) $(USE_TM) $(SRC)/obj_combine.cpp -o $(OUT)/obj_combine.out -ltrimesh -lgluit -fopenmp
+obj_pre_index:
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/obj_pre_index.cpp -o $(OUT)/obj_pre_index.out -ltrimesh -lgluit -fopenmp
+
+obj_query_spec:
+	$(CXX) $(INC) $(USE_TM) $(USE_GSL) $(SRC)/obj_query_spec.cpp -o $(OUT)/obj_query_spec.out -ltrimesh -lgluit -fopenmp -lgsl -lgslcblas -lm
+
+obj_query_rand:
+	$(CXX) $(INC) $(USE_TM) $(USE_GSL) $(SRC)/obj_query_rand.cpp -o $(OUT)/obj_query_rand.out -ltrimesh -lgluit -fopenmp -lgsl -lgslcblas -lm
 
 noise:
 	$(CXX) $(INC) $(USE_TM) $(USE_GSL) $(SRC)/noise.cpp -o $(OUT)/noise.out -ltrimesh -lgluit -fopenmp -lgsl -lgslcblas -lm
