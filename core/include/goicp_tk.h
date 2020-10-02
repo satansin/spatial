@@ -288,7 +288,7 @@ void GoICP::Initialize()
 	{
 		inlierNum = Nd;
 	}
-	// SSEThresh = MSEThresh * inlierNum;
+	SSEThresh = MSEThresh * inlierNum;
 }
 
 void GoICP::Clear()
@@ -332,10 +332,10 @@ float GoICP::InnerBnB(float* maxRotDisL, TRANSNODE* nodeTransOut)
 		t_nodeTransParent = queueTrans.top();
 		queueTrans.pop();
 
-		// if(t_optErrorT-t_nodeTransParent.lb < SSEThresh)
-		// {
-		// 	break;
-		// }
+		if(t_optErrorT-t_nodeTransParent.lb < SSEThresh)
+		{
+			break; //TODO
+		}
 
 		t_nodeTrans.w = t_nodeTransParent.w/2;
 		if (t_nodeTrans.w < transThresh) {
@@ -421,10 +421,6 @@ float GoICP::InnerBnB(float* maxRotDisL, TRANSNODE* nodeTransOut)
 			queueTrans.push(t_nodeTrans);
 		}
 
-		if(t_optErrorT <= SSEThresh)
-		{
-			break;
-		}
 	}
 
 	return t_optErrorT;
@@ -504,16 +500,12 @@ float GoICP::OuterBnB()
 		// ...and remove it from the queue
 		queueRot.pop();
 
-		// // Exit if the optError is less than or equal to the lower bound plus a small epsilon
-		// if((optError-t_nodeRotParent.lb) <= SSEThresh)
-		// {
-		// 	// cout << "Error*: " << optError << ", LB: " << t_nodeRotParent.lb << ", epsilon: " << SSEThresh << endl;
-		//   printf("Error*: %.6f, LB: %.6f, SSE: %.6f\n", optError, t_nodeRotParent.lb, SSEThresh);
-		// 	break;
-		// }
-
-		if (t_nodeRotParent.lb > SSEThresh) {
-			continue;
+		// Exit if the optError is less than or equal to the lower bound plus a small epsilon
+		if((optError-t_nodeRotParent.lb) <= SSEThresh)
+		{
+			// cout << "Error*: " << optError << ", LB: " << t_nodeRotParent.lb << ", epsilon: " << SSEThresh << endl;
+		  // printf("Error*: %.6f, LB: %.6f, SSE: %.6f\n", optError, t_nodeRotParent.lb, SSEThresh);
+			break;
 		}
 
 		if(verbose && count>0 && count%300 == 0)
@@ -659,10 +651,6 @@ float GoICP::OuterBnB()
 			queueRot.push(t_nodeRot);
 		}
 
-		if (optError <= SSEThresh) {
-			if (verbose) printf("Accepted, optError: %.6f, SSE: %.6f\n", optError, SSEThresh);
-			break;
-		}
 	}
 
 	return optError;
@@ -710,7 +698,7 @@ void loadPointCloud(Mesh* mesh, POINT3D** p) {
 }
 
 // convert data to GoICP structure
-void loadGoICP(DB_Meshes* db_meshes, int db_id, Mesh* mesh_q, double sse, double mse, GoICP* goicp, bool verbose=false, bool use_dt=true, int dt_size=200) {
+void loadGoICP(DB_Meshes* db_meshes, int db_id, Mesh* mesh_q, GoICP* goicp, bool verbose=false, bool use_dt=true, int dt_size=200) {
 	// load GoICP model (DB)
 	auto mesh_p = db_meshes->get_mesh(db_id);
 	loadPointCloud(mesh_p, &goicp->pModel);
@@ -728,19 +716,19 @@ void loadGoICP(DB_Meshes* db_meshes, int db_id, Mesh* mesh_q, double sse, double
 	// goicp->initNodeTrans.z = 500.0;
 	// goicp->initNodeTrans.w = 1000.0;
 
-	// goicp->rotThresh = 0.3; // loose
-	goicp->rotThresh = 0.01; // tight
-	// goicp->transThresh = goicp->initNodeTrans.w / 4.0 - 10.0; // loose
+	goicp->rotThresh = 0.3; // loose
+	// goicp->rotThresh = 0.01; // tight
+	goicp->transThresh = goicp->initNodeTrans.w / 4.0 - 10.0; // loose
 	// goicp->transThresh = goicp->initNodeTrans.w / 32.0 - 1.0; // tight
-	goicp->transThresh = goicp->initNodeTrans.w / 64.0 - 1.0; // tight
+	// goicp->transThresh = goicp->initNodeTrans.w / 64.0 - 1.0; // tight
 
 	// load GoICP data (query)
 	loadPointCloud(mesh_q, &goicp->pData);
 	goicp->Nd = mesh_q->size();
 	// goicp->pMeshQ = mesh_q;
 
-	goicp->SSEThresh = sse;
-	goicp->MSEThresh = mse;
+	// goicp->MSEThresh = 10; // for comp_7
+	goicp->MSEThresh = 100; // for obj
 
 	goicp->verbose = verbose;
 

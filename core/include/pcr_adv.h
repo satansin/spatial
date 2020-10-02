@@ -626,6 +626,8 @@ struct Entry_trim {
 	Entry_trim(int repre_id, Entry_Helper* ent, Mesh* mesh_db) {
 		if (!ent->fail) {
 			set(repre_id, ent->remai[0], ent->remai[1], ent->remai[2], ent->help, mesh_db);
+		} else {
+			set(repre_id, -1, -1, -1, -1, mesh_db);
 		}
 		this->fail = ent->fail;
 
@@ -645,6 +647,8 @@ struct Entry_trim {
 		is >> vol >> meas >> l_fail >> help_id;
 		if (!l_fail) {
 			set(repre_id, remai_id[0], remai_id[1], remai_id[2], help_id, mesh_db);
+		} else {
+			set(-1, -1, -1, -1, -1, mesh_db);
 		}
 	    this->fail = l_fail;
 
@@ -815,6 +819,7 @@ struct Struct_DB {
 
 		        // e = new Entry(i, &ent, db_meshes->get_mesh(db_i));
 		        e = new Entry_trim(i, &ent, db_meshes->get_mesh(db_i));
+		        // cout << e->to_str() << endl;
 
 		        entries.push_back(e);
 

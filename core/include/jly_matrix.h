@@ -47,26 +47,26 @@ Street, Fifth Floor, Boston, MA 02110-1301, USA
 typedef double FLOAT;      // double precision
 //typedef float  FLOAT;    // single precision
 
-class Matrix {
+class ICP_Matrix {
 
 public:
 
   // constructor / deconstructor
-  Matrix ();                                                  // init empty 0x0 matrix
-  Matrix (const int32_t m,const int32_t n);                   // init empty mxn matrix
-  Matrix (const int32_t m,const int32_t n,const FLOAT* val_); // init mxn matrix with values from array 'val'
-  Matrix (const Matrix &M);                                   // creates deepcopy of M
-  ~Matrix ();
+  ICP_Matrix ();                                                  // init empty 0x0 matrix
+  ICP_Matrix (const int32_t m,const int32_t n);                   // init empty mxn matrix
+  ICP_Matrix (const int32_t m,const int32_t n,const FLOAT* val_); // init mxn matrix with values from array 'val'
+  ICP_Matrix (const ICP_Matrix &M);                                   // creates deepcopy of M
+  ~ICP_Matrix ();
 
   // assignment operator, copies contents of M
-  Matrix& operator= (const Matrix &M);
+  ICP_Matrix& operator= (const ICP_Matrix &M);
 
   // copies submatrix of M into array 'val', default values copy whole row/column/matrix
   void getData(FLOAT* val_,int32_t i1=0,int32_t j1=0,int32_t i2=-1,int32_t j2=-1);
 
   // set or get submatrices of current matrix
-  Matrix getMat(int32_t i1,int32_t j1,int32_t i2=-1,int32_t j2=-1);
-  void   setMat(const Matrix &M,const int32_t i,const int32_t j);
+  ICP_Matrix getMat(int32_t i1,int32_t j1,int32_t i2=-1,int32_t j2=-1);
+  void   setMat(const ICP_Matrix &M,const int32_t i,const int32_t j);
 
   // set sub-matrix to scalar (default 0), -1 as end replaces whole row/column/matrix
   void setVal(FLOAT s,int32_t i1=0,int32_t j1=0,int32_t i2=-1,int32_t j2=-1);
@@ -78,49 +78,49 @@ public:
   void zero();
   
   // extract columns with given index
-  Matrix extractCols (std::vector<int> idx);
+  ICP_Matrix extractCols (std::vector<int> idx);
 
   // create identity matrix
-  static Matrix eye (const int32_t m);
+  static ICP_Matrix eye (const int32_t m);
   void          eye ();
 
   // create matrix with ones
-  static Matrix ones(const int32_t m,const int32_t n);
+  static ICP_Matrix ones(const int32_t m,const int32_t n);
 
   // create diagonal matrix with nx1 or 1xn matrix M as elements
-  static Matrix diag(const Matrix &M);
+  static ICP_Matrix diag(const ICP_Matrix &M);
   
   // returns the m-by-n matrix whose elements are taken column-wise from M
-  static Matrix reshape(const Matrix &M,int32_t m,int32_t n);
+  static ICP_Matrix reshape(const ICP_Matrix &M,int32_t m,int32_t n);
 
   // create 3x3 rotation matrices (convention: http://en.wikipedia.org/wiki/Rotation_matrix)
-  static Matrix rotMatX(const FLOAT &angle);
-  static Matrix rotMatY(const FLOAT &angle);
-  static Matrix rotMatZ(const FLOAT &angle);
+  static ICP_Matrix rotMatX(const FLOAT &angle);
+  static ICP_Matrix rotMatY(const FLOAT &angle);
+  static ICP_Matrix rotMatZ(const FLOAT &angle);
 
   // simple arithmetic operations
-  Matrix  operator+ (const Matrix &M); // add matrix
-  Matrix  operator- (const Matrix &M); // subtract matrix
-  Matrix  operator* (const Matrix &M); // multiply with matrix
-  Matrix  operator* (const FLOAT &s);  // multiply with scalar
-  Matrix  operator/ (const Matrix &M); // divide elementwise by matrix (or vector)
-  Matrix  operator/ (const FLOAT &s);  // divide by scalar
-  Matrix  operator- ();                // negative matrix
-  Matrix  operator~ ();                // transpose
+  ICP_Matrix  operator+ (const ICP_Matrix &M); // add matrix
+  ICP_Matrix  operator- (const ICP_Matrix &M); // subtract matrix
+  ICP_Matrix  operator* (const ICP_Matrix &M); // multiply with matrix
+  ICP_Matrix  operator* (const FLOAT &s);  // multiply with scalar
+  ICP_Matrix  operator/ (const ICP_Matrix &M); // divide elementwise by matrix (or vector)
+  ICP_Matrix  operator/ (const FLOAT &s);  // divide by scalar
+  ICP_Matrix  operator- ();                // negative matrix
+  ICP_Matrix  operator~ ();                // transpose
   FLOAT   l2norm ();                   // euclidean norm (vectors) / frobenius norm (matrices)
   FLOAT   mean ();                     // mean of all elements in matrix
 
   // complex arithmetic operations
-  static Matrix cross (const Matrix &a, const Matrix &b);    // cross product of two vectors
-  static Matrix inv (const Matrix &M);                       // invert matrix M
+  static ICP_Matrix cross (const ICP_Matrix &a, const ICP_Matrix &b);    // cross product of two vectors
+  static ICP_Matrix inv (const ICP_Matrix &M);                       // invert matrix M
   bool   inv ();                                             // invert this matrix
   FLOAT  det ();                                             // returns determinant of matrix
-  bool   solve (const Matrix &M,FLOAT eps=1e-20);            // solve linear system M*x=B, replaces *this and M
+  bool   solve (const ICP_Matrix &M,FLOAT eps=1e-20);            // solve linear system M*x=B, replaces *this and M
   bool   lu(int32_t *idx, FLOAT &d, FLOAT eps=1e-20);        // replace *this by lower upper decomposition
-  void   svd(Matrix &U,Matrix &W,Matrix &V);                 // singular value decomposition *this = U*diag(W)*V^T
+  void   svd(ICP_Matrix &U,ICP_Matrix &W,ICP_Matrix &V);                 // singular value decomposition *this = U*diag(W)*V^T
 
   // print matrix to stream
-  friend std::ostream& operator<< (std::ostream& out,const Matrix& M);
+  friend std::ostream& operator<< (std::ostream& out,const ICP_Matrix& M);
 
   // direct data access
   FLOAT   **val;
@@ -145,17 +145,17 @@ static int32_t iminarg1,iminarg2;
 
 using namespace std;
 
-Matrix::Matrix () {
+ICP_Matrix::ICP_Matrix () {
   m   = 0;
   n   = 0;
   val = 0;
 }
 
-Matrix::Matrix (const int32_t m_,const int32_t n_) {
+ICP_Matrix::ICP_Matrix (const int32_t m_,const int32_t n_) {
   allocateMemory(m_,n_);
 }
 
-Matrix::Matrix (const int32_t m_,const int32_t n_,const FLOAT* val_) {
+ICP_Matrix::ICP_Matrix (const int32_t m_,const int32_t n_,const FLOAT* val_) {
   allocateMemory(m_,n_);
   int32_t k=0;
   for (int32_t i=0; i<m_; i++)
@@ -163,17 +163,17 @@ Matrix::Matrix (const int32_t m_,const int32_t n_,const FLOAT* val_) {
       val[i][j] = val_[k++];
 }
 
-Matrix::Matrix (const Matrix &M) {
+ICP_Matrix::ICP_Matrix (const ICP_Matrix &M) {
   allocateMemory(M.m,M.n);
   for (int32_t i=0; i<M.m; i++)
     memcpy(val[i],M.val[i],M.n*sizeof(FLOAT));
 }
 
-Matrix::~Matrix () {
+ICP_Matrix::~ICP_Matrix () {
   releaseMemory();
 }
 
-Matrix& Matrix::operator= (const Matrix &M) {
+ICP_Matrix& ICP_Matrix::operator= (const ICP_Matrix &M) {
   if (this!=&M) {
     if (M.m!=m || M.n!=n) {
       releaseMemory();
@@ -186,7 +186,7 @@ Matrix& Matrix::operator= (const Matrix &M) {
   return *this;
 }
 
-void Matrix::getData(FLOAT* val_,int32_t i1,int32_t j1,int32_t i2,int32_t j2) {
+void ICP_Matrix::getData(FLOAT* val_,int32_t i1,int32_t j1,int32_t i2,int32_t j2) {
   if (i2==-1) i2 = m-1;
   if (j2==-1) j2 = n-1;
   int32_t k=0;
@@ -195,7 +195,7 @@ void Matrix::getData(FLOAT* val_,int32_t i1,int32_t j1,int32_t i2,int32_t j2) {
       val_[k++] = val[i][j];
 }
 
-Matrix Matrix::getMat(int32_t i1,int32_t j1,int32_t i2,int32_t j2) {
+ICP_Matrix ICP_Matrix::getMat(int32_t i1,int32_t j1,int32_t i2,int32_t j2) {
   if (i2==-1) i2 = m-1;
   if (j2==-1) j2 = n-1;
   if (i1<0 || i2>=m || j1<0 || j2>=n || i2<i1 || j2<j1) {
@@ -204,14 +204,14 @@ Matrix Matrix::getMat(int32_t i1,int32_t j1,int32_t i2,int32_t j2) {
         " of a (" << m << "x" << n << ") matrix." << endl;
     exit(0);
   }
-  Matrix M(i2-i1+1,j2-j1+1);
+  ICP_Matrix M(i2-i1+1,j2-j1+1);
   for (int32_t i=0; i<M.m; i++)
     for (int32_t j=0; j<M.n; j++)
       M.val[i][j] = val[i1+i][j1+j];
   return M;
 }
 
-void Matrix::setMat(const Matrix &M,const int32_t i1,const int32_t j1) {
+void ICP_Matrix::setMat(const ICP_Matrix &M,const int32_t i1,const int32_t j1) {
   if (i1<0 || j1<0 || i1+M.m>m || j1+M.n>n) {
     cerr << "ERROR: Cannot set submatrix [" << i1 << ".." << i1+M.m-1 <<
         "] x [" << j1 << ".." << j1+M.n-1 << "]" <<
@@ -223,7 +223,7 @@ void Matrix::setMat(const Matrix &M,const int32_t i1,const int32_t j1) {
       val[i1+i][j1+j] = M.val[i][j];
 }
 
-void Matrix::setVal(FLOAT s,int32_t i1,int32_t j1,int32_t i2,int32_t j2) {
+void ICP_Matrix::setVal(FLOAT s,int32_t i1,int32_t j1,int32_t i2,int32_t j2) {
   if (i2==-1) i2 = m-1;
   if (j2==-1) j2 = n-1;
   if (i2<i1 || j2<j1) {
@@ -235,18 +235,18 @@ void Matrix::setVal(FLOAT s,int32_t i1,int32_t j1,int32_t i2,int32_t j2) {
       val[i][j] = s;
 }
 
-void Matrix::setDiag(FLOAT s,int32_t i1,int32_t i2) {
+void ICP_Matrix::setDiag(FLOAT s,int32_t i1,int32_t i2) {
   if (i2==-1) i2 = min(m-1,n-1);
   for (int32_t i=i1; i<=i2; i++)
     val[i][i] = s;
 }
 
-void Matrix::zero() {
+void ICP_Matrix::zero() {
   setVal(0);
 }
 
-Matrix Matrix::extractCols (vector<int> idx) {
-  Matrix M(m,idx.size());
+ICP_Matrix ICP_Matrix::extractCols (vector<int> idx) {
+  ICP_Matrix M(m,idx.size());
   for (int32_t j=0; j<M.n; j++)
     if (idx[j]<n)
       for (int32_t i=0; i<m; i++)
@@ -254,14 +254,14 @@ Matrix Matrix::extractCols (vector<int> idx) {
   return M;
 }
 
-Matrix Matrix::eye (const int32_t m) {
-  Matrix M(m,m);
+ICP_Matrix ICP_Matrix::eye (const int32_t m) {
+  ICP_Matrix M(m,m);
   for (int32_t i=0; i<m; i++)
     M.val[i][i] = 1;
   return M;
 }
 
-void Matrix::eye () {
+void ICP_Matrix::eye () {
   for (int32_t i=0; i<m; i++)
     for (int32_t j=0; j<n; j++)
       val[i][j] = 0;
@@ -269,22 +269,22 @@ void Matrix::eye () {
     val[i][i] = 1;
 }
 
-Matrix Matrix::ones (const int32_t m,const int32_t n) {
-  Matrix M(m,n);
+ICP_Matrix ICP_Matrix::ones (const int32_t m,const int32_t n) {
+  ICP_Matrix M(m,n);
   for (int32_t i=0; i<m; i++)
     for (int32_t j=0; j<n; j++)
       M.val[i][j] = 1;
   return M;
 }
 
-Matrix Matrix::diag (const Matrix &M) {
+ICP_Matrix ICP_Matrix::diag (const ICP_Matrix &M) {
   if (M.m>1 && M.n==1) {
-    Matrix D(M.m,M.m);
+    ICP_Matrix D(M.m,M.m);
     for (int32_t i=0; i<M.m; i++)
       D.val[i][i] = M.val[i][0];
     return D;
   } else if (M.m==1 && M.n>1) {
-    Matrix D(M.n,M.n);
+    ICP_Matrix D(M.n,M.n);
     for (int32_t i=0; i<M.n; i++)
       D.val[i][i] = M.val[0][i];
     return D;
@@ -293,13 +293,13 @@ Matrix Matrix::diag (const Matrix &M) {
   exit(0);
 }
 
-Matrix Matrix::reshape(const Matrix &M,int32_t m_,int32_t n_) {
+ICP_Matrix ICP_Matrix::reshape(const ICP_Matrix &M,int32_t m_,int32_t n_) {
   if (M.m*M.n != m_*n_) {
     cerr << "ERROR: Trying to reshape a matrix of size (" << M.m << "x" << M.n <<
             ") to size (" << m_ << "x" << n_ << ")" << endl;
     exit(0);
   }
-  Matrix M2(m_,n_);
+  ICP_Matrix M2(m_,n_);
   for (int32_t k=0; k<m_*n_; k++) {
     int32_t i1 = k/M.n;
     int32_t j1 = k%M.n;
@@ -310,10 +310,10 @@ Matrix Matrix::reshape(const Matrix &M,int32_t m_,int32_t n_) {
   return M2;
 }
 
-Matrix Matrix::rotMatX (const FLOAT &angle) {
+ICP_Matrix ICP_Matrix::rotMatX (const FLOAT &angle) {
   FLOAT s = sin(angle);
   FLOAT c = cos(angle);
-  Matrix R(3,3);
+  ICP_Matrix R(3,3);
   R.val[0][0] = +1;
   R.val[1][1] = +c;
   R.val[1][2] = -s;
@@ -322,10 +322,10 @@ Matrix Matrix::rotMatX (const FLOAT &angle) {
   return R;
 }
 
-Matrix Matrix::rotMatY (const FLOAT &angle) {
+ICP_Matrix ICP_Matrix::rotMatY (const FLOAT &angle) {
   FLOAT s = sin(angle);
   FLOAT c = cos(angle);
-  Matrix R(3,3);
+  ICP_Matrix R(3,3);
   R.val[0][0] = +c;
   R.val[0][2] = +s;
   R.val[1][1] = +1;
@@ -334,10 +334,10 @@ Matrix Matrix::rotMatY (const FLOAT &angle) {
   return R;
 }
 
-Matrix Matrix::rotMatZ (const FLOAT &angle) {
+ICP_Matrix ICP_Matrix::rotMatZ (const FLOAT &angle) {
   FLOAT s = sin(angle);
   FLOAT c = cos(angle);
-  Matrix R(3,3);
+  ICP_Matrix R(3,3);
   R.val[0][0] = +c;
   R.val[0][1] = -s;
   R.val[1][0] = +s;
@@ -346,45 +346,45 @@ Matrix Matrix::rotMatZ (const FLOAT &angle) {
   return R;
 }
 
-Matrix Matrix::operator+ (const Matrix &M) {
-  const Matrix &A = *this;
-  const Matrix &B = M;
+ICP_Matrix ICP_Matrix::operator+ (const ICP_Matrix &M) {
+  const ICP_Matrix &A = *this;
+  const ICP_Matrix &B = M;
   if (A.m!=B.m || A.n!=B.n) {
     cerr << "ERROR: Trying to add matrices of size (" << A.m << "x" << A.n <<
         ") and (" << B.m << "x" << B.n << ")" << endl;
     exit(0);
   }
-  Matrix C(A.m,A.n);
+  ICP_Matrix C(A.m,A.n);
   for (int32_t i=0; i<m; i++)
     for (int32_t j=0; j<n; j++)
       C.val[i][j] = A.val[i][j]+B.val[i][j];
   return C;
 }
 
-Matrix Matrix::operator- (const Matrix &M) {
-  const Matrix &A = *this;
-  const Matrix &B = M;
+ICP_Matrix ICP_Matrix::operator- (const ICP_Matrix &M) {
+  const ICP_Matrix &A = *this;
+  const ICP_Matrix &B = M;
   if (A.m!=B.m || A.n!=B.n) {
     cerr << "ERROR: Trying to subtract matrices of size (" << A.m << "x" << A.n <<
         ") and (" << B.m << "x" << B.n << ")" << endl;
     exit(0);
   }
-  Matrix C(A.m,A.n);
+  ICP_Matrix C(A.m,A.n);
   for (int32_t i=0; i<m; i++)
     for (int32_t j=0; j<n; j++)
       C.val[i][j] = A.val[i][j]-B.val[i][j];
   return C;
 }
 
-Matrix Matrix::operator* (const Matrix &M) {
-  const Matrix &A = *this;
-  const Matrix &B = M;
+ICP_Matrix ICP_Matrix::operator* (const ICP_Matrix &M) {
+  const ICP_Matrix &A = *this;
+  const ICP_Matrix &B = M;
   if (A.n!=B.m) {
     cerr << "ERROR: Trying to multiply matrices of size (" << A.m << "x" << A.n <<
         ") and (" << B.m << "x" << B.n << ")" << endl;
     exit(0);
   }
-  Matrix C(A.m,B.n);
+  ICP_Matrix C(A.m,B.n);
   for (int32_t i=0; i<A.m; i++)
     for (int32_t j=0; j<B.n; j++)
       for (int32_t k=0; k<A.n; k++)
@@ -392,20 +392,20 @@ Matrix Matrix::operator* (const Matrix &M) {
   return C;
 }
 
-Matrix Matrix::operator* (const FLOAT &s) {
-  Matrix C(m,n);
+ICP_Matrix ICP_Matrix::operator* (const FLOAT &s) {
+  ICP_Matrix C(m,n);
   for (int32_t i=0; i<m; i++)
     for (int32_t j=0; j<n; j++)
       C.val[i][j] = val[i][j]*s;
   return C;
 }
 
-Matrix Matrix::operator/ (const Matrix &M) {
-  const Matrix &A = *this;
-  const Matrix &B = M;
+ICP_Matrix ICP_Matrix::operator/ (const ICP_Matrix &M) {
+  const ICP_Matrix &A = *this;
+  const ICP_Matrix &B = M;
   
   if (A.m==B.m && A.n==B.n) {
-    Matrix C(A.m,A.n);
+    ICP_Matrix C(A.m,A.n);
     for (int32_t i=0; i<A.m; i++)
       for (int32_t j=0; j<A.n; j++)
         if (B.val[i][j]!=0)
@@ -413,7 +413,7 @@ Matrix Matrix::operator/ (const Matrix &M) {
     return C;
     
   } else if (A.m==B.m && B.n==1) {
-    Matrix C(A.m,A.n);
+    ICP_Matrix C(A.m,A.n);
     for (int32_t i=0; i<A.m; i++)
       for (int32_t j=0; j<A.n; j++)
         if (B.val[i][0]!=0)
@@ -421,7 +421,7 @@ Matrix Matrix::operator/ (const Matrix &M) {
     return C;
     
   } else if (A.n==B.n && B.m==1) {
-    Matrix C(A.m,A.n);
+    ICP_Matrix C(A.m,A.n);
     for (int32_t i=0; i<A.m; i++)
       for (int32_t j=0; j<A.n; j++)
         if (B.val[0][j]!=0)
@@ -435,35 +435,35 @@ Matrix Matrix::operator/ (const Matrix &M) {
   } 
 }
 
-Matrix Matrix::operator/ (const FLOAT &s) {
+ICP_Matrix ICP_Matrix::operator/ (const FLOAT &s) {
   if (fabs(s)<1e-20) {
     cerr << "ERROR: Trying to divide by zero!" << endl;
     exit(0);
   }
-  Matrix C(m,n);
+  ICP_Matrix C(m,n);
   for (int32_t i=0; i<m; i++)
     for (int32_t j=0; j<n; j++)
       C.val[i][j] = val[i][j]/s;
   return C;
 }
 
-Matrix Matrix::operator- () {
-  Matrix C(m,n);
+ICP_Matrix ICP_Matrix::operator- () {
+  ICP_Matrix C(m,n);
   for (int32_t i=0; i<m; i++)
     for (int32_t j=0; j<n; j++)
       C.val[i][j] = -val[i][j];
   return C;
 }
 
-Matrix Matrix::operator~ () {
-  Matrix C(n,m);
+ICP_Matrix ICP_Matrix::operator~ () {
+  ICP_Matrix C(n,m);
   for (int32_t i=0; i<m; i++)
     for (int32_t j=0; j<n; j++)
       C.val[j][i] = val[i][j];
   return C;
 }
 
-FLOAT Matrix::l2norm () {
+FLOAT ICP_Matrix::l2norm () {
   FLOAT norm = 0;
   for (int32_t i=0; i<m; i++)
     for (int32_t j=0; j<n; j++)
@@ -471,7 +471,7 @@ FLOAT Matrix::l2norm () {
   return sqrt(norm);
 }
 
-FLOAT Matrix::mean () {
+FLOAT ICP_Matrix::mean () {
   FLOAT mean = 0;
   for (int32_t i=0; i<m; i++)
     for (int32_t j=0; j<n; j++)
@@ -479,48 +479,48 @@ FLOAT Matrix::mean () {
   return mean/(FLOAT)(m*n);
 }
 
-Matrix Matrix::cross (const Matrix &a, const Matrix &b) {
+ICP_Matrix ICP_Matrix::cross (const ICP_Matrix &a, const ICP_Matrix &b) {
   if (a.m!=3 || a.n!=1 || b.m!=3 || b.n!=1) {
     cerr << "ERROR: Cross product vectors must be of size (3x1)" << endl;
     exit(0);
   }
-  Matrix c(3,1);
+  ICP_Matrix c(3,1);
   c.val[0][0] = a.val[1][0]*b.val[2][0]-a.val[2][0]*b.val[1][0];
   c.val[1][0] = a.val[2][0]*b.val[0][0]-a.val[0][0]*b.val[2][0];
   c.val[2][0] = a.val[0][0]*b.val[1][0]-a.val[1][0]*b.val[0][0];
   return c;
 }
 
-Matrix Matrix::inv (const Matrix &M) {
+ICP_Matrix ICP_Matrix::inv (const ICP_Matrix &M) {
   if (M.m!=M.n) {
     cerr << "ERROR: Trying to invert matrix of size (" << M.m << "x" << M.n << ")" << endl;
     exit(0);
   }
-  Matrix A(M);
-  Matrix B = eye(M.m);
+  ICP_Matrix A(M);
+  ICP_Matrix B = eye(M.m);
   B.solve(A);
   return B;
 }
 
-bool Matrix::inv () {
+bool ICP_Matrix::inv () {
   if (m!=n) {
     cerr << "ERROR: Trying to invert matrix of size (" << m << "x" << n << ")" << endl;
     exit(0);
   }
-  Matrix A(*this);
+  ICP_Matrix A(*this);
   eye();
   solve(A);
   return true;
 }
 
-FLOAT Matrix::det () {
+FLOAT ICP_Matrix::det () {
   
   if (m != n) {
     cerr << "ERROR: Trying to compute determinant of a matrix of size (" << m << "x" << n << ")" << endl;
     exit(0);
   }
     
-  Matrix A(*this);
+  ICP_Matrix A(*this);
   int32_t *idx = (int32_t*)malloc(m*sizeof(int32_t));
   FLOAT d;
   A.lu(idx,d);
@@ -529,11 +529,11 @@ FLOAT Matrix::det () {
   free(idx);
 }
 
-bool Matrix::solve (const Matrix &M, FLOAT eps) {
+bool ICP_Matrix::solve (const ICP_Matrix &M, FLOAT eps) {
   
   // substitutes
-  const Matrix &A = M;
-  Matrix &B       = *this;
+  const ICP_Matrix &A = M;
+  ICP_Matrix &B       = *this;
   
   if (A.m != A.n || A.m != B.m || A.m<1 || B.n<1) {
     cerr << "ERROR: Trying to eliminate matrices of size (" << A.m << "x" << A.n <<
@@ -626,7 +626,7 @@ bool Matrix::solve (const Matrix &M, FLOAT eps) {
 // or odd, respectively. This routine is used in combination with lubksb to solve linear equations
 // or invert a matrix.
 
-bool Matrix::lu(int32_t *idx, FLOAT &d, FLOAT eps) {
+bool ICP_Matrix::lu(int32_t *idx, FLOAT &d, FLOAT eps) {
   
   if (m != n) {
     cerr << "ERROR: Trying to LU decompose a matrix of size (" << m << "x" << n << ")" << endl;
@@ -691,11 +691,11 @@ bool Matrix::lu(int32_t *idx, FLOAT &d, FLOAT eps) {
 // Given a matrix M/A[1..m][1..n], this routine computes its singular value decomposition, M/A =
 // U·W·V T. Thematrix U replaces a on output. The diagonal matrix of singular values W is output
 // as a vector w[1..n]. Thematrix V (not the transpose V T ) is output as v[1..n][1..n].
-void Matrix::svd(Matrix &U2,Matrix &W,Matrix &V) {
+void ICP_Matrix::svd(ICP_Matrix &U2,ICP_Matrix &W,ICP_Matrix &V) {
 
-  Matrix U = Matrix(*this);
-  U2 = Matrix(m,m);
-  V  = Matrix(n,n);
+  ICP_Matrix U = ICP_Matrix(*this);
+  U2 = ICP_Matrix(m,m);
+  V  = ICP_Matrix(n,n);
 
   FLOAT* w   = (FLOAT*)malloc(n*sizeof(FLOAT));
   FLOAT* rv1 = (FLOAT*)malloc(n*sizeof(FLOAT));
@@ -909,7 +909,7 @@ void Matrix::svd(Matrix &U2,Matrix &W,Matrix &V) {
   }
 
   // create vector and copy singular values
-  W = Matrix(min(m,n),1,w);
+  W = ICP_Matrix(min(m,n),1,w);
   
   // extract mxm submatrix U
   U2.setMat(U.getMat(0,0,m-1,min(m-1,n-1)),0,0);
@@ -921,7 +921,7 @@ void Matrix::svd(Matrix &U2,Matrix &W,Matrix &V) {
   free(sv);
 }
 
-ostream& operator<< (ostream& out,const Matrix& M) {
+ostream& operator<< (ostream& out,const ICP_Matrix& M) {
   if (M.m==0 || M.n==0) {
     out << "[empty matrix]";
   } else {
@@ -938,7 +938,7 @@ ostream& operator<< (ostream& out,const Matrix& M) {
   return out;
 }
 
-void Matrix::allocateMemory (const int32_t m_,const int32_t n_) {
+void ICP_Matrix::allocateMemory (const int32_t m_,const int32_t n_) {
   m = abs(m_); n = abs(n_);
   if (m==0 || n==0) {
     val = 0;
@@ -950,14 +950,14 @@ void Matrix::allocateMemory (const int32_t m_,const int32_t n_) {
     val[i] = val[i-1]+n;
 }
 
-void Matrix::releaseMemory () {
+void ICP_Matrix::releaseMemory () {
   if (val!=0) {
     free(val[0]);
     free(val);
   }
 }
 
-FLOAT Matrix::pythag(FLOAT a,FLOAT b) {
+FLOAT ICP_Matrix::pythag(FLOAT a,FLOAT b) {
   FLOAT absa,absb;
   absa = fabs(a);
   absb = fabs(b);

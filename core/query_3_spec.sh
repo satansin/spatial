@@ -1,40 +1,13 @@
 #!/bin/bash
 
 source ../common/config/dir_loc.sh
+source ./query_3_common.sh
 
-OUT=out
-
-rs_range=( 1_sel_100i 2_sel_001k 3_sel_010k 4_sel_100k 5_sel_001m )
 rs_eid=( $1 ) # 0 1 2 3 4
 qi_range=( $2 ) # 01 02 03 04 05
 nl_range=( $3 ) # 0 1 2 3 4
-# r_range=( 1000 ) # fix to 1000
-r=1000
-# a_range=( 015 ) # fix to 15
-a=015
-# e_range=( 24 ) # fix to 24
-e=24
-# MSE=( 001 032 060 100 120 140 ) # matched with nl, thus do not change: "${MSE[nl]}"
-pcr_adv_alg=(
-	prob6           # 0
-	prob6_cpq       # 1
-	donut_prob6     # 2
-	donut_prob6_cpq # 3
-	3nn_prob6       # 4
-	3nn_prob6_cpq   # 5
-	3lnn_prob6      # 6
-	3nn_sim_prob6   # 7
-	super4pcs_prob  # 8
-	superg4pcs_prob # 9
-	goicp           # 10
-)
-pcr_adv_idx=(
-	gt gt
-	donut donut
-	3nn 3nn
-	3lnn 3nn_sim
-)
 pcr_adv_eid=( $4 )
+m_eid=( $5 )
 
 
 ## object (sim) (spec)
@@ -66,23 +39,95 @@ for rs in "${rs_eid[@]}"; do
 
 					## donut / gt
 					./"$OUT"/query_"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_OBJ_INDEX"/object_scans_"${pcr_adv_idx[al_id]}"/"${rs_range[rs]}"/"${rs_range[rs]}"."$r".grid "$Q_PLY" "$e" -small \
-					-stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$e".dat
+						-stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$e".dat
 
 				elif [ $al_id -eq 4 ] || [ $al_id -eq 5 ]; then
 				
 					## 3nn
 					./"$OUT"/query_"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_OBJ_INDEX"/object_scans_"${pcr_adv_idx[al_id]}"/"${rs_range[rs]}"/"${rs_range[rs]}"."$r"."$a".grid "$Q_PLY" "$e" -small \
-					-stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$a"."$e".dat
+						-stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$a"."$e".dat
 
 				elif [ $al_id -eq 8 ] || [ $al_id -eq 9 ]; then
 
 					## super4pcs / superg4pcs
 					./"$OUT"/"${pcr_adv_alg[al_id]}".out "$DB_F" "$Q_PLY" "$e" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$e".dat -num_parts=1
 
-				elif [ $al_id -eq 10 ]; then
+				elif [ $al_id -eq 10 ] || [ $al_id -eq 30 ]; then
 
 					## goicp
 					./"$OUT"/"${pcr_adv_alg[al_id]}".out "$DB_F" "$Q_PLY" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}".dat
+
+				elif [ $al_id -eq 11 ] || [ $al_id -eq 12 ]; then
+
+					for m_id in "${m_eid[@]}"; do
+						./"$OUT"/query_"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_OBJ_INDEX"/object_scans_"${pcr_adv_idx[al_id]}"/"${rs_range[rs]}"/"${rs_range[rs]}"."$r".grid "$Q_PLY" "${m_range[m_id]}" -small \
+							-stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."${m_range[m_id]}".dat
+					done
+
+				elif [ $al_id -eq 13 ] || [ $al_id -eq 14 ]; then
+
+					## super4pcs / superg4pcs
+					for m_id in "${m_eid[@]}"; do
+						./"$OUT"/"${pcr_adv_alg[al_id]}".out "$DB_F" "$Q_PLY" "${m_range[m_id]}" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."${m_range[m_id]}".dat -num_parts=1
+					done
+
+				elif [ $al_id -eq 15 ] || [ $al_id -eq 16 ]; then
+
+					## donut / gt
+					for m_id in "${m_eid[@]}"; do
+						./"$OUT"/query_"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_OBJ_INDEX"/object_scans_"${pcr_adv_idx[al_id]}"/"${rs_range[rs]}"/"${rs_range[rs]}"."$r".grid "$Q_PLY" "$e" -small \
+						-delta="${m_range[m_id]}" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$e"."${m_range[m_id]}".dat
+					done
+
+				elif [ $al_id -eq 17 ]; then
+				
+					## 3nn
+					for m_id in "${m_eid[@]}"; do
+						./"$OUT"/query_"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_OBJ_INDEX"/object_scans_"${pcr_adv_idx[al_id]}"/"${rs_range[rs]}"/"${rs_range[rs]}"."$r"."$a".grid "$Q_PLY" "$e" -small \
+						-delta="${m_range[m_id]}" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$a"."$e"."${m_range[m_id]}".dat
+					done
+
+				elif [ $al_id -eq 18 ] || [ $al_id -eq 19 ]; then
+
+					## super4pcs / superg4pcs
+					for m_id in "${m_eid[@]}"; do
+						./"$OUT"/"${pcr_adv_alg[al_id]}".out "$DB_F" "$Q_PLY" "$e" -delta="${m_range[m_id]}" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$e"."${m_range[m_id]}".dat -num_parts=1
+					done
+
+				elif [ $al_id -eq 20 ]; then
+
+					## goicp
+					for m_id in "${m_eid[@]}"; do
+						./"$OUT"/"${pcr_adv_alg[al_id]}".out "$DB_F" "$Q_PLY" -delta="${m_range[m_id]}" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."${m_range[m_id]}".dat
+					done
+
+				elif [ $al_id -eq 21 ] || [ $al_id -eq 22 ]; then
+
+					## top-k: donut / gt
+					./"$OUT"/"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_OBJ_INDEX"/object_scans_"${pcr_adv_idx[al_id]}"/"${rs_range[rs]}"/"${rs_range[rs]}"."$r".grid "$Q_PLY" -small \
+					-stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r".dat
+
+				elif [ $al_id -eq 23 ] || [ $al_id -eq 24 ]; then
+
+					## top-k: super4pcs / superg4pcs
+					./"$OUT"/"${pcr_adv_alg[al_id]}".out "$DB_F" "$Q_PLY" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}".dat -num_parts=1
+
+				elif [ $al_id -eq 25 ] || [ $al_id -eq 26 ]; then
+
+					## top-k: donut / gt (prob)
+					./"$OUT"/"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_OBJ_INDEX"/object_scans_"${pcr_adv_idx[al_id]}"/"${rs_range[rs]}"/"${rs_range[rs]}"."$r".grid "$Q_PLY" "$e" -small \
+					-stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$e".dat
+
+				elif [ $al_id -eq 27 ]; then
+
+					## top-k: 3nn (prob)
+					./"$OUT"/"${pcr_adv_alg[al_id]}".out "$DB_F" "$DIR_OBJ_INDEX"/object_scans_"${pcr_adv_idx[al_id]}"/"${rs_range[rs]}"/"${rs_range[rs]}"."$r"."$a".grid "$Q_PLY" "$e" -small \
+					-stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$r"."$a"."$e".dat
+
+				elif [ $al_id -eq 28 ] || [ $al_id -eq 29 ]; then
+
+					## top-k: super4pcs / superg4pcs (prob)
+					./"$OUT"/"${pcr_adv_alg[al_id]}".out "$DB_F" "$Q_PLY" "$e" -stat="$CURR_AL"/"${pcr_adv_alg[al_id]}"."$e".dat -num_parts=1
 
 				fi
 

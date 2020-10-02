@@ -145,6 +145,14 @@ DB_Meshes::~DB_Meshes() {
         if (v != nullptr)
             delete v;
     }
+    // for (auto &v: m_icps) {
+    //     if (v != nullptr)
+    //         delete v;
+    // }
+    // for (auto &i: m_data_icps) {
+    //     if (i != nullptr)
+    //         delete(i);
+    // }
 }
 
 void DB_Meshes::free_mesh() {
@@ -263,6 +271,37 @@ void DB_Meshes::build_kd() {
 bool DB_Meshes::kd_built() const {
 	return m_kd_built;
 }
+
+// void DB_Meshes::build_icp(double err_diff) {
+//     for (auto &t: m_db_meshes) {
+//         auto new_icp = new ICP3D<float>();
+//         new_icp->err_diff_def = err_diff;
+//         new_icp->do_trim = false;
+
+//         int t_size = t->size();
+//         auto new_data_icp = (float *) calloc(3 * t_size, sizeof(float));
+//         int i, j;
+//         for(i = 0, j = 0; i < t_size; i++) {
+//             new_data_icp[j++] = t->get_pt(i)->x;
+//             new_data_icp[j++] = t->get_pt(i)->y;
+//             new_data_icp[j++] = t->get_pt(i)->z;
+//         }
+//         // Build ICP kdtree with model dataset
+//         new_icp->Build(new_data_icp, t_size);
+
+//         m_icps.push_back(new_icp);
+//         m_data_icps.push_back(new_data_icp);
+//     }
+
+//     // icp3d.err_diff_def = MSEThresh/100;
+//     // if (verbose) printf("icp3d.err_diff_def:%.6f\n", icp3d.err_diff_def);
+
+//     m_icp_init = true;
+// }
+
+// bool DB_Meshes::icp_built() const {
+//     return m_kd_built;
+// }
 
 int DB_Meshes::size() const {
 	return m_size;

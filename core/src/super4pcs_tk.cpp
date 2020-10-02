@@ -37,8 +37,8 @@ struct Congr_base {
 //   super4pcs: match-base: angle threshold of bases
 //   superg4pcs: match-base: angle threshold of bases
 //   superg4pcs: an equational threshold
-// const double THRESHOLD_LIST[5] = { 0.01, 10, 0.01, 0.01, 0.01 }; // dense point set (obj) & comp_7, !!don't change this!!
-const double THRESHOLD_LIST[5] = { 0.01, 10, 0.01, 0.01, 0.1 }; // det values
+const double THRESHOLD_LIST[5] = { 0.01, 10, 0.01, 0.01, 0.01 }; // prob: dense point set (obj) & comp_7, !!don't change this!!
+// const double THRESHOLD_LIST[5] = { 0.01, 10, 0.01, 0.01, 0.1 }; // det values
 // const double THRESHOLD_LIST[5] = { 0.01, 1, 0.01, 0.01, 0.01 }; // prob: comp_6, !!don't change this!! -> now this is also for comp_7
 // const double THRESHOLD_LIST[5] = { 0.01, 1, 0.1, 0.05, 0.2 }; // det values
 const int MAX_TRIAL = 50000;
@@ -593,10 +593,8 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struc
     vector<Congr_base> ret;
 
     double iter_prop_time = 0.0, iter_veri_time = 0.0;
-    bool iter_found_one = false;
-    double iter_first_time = 0.0;
 
-    vector<Congr_base*> ret_left_icp_only, ret_left_goicp;
+    vector<Congr_base*> ret_left_goicp;
 
     int iter_num_verified = 0;
 
@@ -645,60 +643,53 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struc
     iter_prop_time = timer_end(SECOND);
 
     timer_start();
-    timer_start();
 
-    // Step 1: calculate transformation, initial distance, and leave those for step 2&3
-    for (auto &r: ret) {
+    // // perform the ICP-only check
+    // for (auto &r: ret) {
+    //     Pt3D* bp_ptr[4];
+    //     for (int j = 0; j < 4; j++) {
+    //         bp_ptr[j] = db_meshes->get_mesh(r.db_id)->get_pt(r.bp[j]);
+    //     }
+    //     cal_trans(bq_ptr, bp_ptr, 4, r.xf);
+
+    //     double init_dist = db_meshes->cal_corr_err(mesh_q, r.db_id, &r.xf);
+    //     // cout << "Initial distance: " << init_dist << endl;
+    //     double r_array[9] {
+    //         r.xf.r11, r.xf.r12, r.xf.r13,
+    //         r.xf.r21, r.xf.r22, r.xf.r23,
+    //         r.xf.r31, r.xf.r32, r.xf.r33
+    //     };
+    //     ICP_Matrix R_icp(3, 3, r_array);
+    //     double t_array[3] {
+    //         r.xf.tx, r.xf.ty, r.xf.tz
+    //     };
+    //     ICP_Matrix t_icp(3, 1, t_array);
+    //     double updated_err = m_icps[r.db_id]->Run(m_query_icp, mesh_q->size(), R_icp, t_icp);
+    //     // cout << "Updated distance with ICP-only: " << updated_err << endl;
+
+    //     if (updated_err <= delta) {
+    //         iter_num_verified++;
+    //     } else {
+    //         ret_left_goicp.push_back(&r);
+    //     }
+    // }
+
+    // for large datasets: not doing ICP, use direct check only:
+    for (auto &h: ret) {
         Pt3D* bp_ptr[4];
         for (int j = 0; j < 4; j++) {
-            bp_ptr[j] = db_meshes->get_mesh(r.db_id)->get_pt(r.bp[j]);
+            bp_ptr[j] = db_meshes->get_mesh(h.db_id)->get_pt(h.bp[j]);
         }
-        cal_trans(bq_ptr, bp_ptr, 4, r.xf);
-        // r.init_dist = db_meshes->cal_corr_err(mesh_q, r.db_id, &r.xf); // TODO: use another unimplemented interface
-        r.init_dist = db_meshes->cal_corr_err(mesh_q, r.db_id, &r.xf, delta); // TODO: simplified method, stops when error is larger
-        // cout << "Initial distance: " << r.init_dist << endl;
+        cal_trans(bq_ptr, bp_ptr, 4, h.xf);
 
-        // if (r.init_dist <= sq(delta)) {
-        if (r.init_dist >= 0) {
+        // cout << "Cal dist for\n" << h.e_query->to_str() << "\nand\n" << h.e_database->to_str() << "\n in db obj#" << h->id_db << endl;
+        h.init_dist = db_meshes->cal_corr_err(mesh_q, h.db_id, &h.xf, delta); // TODO: simplified method, stops when error is larger
+        // cout << "Initial distance: " << h->init_dist << " for pair: " << h->to_str(10) << endl;
+
+        if (h.init_dist >= 0) {
+            // cout << "Matched with DB #" << h->id_db << ": " << qc->db_meshes.get_mesh(h->id_db)->get_filename() << endl;
             iter_num_verified++;
-            if (iter_num_verified == 1 && !iter_found_one) {
-                iter_first_time = timer_end(SECOND);
-                iter_found_one = true;
-            }
-        } else {
-            ret_left_icp_only.push_back(&r);
         }
-    }
-
-    // Step 2: perform the ICP-only check
-    if (!iter_found_one) {
-	    for (auto &r: ret_left_icp_only) {
-	        double init_dist = db_meshes->cal_corr_err(mesh_q, r->db_id, &r->xf);
-	        // cout << "Initial distance: " << init_dist << endl;
-	        double r_array[9] {
-	            r->xf.r11, r->xf.r12, r->xf.r13,
-	            r->xf.r21, r->xf.r22, r->xf.r23,
-	            r->xf.r31, r->xf.r32, r->xf.r33
-	        };
-	        ICP_Matrix R_icp(3, 3, r_array);
-	        double t_array[3] {
-	            r->xf.tx, r->xf.ty, r->xf.tz
-	        };
-	        ICP_Matrix t_icp(3, 1, t_array);
-	        double updated_err = m_icps[r->db_id]->Run(m_query_icp, mesh_q->size(), R_icp, t_icp);
-	        // cout << "Updated distance with ICP-only: " << updated_err << endl;
-
-	        if (updated_err <= delta) {
-	            iter_num_verified++;
-	            if (iter_num_verified == 1 && !iter_found_one) {
-	                iter_first_time = timer_end(SECOND);
-	                iter_found_one = true;
-	            }
-	            break;
-	        } else {
-	            ret_left_goicp.push_back(r);
-	        }
-	    }
     }
 
     // // Step 3: perform GoICP
@@ -709,22 +700,16 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struc
     //  // TODO
     // }
 
-    if (!iter_found_one) {
-        iter_first_time = timer_end(SECOND);
-    }
-
     iter_veri_time += timer_end(SECOND);
 
     stat.prop_time += iter_prop_time;
     stat.veri_time += iter_veri_time;
     stat.user_time += (iter_prop_time + iter_veri_time);
-    stat.first_verified_time += (iter_prop_time + iter_first_time);
     stat.num_verified = iter_num_verified;
 
     cout << "# verified: " << stat.num_verified << endl;
 
     stat.veri_size += ret.size();
-    stat.num_icp_only += ret_left_icp_only.size();
     stat.num_goicp += ret_left_goicp.size();
 
     if (iter_num_verified > 0)
@@ -733,58 +718,76 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struc
         return false;
 }
 
-bool exec(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struct_Q* s_q, C_RTree* query_rtree, double delta, double epsilon,
-        GoICP goicp[], vector<ICP3D<float>*>& m_icps, float* m_query_icp, Exec_stat& stat) {
+#ifdef _PROB
+bool exec(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struct_Q* s_q, C_RTree* query_rtree, double delta_0, double epsilon_0, double fix_epsilon,
+        GoICP goicp[], vector<ICP3D<float>*>& m_icps, float* m_query_icp, int k, Exec_stat& stat)
+#else
+bool exec(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struct_Q* s_q, C_RTree* query_rtree, double delta_0, double epsilon_0,
+        GoICP goicp[], vector<ICP3D<float>*>& m_icps, float* m_query_icp, int k, Exec_stat& stat)
+#endif
+{
 
-    bool find_accept = false;
-
+	double delta = delta_0;
     #ifdef _PROB
-        const int k_m = 12;
+        double epsilon = fix_epsilon;
+        int k_m = 12;
     #else
-        const int k_m = 1;
+        double epsilon = epsilon_0;
+        int k_m = 1;
     #endif
+	int num_itr = 0;
 
-    for (int t = 0; t < k_m; t++) {
+    while (true) {
 
-        find_accept = iter(db_meshes, db_rtrees, mesh_q, s_q, query_rtree, delta, epsilon, goicp, m_icps, m_query_icp, stat);
+    	cout << "Iteration #" << (++num_itr) << " with delta: " << delta << ", epsilon " << epsilon << ": " << endl;
 
-        if (find_accept)
+        for (int t = 0; t < k_m; t++) {
+    	    if (iter(db_meshes, db_rtrees, mesh_q, s_q, query_rtree, delta, epsilon, goicp, m_icps, m_query_icp, stat)) {
+                break;
+            }
+        }
+
+        if (stat.num_verified >= k)
             break;
+
+        #ifndef _PROB
+            epsilon *= 2.0;
+        #endif
+        delta *= 4.0;
     }
 
-    return find_accept;
+    stat.num_iterations = num_itr;
+
+    return true;
 }
 
 int main(int argc, char **argv) {
 
     #ifdef _PROB
-        if (argc < 4) {
-            cerr << "Usage: " << argv[0] << " database_path query_filename epsilon [-delta=...] [-stat=...] [-num_parts=...]" << endl;
+        if (argc < 3) {
+            cerr << "Usage: " << argv[0] << " database_path query_filename [-k=...] [-stat=...] [-num_parts=...]" << endl;
             exit(1);
         }
     #else
         if (argc < 4) {
-            cerr << "Usage: " << argv[0] << " database_path query_filename delta [-stat=...] [-num_parts=...]" << endl;
+            cerr << "Usage: " << argv[0] << " database_path query_filename delta [-k=...] [-stat=...] [-num_parts=...]" << endl;
             exit(1);
         }
     #endif
 
+    int k = 1;
     bool write_stat = false;
     string stat_filename = "";
-    double delta;
-    bool spec_delta; // when PROB, delta might be specified or automatically assigned
-    double epsilon;
     int num_parts = 0;
     for (int i = 0; i < argc; i++) {
         string argv_str(argv[i]);
         if (argv_str.rfind("-stat", 0) == 0) {
             write_stat = true;
             stat_filename = string(argv[i] + 6);
-        } else if (argv_str.rfind("-delta", 0) == 0) {
-            delta = atof(argv[i] + 7);
-            spec_delta = true;
         } else if (argv_str.rfind("-num_parts", 0) == 0) {
             num_parts = atoi(argv[i] + 11);
+        } else if (argv_str.rfind("-k", 0) == 0) {
+        	k = atoi(argv[i] + 3);
         }
     }
 
@@ -793,15 +796,13 @@ int main(int argc, char **argv) {
     string query_filename = argv[(++argi)];
 
     #ifdef _PROB
-        epsilon = atof(argv[(++argi)]);
-    #else
-        delta = atof(argv[(++argi)]);
+        double fix_epsilon = atof(argv[(++argi)]);
+        cout << "fix_epsilon: " << fix_epsilon << endl;
     #endif
 
     cout << "db_path: " << db_path << endl;
     cout << "query_filename: " << query_filename << endl;
-    cout << "delta: " << delta << endl;
-    cout << "epsilon: " << epsilon << endl;
+    cout << "k: " << k << endl;
     cout << endl;
 
     srand(time(NULL));
@@ -843,23 +844,6 @@ int main(int argc, char **argv) {
         cout << "Error loading query structure" << endl;
         exit(1);
     }
-
-    double q_diam = mesh_q.get_bsphere_d();
-    #ifdef _PROB
-        if (!spec_delta) {
-            delta = sq(s_q.sigma);
-        } else {
-        	delta *= q_diam;
-        }
-        cout << "Diameter of query mesh: " << q_diam << ", thus delta is set to " << delta << endl;
-        delta *= (double) mesh_q.size();
-    #else
-        delta *= (q_diam * (double) mesh_q.size());
-        epsilon = sqrt(delta);
-        cout << "Epsilon is set to " << epsilon << endl;
-    #endif
-
-    cout << "Final delta by number of query: " << delta << endl;
 
     // load the query R-tree
     C_RTree query_rtree;
@@ -907,16 +891,32 @@ int main(int argc, char **argv) {
     // }
     // cout << endl;
 
-    const int exec_times = 50;
+    double q_diam = mesh_q.get_bsphere_d();
+    #ifdef _PROB
+        double mse_0 = 0.001 * q_diam;
+    #else
+        double mse_0 = 0.0001 * q_diam;
+    #endif
+    double sse_0 = mse_0 * (double) mesh_q.size();
+    double epsilon_0 = sqrt(sse_0);
+    cout << "Diameter of query: " << q_diam << endl;
+    cout << "MSE_0: " << mse_0 << endl;
+    cout << "SSE_0: " << sse_0 << endl;
+    cout << "epsilon_0: " << epsilon_0 << endl << endl;
+
+    const int exec_times = 10;
     int real_exec_times = 0;
-    double aggr_prop_time = 0, aggr_veri_time = 0, aggr_user_time = 0, aggr_first_verified_time = 0;
-    int aggr_veri_size = 0;
-    int aggr_num_fail = 0;
+    double aggr_prop_time = 0, aggr_veri_time = 0, aggr_user_time = 0;
+    double aggr_veri_size = 0, aggr_num_itr = 0; 
 
     for (int exec_i = 0; exec_i < exec_times; exec_i++) {
     	cout << "Execution #" << (exec_i + 1) << ": " << endl << endl;
     	Exec_stat stat = (const struct Exec_stat){ 0 };
-        bool exec_success = exec(&db_meshes, db_rtrees, &mesh_q, &s_q, &query_rtree, delta, epsilon, goicp, m_icps, m_query_icp, stat);
+        #ifdef _PROB
+            exec(&db_meshes, db_rtrees, &mesh_q, &s_q, &query_rtree, sse_0, epsilon_0, fix_epsilon, goicp, m_icps, m_query_icp, k, stat);
+        #else
+            exec(&db_meshes, db_rtrees, &mesh_q, &s_q, &query_rtree, sse_0, epsilon_0, goicp, m_icps, m_query_icp, k, stat);
+        #endif
         cout << endl;
 
         // cout << "Total number of candidate transformations: " << stat.veri_size << endl;
@@ -931,11 +931,8 @@ int main(int argc, char **argv) {
         aggr_veri_time += stat.veri_time;
         aggr_user_time += stat.user_time;
         aggr_veri_size += stat.veri_size;
-        aggr_first_verified_time += stat.first_verified_time;
-
-        if (!exec_success)
-            aggr_num_fail++;
-
+        aggr_num_itr += stat.num_iterations;
+        
         real_exec_times++;
 
         if (real_exec_times <= 5 || real_exec_times == 10 || real_exec_times == 20) {
@@ -949,8 +946,8 @@ int main(int argc, char **argv) {
     double aver_prop_time = aggr_prop_time / (double) real_exec_times;
     double aver_veri_time = aggr_veri_time / (double) real_exec_times;
     double aver_user_time = aggr_user_time / (double) real_exec_times;
-    double aver_veri_size = (double) aggr_veri_size / (double) real_exec_times;
-    double aver_first_verified_time = aggr_first_verified_time / (double) real_exec_times;
+    double aver_veri_size = aggr_veri_size / (double) real_exec_times;
+    double aver_num_itr = aggr_num_itr / (double) real_exec_times;
 
     if (write_stat) {
         ofstream stat_ofs(stat_filename);
@@ -958,13 +955,8 @@ int main(int argc, char **argv) {
         stat_ofs << "prop_time=" << aver_prop_time << endl;
         stat_ofs << "veri_time=" << aver_veri_time << endl;
         stat_ofs << "veri_size=" << aver_veri_size << endl;
-        stat_ofs << "num_fail=" << aggr_num_fail << endl;
+        stat_ofs << "num_itr=" << aver_num_itr << endl;
         stat_ofs << "num_exec=" << real_exec_times << endl;
-        // stat_ofs << aver_prop_time << "\t";
-        // stat_ofs << aver_veri_time << "\t";
-        // stat_ofs << aver_user_time << "\t";
-        // stat_ofs << aver_veri_size << "\t";
-        // stat_ofs << aver_first_verified_time << "\t";
         stat_ofs.close();
     }
 
@@ -973,7 +965,5 @@ int main(int argc, char **argv) {
     cout << "Average verification time: " << aver_veri_time << endl;
     cout << "Average user time: " << aver_user_time << endl;
     cout << "Average # candidate transformations: " << aver_veri_size << endl;
-    cout << "Average find first time: " << aver_first_verified_time << endl;
-    cout << "Failed exec: " << aggr_num_fail << endl;
 
 }

@@ -30,7 +30,7 @@ using namespace trimesh;
 #ifdef TEST_MODE
     const int exec_times = 1;
 #else
-    const int exec_times = 50;
+    const int exec_times = 1;
 #endif
 
 class Query_Context {
@@ -47,9 +47,8 @@ public:
     string db_path;
     string grid_filename;
     string query_filename;
-    double delta;
-    bool spec_delta; // when PROB, delta might be specified or automatically assigned
-    double epsilon;
+    int k;
+    double fix_epsilon;
 
     double cos_phi; // in query this threshold is slightly larger
 
@@ -61,8 +60,8 @@ public:
         sort_entry = false;
         simple = false;
         write_stat = false;
-        spec_delta = false;
         stat_filename = "";
+        k = 1;
         for (int i = 0; i < argc; i++) {
             string argv_str(argv[i]);
             if (argv_str.rfind("-force_cell", 0) == 0)
@@ -80,10 +79,8 @@ public:
             	simple = true;
             else if (argv_str == "-small")
                 small_set = true;
-            else if (argv_str.rfind("-delta", 0) == 0) {
-                delta = atof(argv[i] + 7);
-                spec_delta = true;
-            }
+            else if (argv_str.rfind("-k", 0) == 0)
+                k = atoi(argv[i] + 3);
         }
 
         int argi = 0;
@@ -92,10 +89,8 @@ public:
         grid_filename = argv[(++argi)];
         query_filename = argv[(++argi)];
 
-        #ifdef PROB
-            epsilon = atof(argv[(++argi)]);
-        #else
-            delta = atof(argv[(++argi)]);
+        #ifdef _PROB
+            fix_epsilon = atof(argv[(++argi)]);
         #endif
     }
 
@@ -111,6 +106,11 @@ public:
     vector<ICP3D<float>*> m_icps;
     vector<float*> m_data_icps;
     float* m_query_icp;
+
+    double sse_0;
+    double epsilon_0;
+    double delta;
+    double epsilon;
 
     bool load() {
 
@@ -160,23 +160,6 @@ public:
             return false;
         }
 
-        double q_diam = mesh_q.get_bsphere_d();
-        #ifdef PROB
-            if (!spec_delta) {
-                delta = sq(s_q.sigma);
-            } else {
-                delta *= q_diam;
-            }
-            cout << "Diameter of query mesh: " << q_diam << ", thus delta is set to " << delta << endl;
-            delta *= (double) mesh_q.size();
-        #else
-            delta *= (q_diam * (double) mesh_q.size());
-            epsilon = sqrt(delta);
-            cout << "Epsilon is set to " << epsilon << endl;
-        #endif
-
-        cout << "Final SSE by number of query: " << delta << endl;
-
         // goicp = new GoICP*[num_meshes];
         // for (int i = 0; i < num_meshes; i++) {
         //     goicp[i] = new GoICP;
@@ -190,34 +173,47 @@ public:
         // }
         cout << endl;
 
-        for (int i = 0; i < db_meshes.size(); i++) {
-            auto new_icp = new ICP3D<float>();
-            // new_icp->err_diff_def = err_diff;
-            new_icp->err_diff_def = 0.1; //TODO
-            new_icp->do_trim = false;
+        // for (int i = 0; i < db_meshes.size(); i++) {
+        //     auto new_icp = new ICP3D<float>();
+        //     // new_icp->err_diff_def = err_diff;
+        //     new_icp->err_diff_def = 0.1; //TODO
+        //     new_icp->do_trim = false;
 
-            auto t = db_meshes.get_mesh(i);
-            int t_size = t->size();
-            auto new_data_icp = (float *) calloc(3 * t_size, sizeof(float));
-            int k, j;
-            for(k = 0, j = 0; k < t_size; k++) {
-                new_data_icp[j++] = t->get_pt(k)->x;
-                new_data_icp[j++] = t->get_pt(k)->y;
-                new_data_icp[j++] = t->get_pt(k)->z;
-            }
-            // Build ICP kdtree with model dataset
-            new_icp->Build(new_data_icp, t_size);
+        //     auto t = db_meshes.get_mesh(i);
+        //     int t_size = t->size();
+        //     auto new_data_icp = (float *) calloc(3 * t_size, sizeof(float));
+        //     int k, j;
+        //     for(k = 0, j = 0; k < t_size; k++) {
+        //         new_data_icp[j++] = t->get_pt(k)->x;
+        //         new_data_icp[j++] = t->get_pt(k)->y;
+        //         new_data_icp[j++] = t->get_pt(k)->z;
+        //     }
+        //     // Build ICP kdtree with model dataset
+        //     new_icp->Build(new_data_icp, t_size);
 
-            m_icps.push_back(new_icp);
-            m_data_icps.push_back(new_data_icp);
-        }
-        m_query_icp = (float *) calloc(3 * mesh_q.size(), sizeof(float));
-        int i, j;
-        for (i = 0, j = 0; i < mesh_q.size(); i++) {
-            m_query_icp[j++] = mesh_q.get_pt(i)->x;
-            m_query_icp[j++] = mesh_q.get_pt(i)->y;
-            m_query_icp[j++] = mesh_q.get_pt(i)->z;
-        }
+        //     m_icps.push_back(new_icp);
+        //     m_data_icps.push_back(new_data_icp);
+        // }
+        // m_query_icp = (float *) calloc(3 * mesh_q.size(), sizeof(float));
+        // int i, j;
+        // for (i = 0, j = 0; i < mesh_q.size(); i++) {
+        //     m_query_icp[j++] = mesh_q.get_pt(i)->x;
+        //     m_query_icp[j++] = mesh_q.get_pt(i)->y;
+        //     m_query_icp[j++] = mesh_q.get_pt(i)->z;
+        // }
+
+        double q_diam = mesh_q.get_bsphere_d();
+        #ifdef _PROB
+            double mse_0 = 0.001 * q_diam;
+        #else
+            double mse_0 = 0.0001 * q_diam;
+        #endif
+        sse_0 = mse_0 * (double) mesh_q.size();
+        epsilon_0 = sqrt(sse_0);
+        cout << "Diameter of query: " << q_diam << endl;
+        cout << "MSE_0: " << mse_0 << endl;
+        cout << "SSE_0: " << sse_0 << endl;
+        cout << "epsilon_0: " << epsilon_0 << endl << endl;
 
         return true;
     }
@@ -601,13 +597,13 @@ int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
     // #endif
 
     #if VERBOSE > 1
-        #ifdef ACC
+        #ifdef _PROB
             nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
         #else
             get_potential_set_and_show(q->pt, qc->s_db.ann_min, qc, range_a);
         #endif
     #else
-        #ifdef ACC
+        #ifdef _PROB
             nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
         #else
             get_potential_set(q->pt, qc->s_db.ann_min, qc, range_a);
@@ -644,13 +640,13 @@ int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
         int excl_qa[2] = { q->id, ten_a.id };
 
         #if VERBOSE > 2
-            #ifdef ACC
+            #ifdef _PROB
                 nn_sphere_range_and_show(&m, sq(d_pm - err), err, qc, range_h, "", excl_qa, 2);
             #else
                 get_potential_set_and_show(&m, d_pm, qc, range_h, "", excl_qa, 2);
             #endif
         #else
-            #ifdef ACC
+            #ifdef _PROB
                 nn_sphere_range(&m, sq(d_pm - err), err, qc, range_h, excl_qa, 2);
             #else
                 get_potential_set(&m, d_pm, qc, range_h, excl_qa, 2);
@@ -879,13 +875,13 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
     PtwID ten_a, ten_b, ten_c;
 
     #if VERBOSE > 1
-        #ifdef ACC
+        #ifdef _PROB
             nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
         #else
             get_potential_set_and_show(q->pt, qc->s_db.ann_min, qc, range_a);
         #endif
     #else
-        #ifdef ACC
+        #ifdef _PROB
             nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
         #else
             get_potential_set(q->pt, qc->s_db.ann_min, qc, range_a);
@@ -910,13 +906,13 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
         double r_donut = d_pm * 1.73205080757;
 
         #if VERBOSE > 2
-            #ifdef ACC
+            #ifdef _PROB
                 prob_donut_range_and_show(&m, &qa, r_donut, err, qc, range_b, "");
             #else
                 detm_donut_range_and_show(&m, &qa, r_donut, err, qc, range_b, "");
             #endif
         #else
-            #ifdef ACC
+            #ifdef _PROB
                 prob_donut_range(&m, &qa, r_donut, err, qc, range_b);
             #else
                 detm_donut_range(&m, &qa, r_donut, err, qc, range_b);
@@ -1514,68 +1510,44 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
     stat.veri_size = ptr_v_pairs->size();
 
     timer_start();
-    timer_start();
 
-    bool found_one_iter = false;
-    double first_time_iter = 0.0;
+    vector<Entry_Pair*> ret_left_goicp;
+    // // Perform the ICP-only check
+    // for (auto &r: *ptr_v_pairs) {
+    //     r->cal_xf();
 
-    vector<Entry_Pair*> ret_left_icp_only;
-    // Step 1: calculate transformation, initial distance, and leave those for step 2&3
+    //     double init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q, r->id_db, &r->xf);
+    //     // cout << "Initial distance: " << init_dist << endl;
+    //     double r_array[9] {
+    //         r->xf.r11, r->xf.r12, r->xf.r13,
+    //         r->xf.r21, r->xf.r22, r->xf.r23,
+    //         r->xf.r31, r->xf.r32, r->xf.r33
+    //     };
+    //     ICP_Matrix R_icp(3, 3, r_array);
+    //     double t_array[3] {
+    //         r->xf.tx, r->xf.ty, r->xf.tz
+    //     };
+    //     ICP_Matrix t_icp(3, 1, t_array);
+    //     double updated_err = qc->m_icps[r->id_db]->Run(qc->m_query_icp, qc->mesh_q.size(), R_icp, t_icp);
+    //     // cout << "Updated distance with ICP-only: " << updated_err << endl;
+
+    //     if (updated_err <= qc->delta) {
+    //         stat.num_verified++;
+    //     } else {
+    //         ret_left_goicp.push_back(r);
+    //     }
+    // }
+
+    // for large datasets: not doing ICP, use direct check only:
     for (auto &h: *ptr_v_pairs) {
         h->cal_xf();
-        // h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q, h->id_db, &h->xf); // TODO: use another unimplemented interface
         // cout << "Cal dist for\n" << h->e_query->to_str() << "\nand\n" << h->e_database->to_str() << "\n in db obj#" << h->id_db << endl;
         h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q, h->id_db, &h->xf, qc->delta); // TODO: simplified method, stops when error is larger
         // cout << "Initial distance: " << h->init_dist << " for pair: " << h->to_str(10) << endl;
 
-        // if (h->init_dist <= sq(qc->delta)) {
         if (h->init_dist >= 0) {
             // cout << "Matched with DB #" << h->id_db << ": " << qc->db_meshes.get_mesh(h->id_db)->get_filename() << endl;
             stat.num_verified++;
-            if (stat.num_verified == 1 && !found_one_iter) {
-                first_time_iter = timer_end(SECOND);
-                found_one_iter = true;
-            }
-        } else {
-            ret_left_icp_only.push_back(h);
-        }
-    }
-
-    #if VERBOSE > 0
-        cout << "Left for ICP-only check: " << ret_left_icp_only.size() << endl;
-    #endif
-
-    stat.num_icp_only = ret_left_icp_only.size();
-
-    vector<Entry_Pair*> ret_left_goicp;
-    // Step 2: perform the ICP-only check
-    if (!found_one_iter) {
-        for (auto &r: ret_left_icp_only) {
-            double init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q, r->id_db, &r->xf);
-            // cout << "Initial distance: " << init_dist << endl;
-            double r_array[9] {
-                r->xf.r11, r->xf.r12, r->xf.r13,
-                r->xf.r21, r->xf.r22, r->xf.r23,
-                r->xf.r31, r->xf.r32, r->xf.r33
-            };
-            ICP_Matrix R_icp(3, 3, r_array);
-            double t_array[3] {
-                r->xf.tx, r->xf.ty, r->xf.tz
-            };
-            ICP_Matrix t_icp(3, 1, t_array);
-            double updated_err = qc->m_icps[r->id_db]->Run(qc->m_query_icp, qc->mesh_q.size(), R_icp, t_icp);
-            // cout << "Updated distance with ICP-only: " << updated_err << endl;
-
-            if (updated_err <= qc->delta) {
-                stat.num_verified++;
-                if (stat.num_verified == 1 && !found_one_iter) {
-                    first_time_iter = timer_end(SECOND);
-                    found_one_iter = true;
-                }
-                break;
-            } else {
-                ret_left_goicp.push_back(r);
-            }
         }
     }
 
@@ -1593,12 +1565,7 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
     //  // TODO
     // }
 
-    if (!found_one_iter) {
-        first_time_iter = timer_end(SECOND);
-    }
-
     stat.veri_time = timer_end(SECOND);
-    stat.first_verified_time += (stat.prop_time + first_time_iter);
     stat.user_time = (stat.prop_time + stat.veri_time);
 
     cout << "# verified: " << stat.num_verified << endl;
@@ -1651,38 +1618,46 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
 
 void exec(Query_Context* qc, Exec_stat& stat) {
 
-    #ifdef PROB
-        const int k_m = 20;
+    vector<Exec_stat> stats;
+
+    qc->delta = qc->sse_0;
+    #ifdef _PROB
+        qc->epsilon = qc->fix_epsilon;
+        int k_m = 12;
     #else
-        const int k_m = 1;
+        qc->epsilon = qc->epsilon_0;
+        int k_m = 1;
     #endif
-
-    Exec_stat stats[k_m];
-
     int num_itr = 0;
-    bool find_accept = false;
 
-    for (int t = 0; t < k_m; t++) {
+    while (true) {
 
-        find_accept = iter(qc, stats[t]);
-        num_itr++;
+        cout << "Iteration #" << (++num_itr) << " with delta: " << qc->delta << ", epsilon " << qc->epsilon << ": " << endl;
 
-        if (find_accept)
+        Exec_stat stat_itr;
+        for (int t = 0; t < k_m; t++) {
+            if (iter(qc, stat_itr)) {
+                break;
+            }
+        }
+
+        stats.push_back(stat_itr);
+        // cout << stat_itr.num_verified << endl;
+        // cout << qc->k << endl;
+
+        if (stat_itr.num_verified >= qc->k)
             break;
 
-        #ifdef TEST_MODE
-            break;
+        #ifndef _PROB
+            qc->epsilon *= 2.0;
         #endif
-
+        qc->delta *= 4.0;
     }
 
-    get_sum_stat(stats, num_itr, stat);
+    get_sum_stat(&stats[0], num_itr, stat);
 
     stat.num_iterations = num_itr;
-    // stat.success = find_accept;
-    // if (!find_accept) {
-    // 	stat.num_fail++;
-    // }
+
 }
 
 int main(int argc, char **argv) {
@@ -1692,14 +1667,14 @@ int main(int argc, char **argv) {
     }
     cout << endl << endl;
 
-    #ifdef PROB
+    #ifdef _PROB
         if (argc < 5) {
-            cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename epsilon [-delta=...] [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+            cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename epsilon [-k=...] [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
             exit(1);
         }
     #else
-        if (argc < 5) {
-            cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename delta [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+        if (argc < 4) {
+            cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename [-k=...] [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
             exit(1);
         }
     #endif
@@ -1707,9 +1682,7 @@ int main(int argc, char **argv) {
     Query_Context qc;
     qc.read_param(argc, argv);
 
-    cout << "delta: " << qc.delta << endl;
-    cout << "epsilon: " << qc.epsilon << endl;
-    cout << endl;
+    cout << "fix_epsilon: " << qc.fix_epsilon << endl;
 
     srand(time(NULL));
 

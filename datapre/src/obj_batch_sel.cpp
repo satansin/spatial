@@ -145,10 +145,6 @@ void exec(int origin_num, vector<string>& origin_names, vector<TriMesh*>& full_m
 		for (auto &j: rand_sel_reps) {
 			string j_str = to_string(j);
 
-			// string last_name = origin_names[i] + string(fix_len - j_str.length(), '0') + j_str + ".ply";
-			// string tar_file = create_symb(last_name, db_full_folder, db_tar_folder);
-			// ofs_meta << (global_id++) << " " << tar_file << endl;
-
 			mesh_names.push_back(origin_names[i] + string(fix_len - j_str.length(), '0') + j_str + ".ply");
 
 			append_mesh(full_meshes[i * 10000 + j], combined_mesh);
@@ -163,10 +159,6 @@ void exec(int origin_num, vector<string>& origin_names, vector<TriMesh*>& full_m
 	for (auto &i: spec_set) {
 		for (int j = 0; j < num_spec; j++) {
 			string j_str = to_string(j);
-
-			// string last_name = origin_names[i] + "s" + string(2 - j_str.length(), '0') + j_str + ".ply";
-			// string tar_file = create_symb(last_name, spec_folder, db_tar_folder);
-			// ofs_meta << (global_id++) << " " << tar_file << endl;
 
 			mesh_names.push_back(origin_names[i] + "s" + string(2 - j_str.length(), '0') + j_str + ".ply");
 
@@ -183,10 +175,6 @@ void exec(int origin_num, vector<string>& origin_names, vector<TriMesh*>& full_m
 
 		for (auto &j: rand_sel_reps) {
 			string j_str = to_string(j);
-
-			// string last_name = origin_names[i] + string(fix_len - j_str.length(), '0') + j_str + ".ply";
-			// string tar_file = create_symb(last_name, db_full_folder, db_tar_folder);
-			// ofs_meta << (global_id++) << " " << tar_file << endl;
 
 			mesh_names.push_back(origin_names[i] + string(fix_len - j_str.length(), '0') + j_str + ".ply");
 
@@ -253,15 +241,26 @@ int main(int argc, char* argv[]) {
 	vector<TriMesh*> full_meshes;
 	read_db_meshes_combined(db_full_path, full_meshes);
 
+	const unordered_set<int> empty_set = {};
+
 	// const unordered_set<int> spec_set = { 176, 231, 48, 228, 373 }; // v1
 	const unordered_set<int> spec_set = { 300, 340, 432, 13, 213 }; // v2
-	const unordered_set<int> empty_set = {};
+	const unordered_set<int> spec_rm_set= { 103, 200, 300, 356, 204,
+											74, 41, 107, 340, 14,
+											335, 341, 367, 432, 1,
+											193, 13, 39, 44, 371,
+											376, 3, 281, 213, 195 };
+	const unordered_set<int> spec_single_set = { 340 };
 
 	// exec(origin_num, origin_names, full_meshes, 100, 1, 1, spec_folder, db_tar_folder + "1_sel_100i/", 1, spec_set, empty_set);
 	// exec(origin_num, origin_names, full_meshes, 250, 4, 2, spec_folder, db_tar_folder + "2_sel_001k/", 1, spec_set, empty_set);
 	// exec(origin_num, origin_names, full_meshes, 400, 25, 5, spec_folder, db_tar_folder + "3_sel_010k/", 1, spec_set, empty_set);
 	// exec(origin_num, origin_names, full_meshes, 400, 250, 10, spec_folder, db_tar_folder + "4_sel_100k/", 1, spec_set, empty_set);
-	exec(origin_num, origin_names, full_meshes, 400, 2500, 50, spec_folder, db_tar_folder + "5_sel_001m/", 10, spec_set, empty_set);
+	// exec(origin_num, origin_names, full_meshes, 400, 2500, 50, spec_folder, db_tar_folder + "5_sel_001m/", 10, spec_set, empty_set);
+
+	// exec(origin_num, origin_names, full_meshes, 250, 4, 2, spec_folder, db_tar_folder + "2_sel_001k_rm/", 1, spec_rm_set, empty_set);
+
+	exec(origin_num, origin_names, full_meshes, 20, 50, 50, spec_folder, db_tar_folder + "2_sel_001k_vk/", 1, spec_single_set, empty_set);
 
 	clear_mem(full_meshes);
 

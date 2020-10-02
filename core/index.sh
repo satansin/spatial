@@ -128,6 +128,36 @@ source ../common/config/dir_loc.sh
 # 	./out/index6.out     "$DIR_OBJ_DB"/2_sel_001k/      "$DIR_OBJ_INDEX"/object_scans_3nn/2_sel_001k/2_sel_001k."$r".015.grid -show_prog_bar
 # done
 
+# mkdir -p "$DIR_OBJ_INDEX"/object_scans_gt/2_sel_001k_rm/
+# mkdir -p "$DIR_OBJ_INDEX"/object_scans_donut/2_sel_001k_rm/
+# mkdir -p "$DIR_OBJ_INDEX"/object_scans_3nn/2_sel_001k_rm/
+# for r in 1000
+# do
+# 	./out/grid_gt.out    "$DIR_OBJ_DB"/2_sel_001k_rm/ "$r" "$DIR_OBJ_INDEX"/object_scans_gt/2_sel_001k_rm/2_sel_001k_rm."$r".grid -num_parts=1
+# 	./out/index6.out     "$DIR_OBJ_DB"/2_sel_001k_rm/      "$DIR_OBJ_INDEX"/object_scans_gt/2_sel_001k_rm/2_sel_001k_rm."$r".grid -show_prog_bar
+
+# 	./out/grid_donut.out "$DIR_OBJ_DB"/2_sel_001k_rm/ "$r" "$DIR_OBJ_INDEX"/object_scans_donut/2_sel_001k_rm/2_sel_001k_rm."$r".grid -small -num_parts=1
+# 	./out/index6.out     "$DIR_OBJ_DB"/2_sel_001k_rm/      "$DIR_OBJ_INDEX"/object_scans_donut/2_sel_001k_rm/2_sel_001k_rm."$r".grid -show_prog_bar
+
+# 	./out/grid_3nn.out   "$DIR_OBJ_DB"/2_sel_001k_rm/ "$r" "$DIR_OBJ_INDEX"/object_scans_3nn/2_sel_001k_rm/2_sel_001k_rm."$r".015.grid -num_parts=1 # a = 15 by default
+# 	./out/index6.out     "$DIR_OBJ_DB"/2_sel_001k_rm/      "$DIR_OBJ_INDEX"/object_scans_3nn/2_sel_001k_rm/2_sel_001k_rm."$r".015.grid -show_prog_bar
+# done
+
+mkdir -p "$DIR_OBJ_INDEX"/object_scans_gt/2_sel_001k_vk/
+mkdir -p "$DIR_OBJ_INDEX"/object_scans_donut/2_sel_001k_vk/
+mkdir -p "$DIR_OBJ_INDEX"/object_scans_3nn/2_sel_001k_vk/
+for r in 1000
+do
+	./out/grid_gt.out    "$DIR_OBJ_DB"/2_sel_001k_vk/ "$r" "$DIR_OBJ_INDEX"/object_scans_gt/2_sel_001k_vk/2_sel_001k_vk."$r".grid -num_parts=1
+	./out/index6.out     "$DIR_OBJ_DB"/2_sel_001k_vk/      "$DIR_OBJ_INDEX"/object_scans_gt/2_sel_001k_vk/2_sel_001k_vk."$r".grid -show_prog_bar
+
+	./out/grid_donut.out "$DIR_OBJ_DB"/2_sel_001k_vk/ "$r" "$DIR_OBJ_INDEX"/object_scans_donut/2_sel_001k_vk/2_sel_001k_vk."$r".grid -small -num_parts=1
+	./out/index6.out     "$DIR_OBJ_DB"/2_sel_001k_vk/      "$DIR_OBJ_INDEX"/object_scans_donut/2_sel_001k_vk/2_sel_001k_vk."$r".grid -show_prog_bar
+
+	./out/grid_3nn.out   "$DIR_OBJ_DB"/2_sel_001k_vk/ "$r" "$DIR_OBJ_INDEX"/object_scans_3nn/2_sel_001k_vk/2_sel_001k_vk."$r".015.grid -num_parts=1 # a = 15 by default
+	./out/index6.out     "$DIR_OBJ_DB"/2_sel_001k_vk/      "$DIR_OBJ_INDEX"/object_scans_3nn/2_sel_001k_vk/2_sel_001k_vk."$r".015.grid -show_prog_bar
+done
+
 # mkdir -p "$DIR_OBJ_INDEX"/object_scans_gt/3_sel_010k/
 # mkdir -p "$DIR_OBJ_INDEX"/object_scans_donut/3_sel_010k/
 # mkdir -p "$DIR_OBJ_INDEX"/object_scans_3nn/3_sel_010k/
@@ -166,18 +196,18 @@ source ../common/config/dir_loc.sh
 
 # mkdir -p "$DIR_OBJ_INDEX"/object_scans_gt/5_sel_001m/
 # mkdir -p "$DIR_OBJ_INDEX"/object_scans_donut/5_sel_001m/
-mkdir -p "$DIR_OBJ_INDEX"/object_scans_3nn/5_sel_001m/
-for r in 1000
-do
-	# ./out/grid_gt.out    "$DIR_OBJ_DB"/5_sel_001m/ "$r" "$DIR_OBJ_INDEX"/object_scans_gt/5_sel_001m/5_sel_001m."$r".grid -num_parts=10
-	# ./out/index3.out     "$DIR_OBJ_DB"/5_sel_001m/      "$DIR_OBJ_INDEX"/object_scans_gt/5_sel_001m/5_sel_001m."$r".grid -show_prog_bar
-	# ./out/index6.out     "$DIR_OBJ_DB"/5_sel_001m/      "$DIR_OBJ_INDEX"/object_scans_gt/5_sel_001m/5_sel_001m."$r".grid -show_prog_bar
+# mkdir -p "$DIR_OBJ_INDEX"/object_scans_3nn/5_sel_001m/
+# for r in 1000
+# do
+# 	./out/grid_gt.out    "$DIR_OBJ_DB"/5_sel_001m/ "$r" "$DIR_OBJ_INDEX"/object_scans_gt/5_sel_001m/5_sel_001m."$r".grid -num_parts=10
+# 	./out/index3.out     "$DIR_OBJ_DB"/5_sel_001m/      "$DIR_OBJ_INDEX"/object_scans_gt/5_sel_001m/5_sel_001m."$r".grid -show_prog_bar
+# 	./out/index6.out     "$DIR_OBJ_DB"/5_sel_001m/      "$DIR_OBJ_INDEX"/object_scans_gt/5_sel_001m/5_sel_001m."$r".grid -show_prog_bar
 
-	# ./out/grid_donut.out "$DIR_OBJ_DB"/5_sel_001m/ "$r" "$DIR_OBJ_INDEX"/object_scans_donut/5_sel_001m/5_sel_001m."$r".grid -small -num_parts=10
-	# ./out/index3.out     "$DIR_OBJ_DB"/5_sel_001m/      "$DIR_OBJ_INDEX"/object_scans_donut/5_sel_001m/5_sel_001m."$r".grid -show_prog_bar
-	# ./out/index6.out     "$DIR_OBJ_DB"/5_sel_001m/      "$DIR_OBJ_INDEX"/object_scans_donut/5_sel_001m/5_sel_001m."$r".grid -show_prog_bar
+# 	./out/grid_donut.out "$DIR_OBJ_DB"/5_sel_001m/ "$r" "$DIR_OBJ_INDEX"/object_scans_donut/5_sel_001m/5_sel_001m."$r".grid -small -num_parts=10
+# 	./out/index3.out     "$DIR_OBJ_DB"/5_sel_001m/      "$DIR_OBJ_INDEX"/object_scans_donut/5_sel_001m/5_sel_001m."$r".grid -show_prog_bar
+# 	./out/index6.out     "$DIR_OBJ_DB"/5_sel_001m/      "$DIR_OBJ_INDEX"/object_scans_donut/5_sel_001m/5_sel_001m."$r".grid -show_prog_bar
 
-	./out/grid_3nn.out   "$DIR_OBJ_DB"/5_sel_001m/ "$r" "$DIR_OBJ_INDEX"/object_scans_3nn/5_sel_001m/5_sel_001m."$r".015.grid -num_parts=10 # a = 15 by default
-	# ./out/index3.out     "$DIR_OBJ_DB"/5_sel_001m/      "$DIR_OBJ_INDEX"/object_scans_3nn/5_sel_001m/5_sel_001m."$r".015.grid -show_prog_bar
-	./out/index6.out     "$DIR_OBJ_DB"/5_sel_001m/      "$DIR_OBJ_INDEX"/object_scans_3nn/5_sel_001m/5_sel_001m."$r".015.grid -show_prog_bar
-done
+# 	./out/grid_3nn.out   "$DIR_OBJ_DB"/5_sel_001m/ "$r" "$DIR_OBJ_INDEX"/object_scans_3nn/5_sel_001m/5_sel_001m."$r".015.grid -num_parts=10 # a = 15 by default
+# 	./out/index3.out     "$DIR_OBJ_DB"/5_sel_001m/      "$DIR_OBJ_INDEX"/object_scans_3nn/5_sel_001m/5_sel_001m."$r".015.grid -show_prog_bar
+# 	./out/index6.out     "$DIR_OBJ_DB"/5_sel_001m/      "$DIR_OBJ_INDEX"/object_scans_3nn/5_sel_001m/5_sel_001m."$r".015.grid -show_prog_bar
+# done

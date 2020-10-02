@@ -25,7 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef JLY_ICP3D_HPP
 #define JLY_ICP3D_HPP
 
-#include "matrix.h"
+#include "jly_matrix.h"
 #include "nanoflann.hpp"
 using namespace nanoflann;
 
@@ -90,10 +90,10 @@ public:
 	T trim_fraction;
 	bool do_trim;
 	void Build(T * model, size_t n);
-	T Run(T * data, size_t n, Matrix & R, Matrix & t);
-	T Run(T * data, size_t n, Matrix & R, Matrix & t, size_t max_iter);
-	T Run(T * data, size_t n, Matrix & R, Matrix & t, T err_diff);
-	T Run(T * data, size_t n, Matrix & R, Matrix & t, size_t max_iter, T err_diff);
+	T Run(T * data, size_t n, ICP_Matrix & R, ICP_Matrix & t);
+	T Run(T * data, size_t n, ICP_Matrix & R, ICP_Matrix & t, size_t max_iter);
+	T Run(T * data, size_t n, ICP_Matrix & R, ICP_Matrix & t, T err_diff);
+	T Run(T * data, size_t n, ICP_Matrix & R, ICP_Matrix & t, size_t max_iter, T err_diff);
 
 private:
 
@@ -160,25 +160,25 @@ int ICP3D<T>::cmp(const void * a, const void * b)
 }
 
 template <typename T>
-T ICP3D<T>::Run(T * data, size_t n, Matrix & R, Matrix & t)
+T ICP3D<T>::Run(T * data, size_t n, ICP_Matrix & R, ICP_Matrix & t)
 {
 	return Run(data, n, R, t, max_iter_def, err_diff_def);
 }
 
 template <typename T>
-T ICP3D<T>::Run(T * data, size_t n, Matrix & R, Matrix & t, size_t max_iter)
+T ICP3D<T>::Run(T * data, size_t n, ICP_Matrix & R, ICP_Matrix & t, size_t max_iter)
 {
 	return Run(data, n, R, t, max_iter, err_diff_def);
 }
 
 template <typename T>
-T ICP3D<T>::Run(T * data, size_t n, Matrix & R, Matrix & t, T err_diff)
+T ICP3D<T>::Run(T * data, size_t n, ICP_Matrix & R, ICP_Matrix & t, T err_diff)
 {
 	return Run(data, n, R,  t, max_iter_def, err_diff);
 }
 
 template <typename T>
-T ICP3D<T>::Run(T * data, size_t n, Matrix & R, Matrix & t, size_t max_iter, T err_diff)
+T ICP3D<T>::Run(T * data, size_t n, ICP_Matrix & R, ICP_Matrix & t, size_t max_iter, T err_diff)
 {
   size_t num;
 
@@ -198,12 +198,12 @@ T ICP3D<T>::Run(T * data, size_t n, Matrix & R, Matrix & t, size_t max_iter, T e
 	struct POINTREF * points = (struct POINTREF *)malloc(sizeof(struct POINTREF)*n);
 
 	// init matrix for point correspondences
-	Matrix p_m(num,3); // model
-	Matrix p_d(num,3); // data
+	ICP_Matrix p_m(num,3); // model
+	ICP_Matrix p_d(num,3); // data
 
 	// init mean
-	Matrix mu_m(1,3);
-	Matrix mu_d(1,3);
+	ICP_Matrix mu_m(1,3);
+	ICP_Matrix mu_d(1,3);
 
 	size_t iter, idx, i;
 	T err = -1, err_new;
@@ -261,14 +261,14 @@ T ICP3D<T>::Run(T * data, size_t n, Matrix & R, Matrix & t, size_t max_iter, T e
 		// subtract mean
 		mu_m = mu_m/(T)n;
 		mu_d = mu_d/(T)n;
-		Matrix q_m = p_m - Matrix::ones(num,1)*mu_m;
-		Matrix q_t = p_d - Matrix::ones(num,1)*mu_d;
+		ICP_Matrix q_m = p_m - ICP_Matrix::ones(num,1)*mu_m;
+		ICP_Matrix q_t = p_d - ICP_Matrix::ones(num,1)*mu_d;
 
 		// compute relative rotation matrix R and translation vector T
-		Matrix H = ~q_t*q_m;
-		Matrix U,W,V;
+		ICP_Matrix H = ~q_t*q_m;
+		ICP_Matrix U,W,V;
 		H.svd(U,W,V);
-		Matrix R_ = V*~U;
+		ICP_Matrix R_ = V*~U;
 
 		//There are some problems with Matrix::det(), so it is not used
 		//R11*(R22*R33-R23*R32)
@@ -279,12 +279,12 @@ T ICP3D<T>::Run(T * data, size_t n, Matrix & R, Matrix & t, size_t max_iter, T e
 		T c = R_.val[0][2]*(R_.val[1][0]* R_.val[2][1] - R_.val[1][1]*R_.val[2][0]);
 		T det = a+b+c;
 
-		Matrix tmp = Matrix::eye(3);
+		ICP_Matrix tmp = ICP_Matrix::eye(3);
 		tmp.val[2][2] = det;
 
 		R_ = V*tmp*~U;
 
-		Matrix t_ = ~mu_m - R_*~mu_d;
+		ICP_Matrix t_ = ~mu_m - R_*~mu_d;
 
 		// compose transformation
 		R = R_*R;

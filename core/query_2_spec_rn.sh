@@ -4,22 +4,22 @@ source ../common/config/dir_loc.sh
 source ./query_2_common.sh
 
 rs_eid=( $1 ) # 0 1 2 3
-d_eid=( $2 ) # 0 1 2 3 4
-qi_range=( $3 ) # 0 1 2 3 4 5 6 7 8 9
-nl_range=( $4 ) # 0 1 2 3 4
-pcr_adv_eid=( $5 )
+qi_range=( $2 ) # 01 02 06 08 10
+nl_range=( $3 ) # 0 1 2 3 4
+pcr_adv_eid=( $4 )
+q_rn_range=( $5 )
 m_eid=( $6 )
 
 
-## indoor (sim) (rand)
+## indoor (sim) (spec)
 
-CURR_DS="$DIR_RESULT"/indoor_scans_rand
+CURR_DS="$DIR_RESULT"/indoor_scans_spec
 mkdir -p "$CURR_DS"
 
 for rs_id in "${rs_eid[@]}"; do
 
-	rs=${rs_range[rs_id]}
-	e=${e_range[rs_id]}
+	rs="${rs_range[rs_id]}"
+	e="${e_range[rs_id]}"
 
 	if (( $rs > 5 )); then
 		OPT="-small"
@@ -31,18 +31,14 @@ for rs_id in "${rs_eid[@]}"; do
 	CURR_DB="$CURR_DS"/comp_"$rs"
 	mkdir -p "$CURR_DB"
 
-	for d_id in "${d_eid[@]}"; do
-		d="${d_range[d_id]}"
+	for qi in "${qi_range[@]}"; do
 
-		CURR_D="$CURR_DB"/d_"$d"
-		mkdir -p "$CURR_D"
+		for nl in "${nl_range[@]}"; do
 
-		for qi in "${qi_range[@]}"; do
+			for rn in "${q_rn_range[@]}"; do
 
-			for nl in "${nl_range[@]}"; do
-
-				Q_PLY="$DIR_QUERY"/indoor_scans_rand/comp_"$rs"/d_"$d"/q_"$qi"."$nl".ply
-				CURR_NL="$CURR_D"/q_"$qi"_"$nl"
+				Q_PLY="$DIR_QUERY"/indoor_scans_spec/comp_"$rs"/q_01_rn/q_"$qi"."$nl".ply."$rn"
+				CURR_NL="$CURR_DB"/q_"$qi"_"$nl"_"$rn"
 				mkdir -p "$CURR_NL"
 
 				for al_id in "${pcr_adv_eid[@]}"; do
@@ -50,6 +46,9 @@ for rs_id in "${rs_eid[@]}"; do
 					CURR_AL="$CURR_NL"/"${pcr_adv_alg[al_id]}"
 					# rm -rf "$CURR_AL"
 					mkdir -p "$CURR_AL"
+
+					## TODO
+					# exec_al "$al_id" r_range "${t_range[@]}" "${m_eid[@]}" "${m_range[@]}" "$DB_F" "$DIR_INDEX" "$Q_PLY" "$CURR_AL" "$rs" "$e" "$OPT"
 
 					if (( $al_id < 4 )); then
 

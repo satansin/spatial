@@ -5,30 +5,25 @@
 #include "struct_q.h"
 #include "util.h"
 
-#include "goicp.h"
+#include "goicp_tk.h"
 
 using namespace std;
 
 int main(int argc, char **argv) {
 
     if (argc < 3) {
-        cerr << "Usage: " << argv[0] << " database_path query_filename [-delta=...] [-stat=...] [-cheat=...]*" << endl;
+        cerr << "Usage: " << argv[0] << " database_path query_filename [-stat=...] [-cheat=...]*" << endl;
         exit(1);
     }
 
     bool write_stat = false;
     string stat_filename;
-    bool spec_delta; // when PROB, delta might be specified or automatically assigned
-    double delta;
     unordered_set<int> cheat_set;
     for (int i = 0; i < argc; i++) {
         string argv_str(argv[i]);
         if (argv_str.rfind("-stat", 0) == 0) {
             write_stat = true;
             stat_filename = string(argv[i] + 6);
-        } else if (argv_str.rfind("-delta", 0) == 0) {
-            delta = atof(argv[i] + 7);
-            spec_delta = true;
         } else if (argv_str.rfind("-cheat", 0) == 0) {
         	cheat_set.insert(atoi(argv[i] + 7));
         }
@@ -40,9 +35,6 @@ int main(int argc, char **argv) {
 
     cout << "Input db_path: " << db_path << endl;
     cout << "Input query_filename: " << query_filename << endl;
-    if (spec_delta) {
-        cout << "Input delta: " << delta << endl;
-    }
     cout << endl;
 
     cout << "Reading database files from " << db_path << endl;
@@ -69,17 +61,6 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    double q_diam = mesh_q.get_bsphere_d();
-    if (!spec_delta) {
-        delta = sq(s_q.sigma);
-    } else {
-        delta *= q_diam;
-    }
-    cout << "Diameter of query mesh: " << q_diam << ", thus delta is set to " << delta << endl;
-
-    double sse = delta * (double) mesh_q.size(); // input (or extracted) delta is actually MSE
-    cout << "Final SSE by number of query: " << sse << endl;
-	
 	cout << endl;
 
 
@@ -92,9 +73,9 @@ int main(int argc, char **argv) {
     	// if (i != 984 && i != 985) {
     	// 	continue;
     	// }
-        if (i != s_q.get_db_mesh_id()) { // trick for indoor DB
-            continue;
-        }
+        // if (i != s_q.get_db_mesh_id()) { // trick for indoor DB
+        //     continue;
+        // }
 
     	cout << "For mesh #" << (i + 1) << endl;
 
@@ -104,7 +85,7 @@ int main(int argc, char **argv) {
     	if (cheat_set.find(i) != cheat_set.end()) {
     		dt_size = 200;
     	}
-		loadGoICP(&db_meshes, i, &mesh_q, sse, delta, &goicp[i], verbose, use_dt, dt_size);
+		loadGoICP(&db_meshes, i, &mesh_q, &goicp[i], verbose, use_dt, dt_size);
 
 		// goicp[i].printParams();
 		// cout << endl;
@@ -114,12 +95,6 @@ int main(int argc, char **argv) {
 		timer_start();
 		double dist = goicp[i].OuterBnB();
 		double query_time = timer_end(SECOND);
-		if (dist <= sse) {
-			cout << "Accepted in " << query_time << "(s)" << endl;
-            num_accepted++;
-		} else {
-			cout << "Rejected in " << query_time << "(s)" << endl;
-		}
 
 		cout << endl;
 

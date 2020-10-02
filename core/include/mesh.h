@@ -12,6 +12,7 @@
 #include "Box.h"
 #include "KDtree.h"
 #include "TriMesh_algo.h"
+// #include "jly_icp3d.hpp"
 
 #include "point.h"
 #include "trans.h"
@@ -87,8 +88,12 @@ private:
 	int m_total;
 	int m_size;
 
-	int m_kd_built;
+	bool m_kd_built;
 	std::vector<trimesh::KDtree*> m_db_kds;
+
+	// bool m_icp_init;
+	// std::vector<ICP3D<float>*> m_icps;
+	// std::vector<float*> m_data_icps;
 
 private:
 	void read_normal(std::ifstream& ifs_meta);
@@ -106,6 +111,10 @@ public:
 	void build_kd();
 
 	bool kd_built() const;
+
+	void build_icp(double err_diff);
+
+	bool icp_built() const;
 
 	int size() const;
 

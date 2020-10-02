@@ -174,7 +174,7 @@ void C_RTree::range_sphere_min_max(Pt3D* p, double r_min, double r_max, vector<i
 }
 
 void C_RTree::range_sphere_dist_err(Pt3D* p, double dist, double err, vector<int>& ret, const unordered_set<int>& excl_id_set) {
-	range_sphere_min_max(p, dist - err, dist + err, ret, excl_id_set);
+	range_sphere_min_max(p, max(0.0, dist - err), dist + err, ret, excl_id_set);
 }
 
 void C_RTree::nn_sphere_range(Pt3D* p, double sq_dist, double err, vector<int>& ret, int excl_id_list[], int excl_id_num) {
