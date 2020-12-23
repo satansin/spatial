@@ -731,8 +731,8 @@ void loadGoICP(DB_Meshes* db_meshes, int db_id, Mesh* mesh_q, double sse, double
 	// goicp->rotThresh = 0.3; // loose
 	goicp->rotThresh = 0.01; // tight
 	// goicp->transThresh = goicp->initNodeTrans.w / 4.0 - 10.0; // loose
-	// goicp->transThresh = goicp->initNodeTrans.w / 32.0 - 1.0; // tight
-	goicp->transThresh = goicp->initNodeTrans.w / 64.0 - 1.0; // tight
+	goicp->transThresh = goicp->initNodeTrans.w / 32.0 - 1.0; // tight
+	// goicp->transThresh = goicp->initNodeTrans.w / 64.0 - 1.0; // tight
 
 	// load GoICP data (query)
 	loadPointCloud(mesh_q, &goicp->pData);

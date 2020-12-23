@@ -23,8 +23,22 @@ source ../common/config/dir_loc.sh
 # ./out/query_donut_prob3.out "$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans_donut/comp_6/comp_6.350.grid "$DIR_QUERY"/indoor_scans_spec/comp_6/q_01.1.ply 32 4 -small
 
 # ./out/query_donut_prob3_cpq.out "$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans_donut/comp_6/comp_6.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_6/q_01.1.ply 3.87 -small
-./out/query_donut_prob3_cpq.out "$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans_donut/comp_6/comp_6.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5/q_01.1.ply 1.4 -delta=0.02
-# ./out/query_donut_prob3_cpq.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_donut/comp_5/comp_5.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5/q_01.1.ply 1.4
+# ./out/query_donut_prob3.out "$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans_donut/comp_6/comp_6.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5/q_01.0.ply 1.4 -delta=0.1
+
+# ./out/query_donut_prob3_cpq.out "$DIR_DB"/indoor_scans/comp_5_5/ "$DIR_INDEX"/indoor_scans_donut/comp_5_5/comp_5_5.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5_5/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_5_5/q_01.1.ply 1.6 -delta=0.1
+
+# test for different sampling rate
+# ./out/query_donut_prob3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_donut_color/comp_5/comp_5.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_5_5/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_5_5/q_01.1.ply 3.2 -delta=1
+./out/query_donut_prob3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_donut_color/comp_5/comp_5.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_1_5/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_1_5/q_01.1.ply 3.2 -delta=1
+# ./out/query_donut_prob3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_donut_color/comp_5/comp_5.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_5/q_01.1.ply 3.2 -delta=1
+
+# ./out/query_donut_prob3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_donut_color/comp_5/comp_5.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_5/q_01.1.ply 5 -delta=0.1
+
+# ./out/query_donut_prob3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_donut/comp_5/comp_5.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_5/q_01.1.ply 1.4 -delta=0.1
+
+# ./out/query_donut_prob3_cpq.out "$DIR_DB"/indoor_scans/comp_6/ "$DIR_INDEX"/indoor_scans_donut/comp_6/comp_6.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_6/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_6/q_01.1.ply 3.87 -delta=0.1
+
+# ./out/query_donut_prob3_cpq.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_donut/comp_5/comp_5.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5/q_01.1.ply 1.4 -delta=0.01 #-force_cell=2756
 # ./out/query_donut_prob3_cpq.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_donut/comp_5/comp_5.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_6/q_01.1.ply 1.4 -delta=20 -small
 
 

@@ -13,7 +13,7 @@ SRC=src
 OBJ=obj
 OUT=out
 
-all: clean filter extract_query_rand extract_query_spec pre_index obj_batch_sel obj_gen obj_pre_index obj_query_spec obj_query_rand noise
+all: clean filter extract_query_rand extract_query_spec pre_index obj_batch_sel obj_gen obj_pre_index obj_query_spec obj_query_rand noise dye
 
 filter:
 	$(CXX) $(INC) $(USE_TM) $(SRC)/filter.cpp -o $(OUT)/filter.out -ltrimesh -lgluit -fopenmp
@@ -44,6 +44,9 @@ obj_query_rand:
 
 noise:
 	$(CXX) $(INC) $(USE_TM) $(USE_GSL) $(SRC)/noise.cpp -o $(OUT)/noise.out -ltrimesh -lgluit -fopenmp -lgsl -lgslcblas -lm
+
+dye:
+	$(CXX) $(INC) $(USE_TM) $(SRC)/dye.cpp -o $(OUT)/dye.out -ltrimesh -lgluit -fopenmp
 
 clean:
 	$(RMDIR) obj/

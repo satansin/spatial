@@ -69,6 +69,8 @@ int main(int argc, char** argv) {
 			exit(1);
 		}
 
+		sort(s_files.begin(), s_files.end());
+
 		string output_foldername = get_foldername(output_filename);
 
 		ofstream ofs_meta(output_foldername + "meta.txt");

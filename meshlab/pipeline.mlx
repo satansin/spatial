@@ -1,0 +1,29 @@
+<!DOCTYPE FilterScript>
+<FilterScript>
+ <filter name="Compute normals for point sets">
+  <Param tooltip="The number of neighbors used to estimate normals." name="K" type="RichInt" value="20" description="Neighbour num"/>
+  <Param tooltip="The number of smoothing iteration done on the p used to estimate and propagate normals." name="smoothIter" type="RichInt" value="0" description="Smooth Iteration"/>
+  <Param tooltip="If the 'viewpoint' (i.e. scanner position) is known, it can be used to disambiguate normals orientation, so that all the normals will be oriented in the same direction." name="flipFlag" type="RichBool" value="false" description="Flip normals w.r.t. viewpoint"/>
+  <Param tooltip="The viewpoint position can be set by hand (i.e. getting the current viewpoint) or it can be retrieved from mesh camera, if the viewpoint position is stored there." name="viewPos" z="0" type="RichPoint3f" y="0" description="Viewpoint Pos." x="0"/>
+ </filter>
+ <filter name="Surface Reconstruction: Ball Pivoting">
+  <Param min="0" tooltip="The radius of the ball pivoting (rolling) over the set of points. Gaps that are larger than the ball radius will not be filled; similarly the small pits that are smaller than the ball radius will be filled." name="BallRadius" max="1967.02" type="RichAbsPerc" value="75" description="Pivoting Ball radius (0 autoguess)"/>
+  <Param tooltip="To avoid the creation of too small triangles, if a vertex is found too close to a previous one, it is clustered/merged with it." name="Clustering" type="RichFloat" value="15" description="Clustering radius (% of ball radius)"/>
+  <Param tooltip="If we encounter a crease angle that is too large we should stop the ball rolling" name="CreaseThr" type="RichFloat" value="90" description="Angle Threshold (degrees)"/>
+  <Param tooltip="if true all the initial faces of the mesh are deleted and the whole surface is rebuilt from scratch. Otherwise the current faces are used as a starting point. Useful if you run the algorithm multiple times with an increasing ball radius." name="DeleteFaces" type="RichBool" value="false" description="Delete initial set of faces"/>
+ </filter>
+ <filter name="Poisson-disk Sampling">
+  <Param tooltip="The desired number of samples. The ray of the disk is calculated according to the sampling density." name="SampleNum" type="RichInt" value="1000" description="Number of samples"/>
+  <Param min="0" tooltip="If not zero this parameter override the previous parameter to allow exact radius specification" name="Radius" max="1967.02" type="RichAbsPerc" value="16" description="Explicit Radius"/>
+  <Param tooltip="The over-sampling rate that is used to generate the initial Montecarlo samples (e.g. if this parameter is &lt;i>K&lt;/i> means that&lt;i>K&lt;/i> x &lt;i>poisson sample&lt;/i> points will be used). The generated Poisson-disk samples are a subset of these initial Montecarlo samples. Larger this number slows the process but make it a bit more accurate." name="MontecarloRate" type="RichInt" value="20" description="MonterCarlo OverSampling"/>
+  <Param tooltip="If true, it will generate an additional Layer with the montecarlo sampling that was pruned to build the poisson distribution." name="SaveMontecarlo" type="RichBool" value="false" description="Save Montecarlo"/>
+  <Param tooltip="If true Poisson Disc distances are computed using an approximate geodesic distance, e.g. an euclidean distance weighted by a function of the difference between the normals of the two points." name="ApproximateGeodesicDistance" type="RichBool" value="false" description="Approximate Geodesic Distance"/>
+  <Param tooltip="If true the original vertices of the base mesh are used as base set of points. In this case the SampleNum should be obviously much smaller than the original vertex number.&lt;br>Note that this option is very useful in the case you want to subsample a dense point cloud." name="Subsample" type="RichBool" value="false" description="Base Mesh Subsampling"/>
+  <Param tooltip="If true the vertices of the below mesh are used as starting vertices, and they will utterly refined by adding more and more points until possible. " name="RefineFlag" type="RichBool" value="false" description="Refine Existing Samples"/>
+  <Param tooltip="Used only if the above option is checked. " name="RefineMesh" type="RichMesh" value="0" description="Samples to be refined"/>
+  <Param tooltip="If true it will use a simple heuristic for choosing the samples. At a small cost (it can slow a bit the process) it usually improve the maximality of the generated sampling. " name="BestSampleFlag" type="RichBool" value="true" description="Best Sample Heuristic"/>
+  <Param tooltip="Used only if the Best Sample Flag is true. It control the number of attempt that it makes to get the best sample. It is reasonable that it is smaller than the Montecarlo oversampling factor." name="BestSamplePool" type="RichInt" value="10" description="Best Sample Pool Size"/>
+  <Param tooltip="If requested it will try to do a dicotomic search for the best poisson disk radius that will generate the requested number of samples with a tolerance of the 0.5%. Obviously it takes much longer." name="ExactNumFlag" type="RichBool" value="false" description="Exact number of samples"/>
+  <Param tooltip="The radius of the disk is allowed to vary between r and r*var. If this parameter is 1 the sampling is the same of the Poisson Disk Sampling" name="RadiusVariance" type="RichFloat" value="1" description="Radius Variance"/>
+ </filter>
+</FilterScript>

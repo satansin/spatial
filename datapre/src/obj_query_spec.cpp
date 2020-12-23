@@ -156,10 +156,16 @@ int main(int argc, char** argv) {
 	double ground_truth_mle = ground_truth_err_linear / (double) m;
 	double ground_truth_mse = ground_truth_err_quadratic / (double) m;
 
-	rot(query_mesh, rand_double_in_range(0, 2 * PI),
-		vec(rand_double_in_range(-1, 1), rand_double_in_range(-1, 1), rand_double_in_range(-1, 1)));
+	double param_a = rand_double_in_range(0, 2 * PI);
+	double param_b = rand_double_in_range(-1, 1);
+	double param_c = rand_double_in_range(-1, 1);
+	double param_d = rand_double_in_range(-1, 1);
+	rot(query_mesh, param_a, vec(param_b, param_c, param_d));
 	// trans(query_mesh, -mesh_center_of_mass(query_mesh));
 	query_mesh->need_bbox();
+	double param_x = -(query_mesh->bbox.center()[0]);
+	double param_y = -(query_mesh->bbox.center()[1]);
+	double param_z = -(query_mesh->bbox.center()[2]);
 	trans(query_mesh, -(query_mesh->bbox.center()));
 
 	cout << "Writing query point cloud to " << output_filename << endl;
@@ -175,4 +181,18 @@ int main(int argc, char** argv) {
 		info_ofs << i << " " << idmap[i] << " " << driftmap[i] << endl;
 	}
 	info_ofs.close();
+
+	string trans_filename = output_filename + ".trans";
+	cout << "Writing trans file to " << trans_filename << endl;
+	ofstream trans_ofs(trans_filename);
+	trans_ofs << setprecision(10);
+	trans_ofs << param_a << endl;
+	trans_ofs << param_b << endl;
+	trans_ofs << param_c << endl;
+	trans_ofs << param_d << endl;
+	trans_ofs << param_x << endl;
+	trans_ofs << param_y << endl;
+	trans_ofs << param_z << endl;
+	trans_ofs.close();
+
 }

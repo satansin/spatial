@@ -45,6 +45,8 @@ public:
 
 	~Mesh();
 
+	Mesh(const Mesh* mesh);
+
 	void free_mesh();
 
 	void read_from_path(const std::string s_file);
@@ -70,6 +72,8 @@ public:
 	void scale_by(double s);
 
 	static PtwID DEFAULT_PT;
+
+	void insert_pt(Pt3D pt);
 
 	void write(std::string filename);
 
@@ -107,6 +111,7 @@ public:
 	void free_mesh();
 
 	int read_from_path(const std::string db_path);
+	int read_from_file(const std::string db_file);
 
 	void build_kd();
 

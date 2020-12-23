@@ -17,10 +17,10 @@ string C_RTree::get_info_filename(Usage usage) const {
 	string ret = "";
 	switch (usage) {
 	case PCD:
-		ret = "../common/config/rstree.pcd.config";
+		ret = "/csproject/kdd/hliubs/proj_sync/git/spatial/common/config/rstree.pcd.config";
 		break;
 	case IDX:
-		ret = "../common/config/rstree.idx.config";
+		ret = "/csproject/kdd/hliubs/proj_sync/git/spatial/common/config/rstree.idx.config";
 		break;
 	}
 	return ret;

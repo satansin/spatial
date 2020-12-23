@@ -17,41 +17,6 @@
 
 using namespace std;
 
-/*
-struct Entry_Stat_3nn {
-    int global_id;
-    Entry_Stat_3nn(int id) {
-        global_id = id;
-    }
-
-    int num_discarded;
-    double nn_dist[3];
-};
-
-struct Entry_Stat_3lnn {
-    int global_id;
-    Entry_Stat_3lnn(int id) {
-        global_id = id;
-        for (int i = 0; i < 3; i++) {
-            num_discarded[i] = 0;
-            nn_dist[i] = 0.0;
-        }
-    }
-
-    int num_discarded[3];
-    double nn_dist[3];
-};
-
-struct Entry_Stat {
-    int global_id;
-    Entry_Stat(int id) {
-        global_id = id;
-    }
-    
-    double nn_dist[3];
-};
-*/
-
 bool verify_angle_3nn(vector<Pt3D>& accepted_pa, Pt3D* pb, double cos_min_ang) {
 
     for (auto &pa: accepted_pa) {
@@ -496,29 +461,16 @@ int main(int argc, char **argv) {
     timer_start();
 
     cout << "Reading database files from " << db_path << endl;
-    DB_Meshes db_meshes;
-    const int num_meshes = db_meshes.read_from_path(db_path);
-    if (num_meshes < 0) {
-        cerr << "Error reading database files" << endl;
-        exit(1);
-    }
-    cout << "Total no. meshes: " << num_meshes << endl;
+    Mesh mesh;
+    mesh.read_from_path(db_path);
+    const int num_meshes = 1;
 
-    const int n = db_meshes.total();
+    const int n = mesh.size();
     cout << "Total points: " << n << endl << endl;
 
     cout << "Reading database R-trees..." << endl;
-    vector<C_RTree*> db_rtrees;
-    if (num_parts > 0) {
-        const int num_meshes_per_part = num_meshes / num_parts;
-        for (int i = 0; i < num_parts; i++) {
-            read_rtrees_comb(db_path, i, num_meshes_per_part, db_rtrees);
-        }
-    } else {
-        read_rtrees_from_db_meshes(&db_meshes, db_rtrees);
-    }
-
-    cout << endl;
+    C_RTree rtree;
+    rtree.read_from_mesh(db_path);
 
     const double i_time = timer_end(SECOND);
 
@@ -530,7 +482,7 @@ int main(int argc, char **argv) {
 
     // Open grid file and write grid headers
     ofstream ofs(outgrid_filename);
-    ofs << w << " " << ann_min << " " << ann_mid << " " << ann_max << " " << ang_min << " " << num_meshes << " " << db_meshes.total() << endl;
+    ofs << w << " " << ann_min << " " << ann_mid << " " << ann_max << " " << ang_min << " " << num_meshes << " " << n << endl;
     for (int i = 0; i < num_meshes; i++) {
         ofs << i << " 0 0 0 0 0 0" << endl;
     }
@@ -555,8 +507,8 @@ int main(int argc, char **argv) {
     int fail_count = 0;
     int global_cell_id = 0;
     
-    for (int mesh_id = 0; mesh_id < db_meshes.size(); mesh_id++) {
-        mesh_p = db_meshes.get_mesh(mesh_id);
+    for (int mesh_id = 0; mesh_id < num_meshes; mesh_id++) {
+        mesh_p = &mesh;
 
         if (mesh_id % 1000 == 0) {
             cout << "Processing mesh #" << mesh_id << endl << endl;
@@ -579,15 +531,15 @@ int main(int argc, char **argv) {
 
             #ifdef _3NN
                 #ifdef _3LNN
-                    cal_3lnn_entry(&p, ann_min, ann_mid, ann_max, cos_phi, mesh_p, db_rtrees[mesh_id], debug_mode, simple, prem_entry);
+                    cal_3lnn_entry(&p, ann_min, ann_mid, ann_max, cos_phi, mesh_p, &rtree, debug_mode, simple, prem_entry);
                 #else
-                    cal_3nn_entry(&p, ann_min, cos_phi, mesh_p, db_rtrees[mesh_id], debug_mode, simple, prem_entry);
+                    cal_3nn_entry(&p, ann_min, cos_phi, mesh_p, &rtree, debug_mode, simple, prem_entry);
                 #endif
             #else
                 #ifdef _DNT
-                    cal_donut_entry(&p, ann_min, mesh_p, db_rtrees[mesh_id], debug_mode, small_set, prem_entry);
+                    cal_donut_entry(&p, ann_min, mesh_p, &rtree, debug_mode, small_set, prem_entry);
                 #else
-                    cal_index_entry(&p, ann_min, mesh_p, db_rtrees[mesh_id], debug_mode, prem_entry);
+                    cal_index_entry(&p, ann_min, mesh_p, &rtree, debug_mode, prem_entry);
                 #endif
             #endif
 
@@ -629,9 +581,6 @@ int main(int argc, char **argv) {
             bar->done();
             delete bar;
         }
-
-        delete db_rtrees[mesh_id];
-        db_rtrees[mesh_id] = nullptr;
     }
 
     ofs.close();

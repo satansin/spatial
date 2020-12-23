@@ -16,12 +16,37 @@ Mesh::~Mesh() {
     free_mesh();
 }
 
+Mesh::Mesh(const Mesh* mesh) {
+    this->m_id = mesh->m_id;
+    this->m_size = mesh->m_size;
+    this->m_filename = mesh->m_filename;
+
+    for (auto &v: mesh->m_pt_list) {
+        this->m_pt_list.push_back(v);
+    }
+    for (auto &v: mesh->m_ptwid_list) {
+        this->m_ptwid_list.push_back(v);
+    }
+
+    this->m_mesh = new trimesh::TriMesh;
+    for (auto &v: mesh->m_mesh->vertices) {
+        this->m_mesh->vertices.push_back(v);
+    }
+}
+
 void Mesh::free_mesh() {
     if (m_mesh != nullptr) {
         m_mesh->clear();
         delete m_mesh;
         m_mesh = nullptr;
     }
+}
+
+void Mesh::insert_pt(Pt3D pt) {
+    this->m_pt_list.push_back(pt);
+    this->m_size++;
+    trimesh::point p = { static_cast<float>(pt.x), static_cast<float>(pt.y), static_cast<float>(pt.z) };
+    this->m_mesh->vertices.push_back(p);
 }
 
 void Mesh::write(string filename) {
@@ -257,6 +282,17 @@ int DB_Meshes::read_from_path(const string db_path) {
 
     ifs_combined.close();
     ifs.close();
+
+    return m_size;
+}
+
+int DB_Meshes::read_from_file(const string db_file) {
+    Mesh* new_mesh = new Mesh(0);
+    new_mesh->read_from_path(db_file);
+
+    m_total += new_mesh->size();
+    m_db_meshes.push_back(new_mesh);
+    m_size = 1;
 
     return m_size;
 }

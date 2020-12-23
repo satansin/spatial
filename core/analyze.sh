@@ -3,6 +3,7 @@
 source ../common/config/dir_loc.sh
 
 
+# ./out/anal_nn.out "$DIR_DB"/indoor_scans/comp_5_5/
 # ./out/anal_nn.out "$DIR_DB"/indoor_scans/comp_5/
 # ./out/anal_nn.out "$DIR_DB"/indoor_scans/comp_1/
 # ./out/anal_nn.out "$DIR_DB"/indoor_scans/comp_6/
@@ -10,13 +11,16 @@ source ../common/config/dir_loc.sh
 
 # ./out/anal_nn.out "$DIR_OBJ_DB"/1_sel_100i/ -num_parts=1
 
+./out/anal_q.out "$DIR_QUERY"/indoor_scans_spec/comp_5_resam_5_5/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_5_5/q_01.1.ply
+# ./out/anal_q.out "$DIR_DB"/indoor_scans/recon_bedroom_5_5/recon_bedroom_5_5.ply "$DIR_DB"/indoor_scans/recon_bedroom_5/recon_bedroom_5.ply
+
 # ./out/anal_diam.out "$DIR_DB"/indoor_scans/comp_5/
 
 # ./out/anal_diam.out "$DIR_OBJ_DB"/1_sel_100i/
 # ./out/anal_diam.out "$DIR_OBJ_DB"/2_sel_001k/
 # ./out/anal_diam.out "$DIR_OBJ_DB"/3_sel_010k/
 # ./out/anal_diam.out "$DIR_OBJ_DB"/4_sel_100k/
-./out/anal_diam.out "$DIR_OBJ_DB"/5_sel_001m/
+# ./out/anal_diam.out "$DIR_OBJ_DB"/5_sel_001m/
 # ./out/anal_diam.out "$DIR_OBJ_DB"/origin/
 
 # ./out/anal_diam.out "$DIR_QUERY"/indoor_scans_pro_noise/comp_5/q_01.0.ply -single

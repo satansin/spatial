@@ -370,13 +370,21 @@
 
 #### db_1_2_3_4_5 spec_q_02 noise_1 alg_25_26_27_28_29 (prob)
 
-	s_range=( 4 ) # 0 1 2 3 4 )
+	s_range=( ) # 0 1 2 3 4 )
 	q=02
 	n=1
-	a_range=( 27 ) # ICP fail to generate results, thus using existing results
+	a_range=( ) # ICP fail to generate results, thus using existing results
 	for s in "${s_range[@]}"; do
 		for a in "${a_range[@]}"; do
 			# tmux new-session -d -s spec_"$s"_"$q"_"$n"_"$a" "./query_3_spec.sh $s $q $n $a"
 			./query_3_spec.sh $s $q $n $a
 		done
 	done
+
+
+## different sampling rate queries
+
+
+### probabilistic del-Sim query for scene databases
+
+#### comp_5 remember to run non-cpq version

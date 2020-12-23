@@ -9,7 +9,7 @@ export LD_LIBRARY_PATH
 ### from raw to db - indoor_scans
 
 	# # full resolution 0: not supported due to file too large
-	# for i in {1..7} # i->resolution
+	# for i in 5_4 5_3 5_2 5_1 1_9 1_8 1_7 1_6 1_5 # 5_5 # {1..7} # i->resolution
 	# do
 	# 	mkdir -p "$DIR_DB"/indoor_scans/recon_bedroom_"$i"/
 	# 	./out/filter.out "$DIR_RAW"/indoor_scans/recon_bedroom_"$i".ply "$DIR_DB"/indoor_scans/recon_bedroom_"$i"/recon_bedroom_"$i".ply 1000
@@ -23,7 +23,7 @@ export LD_LIBRARY_PATH
 
 ### build rstree index for db - indoor_scans
 
-	# for i in 1 5 6 7 # i->resolution
+	# for i in 5_5 # 1 5 6 7 # i->resolution
 	# do
 	# 	./out/pre_index.out "$DIR_DB"/indoor_scans/recon_bedroom_"$i"/recon_bedroom_"$i".ply
 	# 	./out/pre_index.out "$DIR_DB"/indoor_scans/recon_boardroom_"$i"/recon_boardroom_"$i".ply
@@ -32,7 +32,7 @@ export LD_LIBRARY_PATH
 
 ### copy recons to comp - indoor_scans
 
-	# for i in {1..7} # i->resolution
+	# for i in 5_4 5_3 5_2 5_1 1_9 1_8 1_7 1_6 1_5 # 5_5 # {1..7} # i->resolution
 	# do
 	# 	mkdir -p "$DIR_DB"/indoor_scans/comp_"$i"/
 
@@ -49,7 +49,7 @@ export LD_LIBRARY_PATH
 
 	# mkdir -p "$DIR_QUERY"/indoor_scans_spec/
 
-	# for i in 1 5 6 7 # i->resolution
+	# for i in 5_4 5_3 5_2 5_1 1_9 1_8 1_7 1_6 1_5 # 5_5 # 1 5 6 7 # i->resolution
 	# do
 	# 	CURR_DIR="$DIR_QUERY"/indoor_scans_spec/comp_"$i"
 	# 	mkdir -p "$CURR_DIR"
@@ -58,8 +58,10 @@ export LD_LIBRARY_PATH
 	# 		nu="s"
 	# 	elif [ $i = 5 ]; then
 	# 		nu="m"
-	# 	else
+	# 	elif [ $i = 6 ] || [ $i = 7 ]; then
 	# 		nu="l"
+	# 	else
+	# 		nu="m"
 	# 	fi
 
 	# 	for k in {0..4}; do # k->noise level
@@ -76,6 +78,40 @@ export LD_LIBRARY_PATH
 	# 	done
 	# done
 
+	# for i in 5_5 5_4 5_3 5_2 5_1 5 1_9 1_8 1_7 1_6 1_5
+	# do
+	# 	for k in {0..4}
+	# 	do
+	# 		./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply   "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_01."$k".ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_01."$k".ply.trans
+	# 		./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply   "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_02."$k".ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_02."$k".ply.trans
+	# 		./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply   "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_03."$k".ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_03."$k".ply.trans
+	# 		./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply   "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_04."$k".ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_04."$k".ply.trans
+	# 		./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply   "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_05."$k".ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_05."$k".ply.trans
+	# 		./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply   "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_06."$k".ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_06."$k".ply.trans
+	# 		./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply   "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_07."$k".ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_07."$k".ply.trans
+	# 		./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply   "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_08."$k".ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_08."$k".ply.trans
+	# 		./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_boardroom_"$i".ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_09."$k".ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_09."$k".ply.trans
+	# 		./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_boardroom_"$i".ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_10."$k".ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_10."$k".ply.trans
+	# 	done
+	# done
+
+	# for i in 5_4 5_3 5_2 5_1 1_9 1_8 1_7 1_6
+	# do
+	# 	./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_01.1.ply.trans
+	# done
+
+	# for i in 5_5 1_5
+	# do
+	# 	./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_01.1.ply.trans
+	# 	./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_02.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_02.1.ply.trans
+	# 	./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_06.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_06.1.ply.trans
+	# 	./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_10.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_10.1.ply.trans
+	# 	./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_01.0.ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_01.0.ply.trans
+	# 	./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_01.2.ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_01.2.ply.trans
+	# 	./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_01.3.ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_01.3.ply.trans
+	# 	./out/dye.out "$DIR_DB"/indoor_scans/comp_"$i"/recon_bedroom_"$i".ply "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_01.4.ply "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_01.4.ply.trans
+	# done
+
 	# CURR_DIR="$DIR_QUERY"/indoor_scans_spec/comp_7/q_01_rn/
 	# mkdir -p "$CURR_DIR"
 	# for k in {1..4}; do
@@ -88,7 +124,7 @@ export LD_LIBRARY_PATH
 
 ### build rstree index for query - indoor_scans (Spec)
 
-	# for i in 1 5 6 7; do # i->resolution
+	# for i in 5_5 5_4 5_3 5_2 5_1 1_9 1_8 1_7 1_6 1_5; do # 1 5 6 7; do # i->resolution
 	# 	for j in {1..10}; do # j->query id
 	# 		for k in {0..4}; do # k->noise level
 	# 			if [ $j -lt 10 ]; then
@@ -106,6 +142,23 @@ export LD_LIBRARY_PATH
 	# 			./out/pre_index.out "$DIR_QUERY"/indoor_scans_spec/comp_"$i"/q_01_rn/q_01."$k".ply."$j"
 	# 		done
 	# 	done
+	# done
+
+	# for i in 5_4 5_3 5_2 5_1 1_9 1_8 1_7 1_6
+	# do
+	# 	./out/pre_index.out "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_01.1.ply
+	# done
+
+	# for i in 5_5 1_5
+	# do
+	# 	./out/pre_index.out "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_01.1.ply
+	# 	./out/pre_index.out "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_02.1.ply
+	# 	./out/pre_index.out "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_06.1.ply
+	# 	./out/pre_index.out "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_10.1.ply
+	# 	./out/pre_index.out "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_01.0.ply
+	# 	./out/pre_index.out "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_01.2.ply
+	# 	./out/pre_index.out "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_01.3.ply
+	# 	./out/pre_index.out "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_"$i"/q_01.4.ply
 	# done
 
 ### extract queries from db - indoor_scans (Rand)
@@ -157,14 +210,35 @@ spec_rm_list=( 01392 06127 07216 08330 06144
 
 ### from raw to db - obj_scans
 
+	# # copy raw objects to origin/, the selected density is 40~200 points per object, scale multiplied by 1000
 	# mkdir -p "$DIR_OBJ_DB"/origin/
 	# ./out/filter.out "$DIR_RAW"/obj_scans/obj_scans_8/ "$DIR_OBJ_DB"/origin/ 1000 -batch
 
+	# # expand the original 441 objects to 441 * 10000 objects, and save them to all/
 	# mkdir -p "$DIR_OBJ_DB"/all/
 	# ./out/obj_gen.out "$DIR_OBJ_DB"/origin/ 10000 "$DIR_OBJ_DB"/all/ -batch
 
+	# # copy raw dense objects to z_dense/origin/, the selected density is 800~4000 points per object, approx. 20 times standard objects, scale multiplied by 1000
+	# mkdir -p "$DIR_OBJ_DB"/z_dense/origin/
+	# ./out/filter.out "$DIR_RAW"/obj_scans/obj_scans_dense/ "$DIR_OBJ_DB"/z_dense/origin/ 1000 -batch
+
+	# # similarly expand the dense original 441 objects to 441 * 100 objects
+	# mkdir -p "$DIR_OBJ_DB"/z_dense/all/
+	# ./out/obj_gen.out "$DIR_OBJ_DB"/z_dense/origin/ 100 "$DIR_OBJ_DB"/z_dense/all/ -batch
+
+	# # copy raw dense different sampling rate objects, +1~+5 is density ratio 1.2~1.4~2, -1~-5 is density ratio 0.9~0.8~0.5
+	# for i in {1..5}; do
+	# 	mkdir -p "$DIR_OBJ_DB"/z_dense/origin+"$i"/
+	# 	./out/filter.out "$DIR_RAW"/obj_scans/obj_scans_dense+"$i"/ "$DIR_OBJ_DB"/z_dense/origin+"$i"/ 1000 -batch
+
+	# 	mkdir -p "$DIR_OBJ_DB"/z_dense/origin-"$i"/
+	# 	./out/filter.out "$DIR_RAW"/obj_scans/obj_scans_dense-"$i"/ "$DIR_OBJ_DB"/z_dense/origin-"$i"/ 1000 -batch
+	# done
+
 ### pre-process the spec queries
 
+	# # make 50 objects that are very similar to each spec object, first one is exactly the spec object
+	# # 50 is because later we need to add 50 similar objects together as the query answer
 	# mkdir -p "$DIR_OBJ_DB"/sel_queries/
 	# prop=0.1
 	# sigma=1
@@ -173,12 +247,56 @@ spec_rm_list=( 01392 06127 07216 08330 06144
 	# 	./out/noise.out "$DIR_OBJ_DB"/origin/"$sp_id".ply "$prop" "$sigma" "$num" "$DIR_OBJ_DB"/sel_queries/"$sp_id"
 	# done
 
+	# # the same for rm sets, which is, for each spec, we pick some approx. same size query to diminish the error of single object
 	# mkdir -p "$DIR_OBJ_DB"/sel_queries_rm/
 	# prop=0.1
 	# sigma=1
 	# num=49
 	# for sp_id in "${spec_rm_list[@]}"; do
 	# 	./out/noise.out "$DIR_OBJ_DB"/origin/"$sp_id".ply "$prop" "$sigma" "$num" "$DIR_OBJ_DB"/sel_queries_rm/"$sp_id"
+	# done
+
+	# # the same for dense sets, but we only need 5 very similar objects
+	# mkdir -p "$DIR_OBJ_DB"/z_dense/sel_queries/
+	# prop=0.1
+	# sigma=1
+	# num=4
+	# for sp_id in "${spec_list[@]}"; do
+	# 	./out/noise.out "$DIR_OBJ_DB"/z_dense/origin/"$sp_id".ply "$prop" "$sigma" "$num" "$DIR_OBJ_DB"/z_dense/sel_queries/"$sp_id"
+	# done
+
+	# # the same for dense different sampling rate sets
+	# for i in {1..5}; do
+	# 	mkdir -p "$DIR_OBJ_DB"/z_dense/sel_queries+"$i"/
+	# 	mkdir -p "$DIR_OBJ_DB"/z_dense/sel_queries-"$i"/
+	# 	prop=0.1
+	# 	sigma=1
+	# 	num=4
+	# 	for sp_id in "${spec_list[@]}"; do
+	# 		./out/noise.out "$DIR_OBJ_DB"/z_dense/origin+"$i"/"$sp_id".ply "$prop" "$sigma" "$num" "$DIR_OBJ_DB"/z_dense/sel_queries+"$i"/"$sp_id"
+	# 		./out/noise.out "$DIR_OBJ_DB"/z_dense/origin-"$i"/"$sp_id".ply "$prop" "$sigma" "$num" "$DIR_OBJ_DB"/z_dense/sel_queries-"$i"/"$sp_id"
+	# 	done
+	# done
+
+	# # the same for rm sets
+	# mkdir -p "$DIR_OBJ_DB"/z_dense/sel_queries_rm/
+	# prop=0.1
+	# sigma=1
+	# num=4
+	# for sp_id in "${spec_rm_list[@]}"; do
+	# 	./out/noise.out "$DIR_OBJ_DB"/z_dense/origin/"$sp_id".ply "$prop" "$sigma" "$num" "$DIR_OBJ_DB"/z_dense/sel_queries_rm/"$sp_id"
+	# done
+
+	# for i in {1..5}; do
+	# 	mkdir -p "$DIR_OBJ_DB"/z_dense/sel_queries_rm+"$i"/
+	# 	mkdir -p "$DIR_OBJ_DB"/z_dense/sel_queries_rm-"$i"/
+	# 	prop=0.1
+	# 	sigma=1
+	# 	num=4
+	# 	for sp_id in "${spec_rm_list[@]}"; do
+	# 		./out/noise.out "$DIR_OBJ_DB"/z_dense/origin+"$i"/"$sp_id".ply "$prop" "$sigma" "$num" "$DIR_OBJ_DB"/z_dense/sel_queries_rm+"$i"/"$sp_id"
+	# 		./out/noise.out "$DIR_OBJ_DB"/z_dense/origin-"$i"/"$sp_id".ply "$prop" "$sigma" "$num" "$DIR_OBJ_DB"/z_dense/sel_queries_rm-"$i"/"$sp_id"
+	# 	done
 	# done
 
 ### make soft links to select / create varied no. of object scans
@@ -189,15 +307,25 @@ spec_rm_list=( 01392 06127 07216 08330 06144
 	# mkdir -p "$DIR_OBJ_DB"/4_sel_100k/
 	# mkdir -p "$DIR_OBJ_DB"/5_sel_001m/
 
+	# # 1: 95*1+5*(1+0), 2: 245*4+5*(2+2), 3: 395*25+5*(5+20), 4: 395*250+5*(10+240), 5: 395*2500+5*(50+2450)
 	# ./out/obj_batch_sel.out "$DIR_OBJ_DB"/origin/ "$DIR_OBJ_DB"/all/ "$DIR_OBJ_DB"/sel_queries/ "$DIR_OBJ_DB" # need remake
 
 	# mkdir -p "$DIR_OBJ_DB"/2_sel_001k_rm/
 
+	# # 225*4+25*(2+2)
 	# ./out/obj_batch_sel.out "$DIR_OBJ_DB"/origin/ "$DIR_OBJ_DB"/all/ "$DIR_OBJ_DB"/sel_queries_rm/ "$DIR_OBJ_DB" # need remake
 
 	# mkdir -p "$DIR_OBJ_DB"/2_sel_001k_vk/
 
 	# ./out/obj_batch_sel.out "$DIR_OBJ_DB"/origin/ "$DIR_OBJ_DB"/all/ "$DIR_OBJ_DB"/sel_queries/ "$DIR_OBJ_DB" # need remake
+
+	# mkdir -p "$DIR_OBJ_DB"/z_dense/1_sel_100i/
+	# mkdir -p "$DIR_OBJ_DB"/z_dense/2_sel_001k/
+	# mkdir -p "$DIR_OBJ_DB"/z_dense/3_sel_010k/
+	# ./out/obj_batch_sel.out "$DIR_OBJ_DB"/z_dense/origin/ "$DIR_OBJ_DB"/z_dense/all/ "$DIR_OBJ_DB"/z_dense/sel_queries/ "$DIR_OBJ_DB"/z_dense/ # need remake
+
+	# mkdir -p "$DIR_OBJ_DB"/z_dense/2_sel_001k_rm/
+	# ./out/obj_batch_sel.out "$DIR_OBJ_DB"/z_dense/origin/ "$DIR_OBJ_DB"/z_dense/all/ "$DIR_OBJ_DB"/z_dense/sel_queries_rm/ "$DIR_OBJ_DB"/z_dense/ # need remake
 
 ### build rstree index for db
 
@@ -212,40 +340,151 @@ spec_rm_list=( 01392 06127 07216 08330 06144
 	# ./out/obj_pre_index.out "$DIR_OBJ_DB"/2_sel_001k_rm/
 
 	# ./out/obj_pre_index.out "$DIR_OBJ_DB"/2_sel_001k_vk/
+
+	# ./out/obj_pre_index.out "$DIR_OBJ_DB"/z_dense/1_sel_100i/
+	# ./out/obj_pre_index.out "$DIR_OBJ_DB"/z_dense/2_sel_001k/
+	# ./out/obj_pre_index.out "$DIR_OBJ_DB"/z_dense/3_sel_010k/
+	# ./out/obj_pre_index.out "$DIR_OBJ_DB"/z_dense/2_sel_001k_rm/
 	
 ### extract queries from db - obj_scans (Spec)
 
+	# # copy spec(s00) to query, q_01, ..., q_05
 	# mkdir -p "$DIR_OBJ_QUERY"/spec/
+	# mkdir -p "$DIR_OBJ_QUERY"/spec_dense/
 	# for nl in {0..4}; do
 	# 	for i in {0..4}; do
-	# 		./out/obj_query_spec.out "$DIR_OBJ_DB"/sel_queries/"${spec_list[i]}"s00.ply "$nl" "$DIR_OBJ_QUERY"/spec/q_0"$((i+1))"."$nl".ply
+	# 		./out/obj_query_spec.out "$DIR_OBJ_DB"/sel_queries/"${spec_list[i]}"s00.ply         "$nl" "$DIR_OBJ_QUERY"/spec/q_0"$((i+1))"."$nl".ply
+	# 		./out/obj_query_spec.out "$DIR_OBJ_DB"/z_dense/sel_queries/"${spec_list[i]}"s00.ply "$nl" "$DIR_OBJ_QUERY"/spec_dense/q_0"$((i+1))"."$nl".ply
 	# 	done
 	# done
 
+	# # copy spec(s00)_rm to query, q_010, q_011, ..., q_014, q_020, ..., q_024, ..., q_050, ..., q_054
 	# mkdir -p "$DIR_OBJ_QUERY"/spec_rm/
+	# mkdir -p "$DIR_OBJ_QUERY"/spec_rm_dense/
 	# for nl in 0 1; do
 	# 	for i in {0..4}; do
 	# 		for j in {0..4}; do
-	# 			./out/obj_query_spec.out "$DIR_OBJ_DB"/sel_queries_rm/"${spec_rm_list[(($i * 5 + $j))]}"s00.ply "$nl" "$DIR_OBJ_QUERY"/spec_rm/q_0"$((i+1))$j"."$nl".ply
+	# 			./out/obj_query_spec.out "$DIR_OBJ_DB"/sel_queries_rm/"${spec_rm_list[(($i*5+$j))]}"s00.ply         "$nl" "$DIR_OBJ_QUERY"/spec_rm/q_0"$((i+1))$j"."$nl".ply
+	# 			./out/obj_query_spec.out "$DIR_OBJ_DB"/z_dense/sel_queries_rm/"${spec_rm_list[(($i*5+$j))]}"s00.ply "$nl" "$DIR_OBJ_QUERY"/spec_rm_dense/q_0"$((i+1))$j"."$nl".ply
 	# 		done
 	# 	done
 	# done
+
+	# for d in {1..5}; do
+	# 	mkdir -p "$DIR_OBJ_QUERY"/spec_dense+"$d"/
+	# 	mkdir -p "$DIR_OBJ_QUERY"/spec_dense-"$d"/
+	# 	for nl in {0..4}; do
+	# 		for i in {0..4}; do
+	# 			./out/obj_query_spec.out "$DIR_OBJ_DB"/z_dense/sel_queries+"$d"/"${spec_list[i]}"s00.ply "$nl" "$DIR_OBJ_QUERY"/spec_dense+"$d"/q_0"$((i+1))"."$nl".ply
+	# 			./out/obj_query_spec.out "$DIR_OBJ_DB"/z_dense/sel_queries-"$d"/"${spec_list[i]}"s00.ply "$nl" "$DIR_OBJ_QUERY"/spec_dense-"$d"/q_0"$((i+1))"."$nl".ply
+	# 		done
+	# 	done
+
+	# 	mkdir -p "$DIR_OBJ_QUERY"/spec_rm_dense+"$d"/
+	# 	mkdir -p "$DIR_OBJ_QUERY"/spec_rm_dense-"$d"/
+	# 	for nl in 0 1; do
+	# 		for i in {0..4}; do
+	# 			for j in {0..4}; do
+	# 				./out/obj_query_spec.out "$DIR_OBJ_DB"/z_dense/sel_queries_rm+"$d"/"${spec_rm_list[(($i*5+$j))]}"s00.ply "$nl" "$DIR_OBJ_QUERY"/spec_rm_dense+"$d"/q_0"$((i+1))$j"."$nl".ply
+	# 				./out/obj_query_spec.out "$DIR_OBJ_DB"/z_dense/sel_queries_rm-"$d"/"${spec_rm_list[(($i*5+$j))]}"s00.ply "$nl" "$DIR_OBJ_QUERY"/spec_rm_dense-"$d"/q_0"$((i+1))$j"."$nl".ply
+	# 			done
+	# 		done
+	# 	done
+	# done
+
+	# for nl in {0..4}; do
+	# 	for i in {0..4}; do
+	# 		./out/dye.out "$DIR_OBJ_DB"/z_dense/sel_queries/"${spec_list[i]}"s00.ply "$DIR_OBJ_QUERY"/spec_dense/q_0"$((i+1))"."$nl".ply \
+	# 		"$DIR_OBJ_QUERY"/spec_dense/q_0"$((i+1))"."$nl".ply.trans
+	# 	done
+	# done
+	# for nl in 0 1; do
+	# 	for i in {0..4}; do
+	# 		for j in {0..4}; do
+	# 			./out/dye.out "$DIR_OBJ_DB"/z_dense/sel_queries_rm/"${spec_rm_list[(($i*5+$j))]}"s00.ply "$DIR_OBJ_QUERY"/spec_rm_dense/q_0"$((i+1))$j"."$nl".ply \
+	# 			"$DIR_OBJ_QUERY"/spec_rm_dense/q_0"$((i+1))$j"."$nl".ply.trans
+	# 		done
+	# 	done
+	# done
+
+	# for d in {1..5}; do
+	# 	for nl in {0..4}; do
+	# 		for i in {0..4}; do
+	# 			./out/dye.out "$DIR_OBJ_DB"/z_dense/sel_queries+"$d"/"${spec_list[i]}"s00.ply "$DIR_OBJ_QUERY"/spec_dense+"$d"/q_0"$((i+1))"."$nl".ply \
+	# 			"$DIR_OBJ_QUERY"/spec_dense+"$d"/q_0"$((i+1))"."$nl".ply.trans
+	# 			./out/dye.out "$DIR_OBJ_DB"/z_dense/sel_queries-"$d"/"${spec_list[i]}"s00.ply "$DIR_OBJ_QUERY"/spec_dense-"$d"/q_0"$((i+1))"."$nl".ply \
+	# 			"$DIR_OBJ_QUERY"/spec_dense-"$d"/q_0"$((i+1))"."$nl".ply.trans
+	# 		done
+	# 	done
+	# 	for nl in 0 1; do
+	# 		for i in {0..4}; do
+	# 			for j in {0..4}; do
+	# 				./out/dye.out "$DIR_OBJ_DB"/z_dense/sel_queries_rm+"$d"/"${spec_rm_list[(($i*5+$j))]}"s00.ply "$DIR_OBJ_QUERY"/spec_rm_dense+"$d"/q_0"$((i+1))$j"."$nl".ply \
+	# 				"$DIR_OBJ_QUERY"/spec_rm_dense+"$d"/q_0"$((i+1))$j"."$nl".ply.trans
+	# 				./out/dye.out "$DIR_OBJ_DB"/z_dense/sel_queries_rm-"$d"/"${spec_rm_list[(($i*5+$j))]}"s00.ply "$DIR_OBJ_QUERY"/spec_rm_dense-"$d"/q_0"$((i+1))$j"."$nl".ply \
+	# 				"$DIR_OBJ_QUERY"/spec_rm_dense-"$d"/q_0"$((i+1))$j"."$nl".ply.trans
+	# 			done
+	# 		done
+	# 	done
+	# done
+
+	# for nl in {0..4}; do
+	# 	for i in {0..4}; do
+	# 		./out/dye.out "$DIR_OBJ_DB"/z_dense/sel_queries/"${spec_list[i]}"s00.ply "$DIR_OBJ_QUERY"/spec_dense_recon_dense/q_0"$((i+1))"."$nl".ply \
+	# 		"$DIR_OBJ_QUERY"/spec_dense/q_0"$((i+1))"."$nl".ply.trans
+	# 	done
+	# done
+	# for d in {1..5}; do
+	# 	for nl in {0..4}; do
+	# 		for i in {0..4}; do
+	# 			./out/dye.out "$DIR_OBJ_DB"/z_dense/sel_queries+"$d"/"${spec_list[i]}"s00.ply "$DIR_OBJ_QUERY"/spec_dense_recon_dense+"$d"/q_0"$((i+1))"."$nl".ply \
+	# 			"$DIR_OBJ_QUERY"/spec_dense+"$d"/q_0"$((i+1))"."$nl".ply.trans
+	# 			./out/dye.out "$DIR_OBJ_DB"/z_dense/sel_queries-"$d"/"${spec_list[i]}"s00.ply "$DIR_OBJ_QUERY"/spec_dense_recon_dense-"$d"/q_0"$((i+1))"."$nl".ply \
+	# 			"$DIR_OBJ_QUERY"/spec_dense-"$d"/q_0"$((i+1))"."$nl".ply.trans
+	# 		done
+	# 	done
+	# done
+
 
 ### build rstree index for query - obj_scans (Spec)
 
-	# for j in {1..5}; do # j->query id
-	# 	for k in {0..4}; do # k->noise level
-	# 		./out/pre_index.out "$DIR_OBJ_QUERY"/spec/q_0"$j"."$k".ply
-	# 	done
-	# done
+	for j in {1..5}; do # j->query id
+		for k in {0..4}; do # k->noise level
+			# ./out/pre_index.out "$DIR_OBJ_QUERY"/spec/q_0"$j"."$k".ply
+			# ./out/pre_index.out "$DIR_OBJ_QUERY"/spec_dense/q_0"$j"."$k".ply
+			./out/pre_index.out "$DIR_OBJ_QUERY"/spec_dense_recon_dense/q_0"$j"."$k".ply
+		done
+	done
 
-	# for i in {1..5}; do
-	# 	for j in {0..4}; do
-	# 		for k in 0 1; do
-	# 			./out/pre_index.out "$DIR_OBJ_QUERY"/spec_rm/q_0"$i$j"."$k".ply
+	for i in {1..5}; do
+		for j in {0..4}; do
+			for k in 0 1; do
+				# ./out/pre_index.out "$DIR_OBJ_QUERY"/spec_rm/q_0"$i$j"."$k".ply
+				# ./out/pre_index.out "$DIR_OBJ_QUERY"/spec_rm_dense/q_0"$i$j"."$k".ply
+			done
+		done
+	done
+
+	# for d in {1..5}; do
+	# 	for j in {1..5}; do # j->query id
+	# 		for k in {0..4}; do # k->noise level
+	# 			./out/pre_index.out "$DIR_OBJ_QUERY"/spec_dense+"$d"/q_0"$j"."$k".ply
+	# 			./out/pre_index.out "$DIR_OBJ_QUERY"/spec_dense-"$d"/q_0"$j"."$k".ply
+
+	# 			./out/pre_index.out "$DIR_OBJ_QUERY"/spec_dense_recon_dense+"$d"/q_0"$j"."$k".ply
+	# 			./out/pre_index.out "$DIR_OBJ_QUERY"/spec_dense_recon_dense-"$d"/q_0"$j"."$k".ply
+	# 		done
+	# 	done
+	# 	for i in {1..5}; do
+	# 		for j in {0..4}; do
+	# 			for k in 0 1; do
+	# 				./out/pre_index.out "$DIR_OBJ_QUERY"/spec_rm_dense+"$d"/q_0"$i$j"."$k".ply
+	# 				./out/pre_index.out "$DIR_OBJ_QUERY"/spec_rm_dense-"$d"/q_0"$i$j"."$k".ply
+	# 			done
 	# 		done
 	# 	done
 	# done
+
 
 ### extract queries from db - obj_scans (Rand)
 

@@ -12,23 +12,21 @@ using namespace std;
 int main(int argc, char **argv) {
 
     if (argc < 3) {
-        cerr << "Usage: " << argv[0] << " database_path query_filename [-delta=...] [-stat=...] [-cheat=...]*" << endl;
+        cerr << "Usage: " << argv[0] << " database_path query_filename delta [-stat=...] [-cheat=...]*" << endl;
         exit(1);
     }
 
     bool write_stat = false;
     string stat_filename;
-    bool spec_delta; // when PROB, delta might be specified or automatically assigned
-    double delta;
     unordered_set<int> cheat_set;
     for (int i = 0; i < argc; i++) {
         string argv_str(argv[i]);
         if (argv_str.rfind("-stat", 0) == 0) {
             write_stat = true;
             stat_filename = string(argv[i] + 6);
-        } else if (argv_str.rfind("-delta", 0) == 0) {
-            delta = atof(argv[i] + 7);
-            spec_delta = true;
+        // } else if (argv_str.rfind("-delta", 0) == 0) {
+            // delta = atof(argv[i] + 7);
+            // spec_delta = true;
         } else if (argv_str.rfind("-cheat", 0) == 0) {
         	cheat_set.insert(atoi(argv[i] + 7));
         }
@@ -37,12 +35,11 @@ int main(int argc, char **argv) {
     int argi = 0;
     string db_path = argv[(++argi)];
     string query_filename = argv[(++argi)];
+    double delta = atof(argv[(++argi)]);
 
     cout << "Input db_path: " << db_path << endl;
     cout << "Input query_filename: " << query_filename << endl;
-    if (spec_delta) {
-        cout << "Input delta: " << delta << endl;
-    }
+    cout << "Input delta: " << delta << endl;
     cout << endl;
 
     cout << "Reading database files from " << db_path << endl;
@@ -70,14 +67,10 @@ int main(int argc, char **argv) {
     }
 
     double q_diam = mesh_q.get_bsphere_d();
-    if (!spec_delta) {
-        delta = sq(s_q.sigma);
-    } else {
-        delta *= q_diam;
-    }
+    delta *= q_diam;
     cout << "Diameter of query mesh: " << q_diam << ", thus delta is set to " << delta << endl;
 
-    double sse = delta * (double) mesh_q.size(); // input (or extracted) delta is actually MSE
+    double sse = delta * (double) mesh_q.size(); // input delta is actually MSE
     cout << "Final SSE by number of query: " << sse << endl;
 	
 	cout << endl;
@@ -98,7 +91,7 @@ int main(int argc, char **argv) {
 
     	cout << "For mesh #" << (i + 1) << endl;
 
-    	bool verbose = false;
+    	bool verbose = true;
     	bool use_dt = true;
     	int dt_size = 200; // or 50 for fast cheat?
     	if (cheat_set.find(i) != cheat_set.end()) {

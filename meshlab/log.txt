@@ -1,0 +1,10 @@
+Mesh /csproject/kdd/hliubs/proj_sync/git/spatial/meshlab/q_01.1.ply loaded has 2603 vn 0 fn
+output mesh  /csproject/kdd/hliubs/proj_sync/git/spatial/meshlab/output.ply
+vertex normals, Apply FilterScript: '/csproject/kdd/hliubs/proj_sync/git/spatial/meshlab/cal_normal.mlx'
+Starting Script of 1 actionsfilter: Compute normals for point sets
+Mesh /csproject/kdd/hliubs/proj_sync/git/spatial/meshlab/q_01.1.ply saved as /csproject/kdd/hliubs/proj_sync/git/spatial/meshlab/output.ply (2603 vn 0 fn)
+Mesh /csproject/kdd/hliubs/proj_sync/git/spatial/meshlab/q_01.1.ply loaded has 2603 vn 0 fn
+output mesh  /csproject/kdd/hliubs/proj_sync/git/spatial/meshlab/output.ply
+vertex normals, Apply FilterScript: '/csproject/kdd/hliubs/proj_sync/git/spatial/meshlab/cal_normal.mlx'
+Starting Script of 1 actionsfilter: Compute normals for point sets
+Mesh /csproject/kdd/hliubs/proj_sync/git/spatial/meshlab/q_01.1.ply saved as /csproject/kdd/hliubs/proj_sync/git/spatial/meshlab/output.ply (2603 vn 0 fn)

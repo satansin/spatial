@@ -1,7 +1,6 @@
 #include "point.h"
 #include "trans.h"
 #include "util.h"
-// #include "mesh.h"
 #include "c_rtree.h"
 #include "RTree.h"
 #include "struct_q.h"
@@ -16,6 +15,36 @@
 
 using namespace std;
 using namespace trimesh;
+
+struct S_color {
+    double clr[3];
+};
+// #ifdef _GEN
+//     // const double COLOR_THRESH = 0.015; // for superg4pcs dsr queries
+//     const double COLOR_THRESH = 0.05;
+// #else
+//     // const double COLOR_THRESH = 0.02; // for super4pcs dsr queries
+//     const double COLOR_THRESH = 0.05; // for super4pcs dsr queries
+// #endif
+double color_err;
+vector<S_color> color_q;
+S_color* bq_clr[4];
+
+S_color get_p_color(Pt3D* p, Mesh* mesh_p) {
+    S_color p_color;
+    p_color.clr[0] = (p->x - mesh_p->get_box_min(0)) / (mesh_p->get_box_max(0) - mesh_p->get_box_min(0));
+    p_color.clr[1] = (p->y - mesh_p->get_box_min(1)) / (mesh_p->get_box_max(1) - mesh_p->get_box_min(1));
+    p_color.clr[2] = (p->z - mesh_p->get_box_min(2)) / (mesh_p->get_box_max(2) - mesh_p->get_box_min(2));
+    return p_color;
+}
+bool same_color(S_color* c1, S_color* c2) {
+    for (int i = 0; i < 3; i++) {
+        if (abs(c1->clr[i] - c2->clr[i]) > color_err) {
+            return false;
+        }
+    }
+    return true;
+}
 
 struct Congr_base {
     int bp[4];
@@ -38,9 +67,10 @@ struct Congr_base {
 //   superg4pcs: match-base: angle threshold of bases
 //   superg4pcs: an equational threshold
 // const double THRESHOLD_LIST[5] = { 0.01, 10, 0.01, 0.01, 0.01 }; // dense point set (obj) & comp_7, !!don't change this!!
-const double THRESHOLD_LIST[5] = { 0.01, 10, 0.01, 0.01, 0.1 }; // det values
+// const double THRESHOLD_LIST[5] = { 0.01, 10, 0.01, 0.01, 0.1 }; // det values
 // const double THRESHOLD_LIST[5] = { 0.01, 1, 0.01, 0.01, 0.01 }; // prob: comp_6, !!don't change this!! -> now this is also for comp_7
 // const double THRESHOLD_LIST[5] = { 0.01, 1, 0.1, 0.05, 0.2 }; // det values
+const double THRESHOLD_LIST[5] = { 0.01, 1, 0.01, 0.01, 0.1 }; // comp_5, dsr queries
 const int MAX_TRIAL = 50000;
 
 struct Dist_pair {
@@ -394,16 +424,17 @@ int match_base_in_db_mesh_gen(Mesh* mesh_p, C_RTree* r_tree, double d, double l,
 
         auto p = mesh_p->get_pt(i);
 
+        #ifdef _CLR
+            auto p_color = get_p_color(p, mesh_p);
+            if (!(same_color(&p_color, bq_clr[0]) || same_color(&p_color, bq_clr[1]) || same_color(&p_color, bq_clr[2]) || same_color(&p_color, bq_clr[3]))) {
+                continue;
+            }
+        #endif
+
         intersection_ret.clear();
         r_tree->range_sphere_dist_err(p, d, err, intersection_ret);
 
-        // if (db_id == 0 && (i == 963 || i == 973 || i == 959 || i == 966)) {
-        //     cout << "For i = " << i << ":";
-        //     for (auto &v: intersection_ret) {
-        //         cout << " " << v;
-        //     }
-        //     cout << endl;
-        // }
+        // cout << intersection_ret.size() << endl;
 
         for (auto &r: intersection_ret) {
             eps.emplace_back(i, r, mesh_p, la, mu);
@@ -448,11 +479,6 @@ int match_base_in_db_mesh_gen(Mesh* mesh_p, C_RTree* r_tree, double d, double l,
 
                 // cout << dot_prd(ep1, ef) << endl;
 
-                // if (e_ep.p1 == 856 && e_ep.p2 == 882 && eps[i].p1 == 854 && eps[i].p2 == 874 && db_id == 0) {
-                // 	cout << (dot_prd(&ep1, &ef) / (ep1.mode() * ef.mode())) << endl;
-                // 	cout << (dot_prd(&ep1, &fp3)) / (ep1_mode * fp3.mode() - angle) << endl;
-                // }
-
                 if (abs(dot_prd(&ep1, &ef) / (ep1.mode() * ef.mode())) > THRESHOLD_LIST[4]) {
                     continue;
                 }
@@ -486,6 +512,13 @@ int match_base_in_db_mesh(Mesh* mesh_p, C_RTree* r_tree, double d12_q, double d3
     for (int i = 0; i < n; i++) {
 
         auto p = mesh_p->get_pt(i);
+
+        #ifdef _CLR
+            auto p_color = get_p_color(p, mesh_p);
+            if (!(same_color(&p_color, bq_clr[0]) || same_color(&p_color, bq_clr[1]) || same_color(&p_color, bq_clr[2]) || same_color(&p_color, bq_clr[3]))) {
+                continue;
+            }
+        #endif
 
         intersection_ret.clear();
         r_tree->range_sphere_dist_err(p, d12_q, err, intersection_ret);
@@ -611,16 +644,17 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struc
         return false;
     }
 
-    // ran[0] = 56;
-    // ran[1] = 3;
-    // ran[2] = 9;
-    // ran[3] = 52;
     cout << ran[0] << " " << ran[1] << " " << ran[2] << " " << ran[3] << endl;
 
     Pt3D* bq_ptr[4];
     for (int i = 0; i < 4; i++) {
         bq_ptr[i] = mesh_q->get_pt(ran[i]);
     }
+    #ifdef _CLR
+        for (int i = 0; i < 4; i++) {
+            bq_clr[i] = &color_q[ran[i]];
+        }
+    #endif
 
     for (int i = 0; i < db_meshes->size(); i++) {
         // cout << "Match base in db#" << i << endl;
@@ -633,19 +667,12 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struc
         // cout << "Returned matched: " << ret_size << endl;
     }
 
-    // if (ran[0] == 7 && ran[1] == 23 && ran[2] == 5 && ran[3] == 18) {
-    //     ret.emplace_back(856, 882, 854, 874, 0);
-    //     cout << "total: (" << ret.size() << ")" << endl;
-    //     for (auto &r: ret) {
-    //         if (r.db_id == 0)
-    //             cout << r.db_id << ": " << r.bp[0] << " " << r.bp[1] << " " << r.bp[2] << " " << r.bp[3] << endl;
-    //     }
-    // }
-
     iter_prop_time = timer_end(SECOND);
 
     timer_start();
     timer_start();
+
+    cout << ret.size() << endl;
 
     // Step 1: calculate transformation, initial distance, and leave those for step 2&3
     for (auto &r: ret) {
@@ -653,6 +680,23 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struc
         for (int j = 0; j < 4; j++) {
             bp_ptr[j] = db_meshes->get_mesh(r.db_id)->get_pt(r.bp[j]);
         }
+
+        // #ifdef _CLR
+        //     bool color_match = true;
+        //     for (int j = 0; j < 4; j++) {
+        //         auto p_color = get_p_color(bp_ptr[j], db_meshes->get_mesh(r.db_id));
+        //         if (!same_color(&p_color, bq_clr[j])) {
+        //             color_match = false;
+        //             break;
+        //         }
+        //     }
+        //     if (!color_match) {
+        //         continue;
+        //     }
+        // #endif
+
+        // cout << "checking" << endl;
+        
         cal_trans(bq_ptr, bp_ptr, 4, r.xf);
         // r.init_dist = db_meshes->cal_corr_err(mesh_q, r.db_id, &r.xf); // TODO: use another unimplemented interface
         r.init_dist = db_meshes->cal_corr_err(mesh_q, r.db_id, &r.xf, delta); // TODO: simplified method, stops when error is larger
@@ -660,6 +704,8 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struc
 
         // if (r.init_dist <= sq(delta)) {
         if (r.init_dist >= 0) {
+            cout << "Dist: " << r.init_dist << "(MSE=" << (r.init_dist / (double) mesh_q->size() / mesh_q->get_bsphere_d()) << ")" << endl;
+            cout << "Matched with DB #" << r.db_id << ": " << db_meshes->get_mesh(r.db_id)->get_filename() << endl;
             iter_num_verified++;
             if (iter_num_verified == 1 && !iter_found_one) {
                 iter_first_time = timer_end(SECOND);
@@ -670,36 +716,36 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struc
         }
     }
 
-    // Step 2: perform the ICP-only check
-    if (!iter_found_one) {
-	    for (auto &r: ret_left_icp_only) {
-	        double init_dist = db_meshes->cal_corr_err(mesh_q, r->db_id, &r->xf);
-	        // cout << "Initial distance: " << init_dist << endl;
-	        double r_array[9] {
-	            r->xf.r11, r->xf.r12, r->xf.r13,
-	            r->xf.r21, r->xf.r22, r->xf.r23,
-	            r->xf.r31, r->xf.r32, r->xf.r33
-	        };
-	        ICP_Matrix R_icp(3, 3, r_array);
-	        double t_array[3] {
-	            r->xf.tx, r->xf.ty, r->xf.tz
-	        };
-	        ICP_Matrix t_icp(3, 1, t_array);
-	        double updated_err = m_icps[r->db_id]->Run(m_query_icp, mesh_q->size(), R_icp, t_icp);
-	        // cout << "Updated distance with ICP-only: " << updated_err << endl;
+    // // Step 2: perform the ICP-only check
+    // if (!iter_found_one) {
+	   //  for (auto &r: ret_left_icp_only) {
+	   //      double init_dist = db_meshes->cal_corr_err(mesh_q, r->db_id, &r->xf);
+	   //      // cout << "Initial distance: " << init_dist << endl;
+	   //      double r_array[9] {
+	   //          r->xf.r11, r->xf.r12, r->xf.r13,
+	   //          r->xf.r21, r->xf.r22, r->xf.r23,
+	   //          r->xf.r31, r->xf.r32, r->xf.r33
+	   //      };
+	   //      ICP_Matrix R_icp(3, 3, r_array);
+	   //      double t_array[3] {
+	   //          r->xf.tx, r->xf.ty, r->xf.tz
+	   //      };
+	   //      ICP_Matrix t_icp(3, 1, t_array);
+	   //      double updated_err = m_icps[r->db_id]->Run(m_query_icp, mesh_q->size(), R_icp, t_icp);
+	   //      // cout << "Updated distance with ICP-only: " << updated_err << endl;
 
-	        if (updated_err <= delta) {
-	            iter_num_verified++;
-	            if (iter_num_verified == 1 && !iter_found_one) {
-	                iter_first_time = timer_end(SECOND);
-	                iter_found_one = true;
-	            }
-	            break;
-	        } else {
-	            ret_left_goicp.push_back(r);
-	        }
-	    }
-    }
+	   //      if (updated_err <= delta) {
+	   //          iter_num_verified++;
+	   //          if (iter_num_verified == 1 && !iter_found_one) {
+	   //              iter_first_time = timer_end(SECOND);
+	   //              iter_found_one = true;
+	   //          }
+	   //          break;
+	   //      } else {
+	   //          ret_left_goicp.push_back(r);
+	   //      }
+	   //  }
+    // }
 
     // // Step 3: perform GoICP
     // for (auto &r: ret_left_goicp) {
@@ -733,6 +779,56 @@ bool iter(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struc
         return false;
 }
 
+#ifdef _TK
+bool exec_tk(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struct_Q* s_q, C_RTree* query_rtree, int k, double delta, double epsilon,
+        GoICP goicp[], vector<ICP3D<float>*>& m_icps, float* m_query_icp, Exec_stat& stat) {
+
+    vector<Exec_stat> stats;
+
+    double exec_delta = delta;
+    double exec_epsilon = epsilon;
+
+    #ifdef _PROB
+        const int k_m = 12;
+    #else
+        const int k_m = 1;
+    #endif
+    int num_trial = 0;
+
+    while (true) {
+
+        cout << "Trial #" << (++num_trial) << " with delta: " << exec_delta << ", epsilon " << exec_epsilon << ": " << endl;
+
+        Exec_stat stat_itr;
+        bool find_accept = false;
+        int num_accepted = 0;
+        for (int t = 0; t < k_m; t++) {
+            find_accept = iter(db_meshes, db_rtrees, mesh_q, s_q, query_rtree, exec_delta, exec_epsilon, goicp, m_icps, m_query_icp, stat_itr);
+            if (find_accept) {
+                num_accepted = stat_itr.num_verified;
+                break;
+            }
+        }
+        stats.push_back(stat_itr);
+
+        if (num_accepted >= k)
+            break;
+
+        #ifndef _PROB
+            exec_epsilon *= 2.0;
+        #endif
+        exec_delta *= 4.0;
+    }
+
+    get_sum_stat(&stats[0], num_trial, stat);
+
+    stat.num_iterations = num_trial;
+
+    return true;
+
+}
+#endif
+
 bool exec(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struct_Q* s_q, C_RTree* query_rtree, double delta, double epsilon,
         GoICP goicp[], vector<ICP3D<float>*>& m_icps, float* m_query_icp, Exec_stat& stat) {
 
@@ -757,32 +853,40 @@ bool exec(DB_Meshes* db_meshes, vector<C_RTree*>& db_rtrees, Mesh* mesh_q, Struc
 
 int main(int argc, char **argv) {
 
-    #ifdef _PROB
-        if (argc < 4) {
-            cerr << "Usage: " << argv[0] << " database_path query_filename epsilon [-delta=...] [-stat=...] [-num_parts=...]" << endl;
-            exit(1);
-        }
+    #ifdef _TK
+        #ifdef _PROB
+            if (argc < 7) {
+                cerr << "Usage: " << argv[0] << " database_path query_filename k delta epsilon color_err [-stat=...] [-num_parts=...]" << endl;
+                exit(1);
+            }
+        #else
+            if (argc < 6) {
+                cerr << "Usage: " << argv[0] << " database_path query_filename k delta color_err [-stat=...] [-num_parts=...]" << endl;
+                exit(1);
+            }
+        #endif
     #else
-        if (argc < 4) {
-            cerr << "Usage: " << argv[0] << " database_path query_filename delta [-stat=...] [-num_parts=...]" << endl;
-            exit(1);
-        }
+        #ifdef _PROB
+            if (argc < 6) {
+                cerr << "Usage: " << argv[0] << " database_path query_filename delta epsilon color_err [-stat=...] [-num_parts=...]" << endl;
+                exit(1);
+            }
+        #else
+            if (argc < 5) {
+                cerr << "Usage: " << argv[0] << " database_path query_filename delta color_err [-stat=...] [-num_parts=...]" << endl;
+                exit(1);
+            }
+        #endif
     #endif
 
     bool write_stat = false;
     string stat_filename = "";
-    double delta;
-    bool spec_delta; // when PROB, delta might be specified or automatically assigned
-    double epsilon;
     int num_parts = 0;
     for (int i = 0; i < argc; i++) {
         string argv_str(argv[i]);
         if (argv_str.rfind("-stat", 0) == 0) {
             write_stat = true;
             stat_filename = string(argv[i] + 6);
-        } else if (argv_str.rfind("-delta", 0) == 0) {
-            delta = atof(argv[i] + 7);
-            spec_delta = true;
         } else if (argv_str.rfind("-num_parts", 0) == 0) {
             num_parts = atoi(argv[i] + 11);
         }
@@ -792,16 +896,24 @@ int main(int argc, char **argv) {
     string db_path = argv[(++argi)];
     string query_filename = argv[(++argi)];
 
+    #ifdef _TK
+        int k = atoi(argv[(++argi)]);
+    #endif
+
+    double delta = atof(argv[(++argi)]);
+    double epsilon = 0;
+
     #ifdef _PROB
         epsilon = atof(argv[(++argi)]);
-    #else
-        delta = atof(argv[(++argi)]);
     #endif
+
+    color_err = atof(argv[(++argi)]);
 
     cout << "db_path: " << db_path << endl;
     cout << "query_filename: " << query_filename << endl;
     cout << "delta: " << delta << endl;
     cout << "epsilon: " << epsilon << endl;
+    cout << "color_err: " << color_err << endl;
     cout << endl;
 
     srand(time(NULL));
@@ -844,22 +956,29 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    double q_diam = mesh_q.get_bsphere_d();
-    #ifdef _PROB
-        if (!spec_delta) {
-            delta = sq(s_q.sigma);
-        } else {
-        	delta *= q_diam;
+    #ifdef _CLR
+        // load the query colors
+        cout << "Reading query color file" << endl;
+        ifstream ifs_color_q(query_filename + ".color");
+        for (int i = 0; i < mesh_q.size(); i++) {
+            S_color s_c;
+            int dummy;
+            ifs_color_q >> dummy;
+            for (int j = 0; j < 3; j++) {
+                ifs_color_q >> s_c.clr[j];
+            }
+            color_q.push_back(s_c);
         }
-        cout << "Diameter of query mesh: " << q_diam << ", thus delta is set to " << delta << endl;
-        delta *= (double) mesh_q.size();
-    #else
-        delta *= (q_diam * (double) mesh_q.size());
-        epsilon = sqrt(delta);
-        cout << "Epsilon is set to " << epsilon << endl;
+        ifs_color_q.close();
     #endif
 
-    cout << "Final delta by number of query: " << delta << endl;
+    double q_diam = mesh_q.get_bsphere_d();
+    delta *= (q_diam * (double) mesh_q.size());
+    cout << "Diameter of query mesh: " << q_diam << ", thus delta is finally set to delta * " << q_diam << " * Q-Size(" << mesh_q.size() << ") = " << delta << endl;
+    #ifndef _PROB
+        epsilon = sqrt(delta); // for deterministic queries, epsilon is set according to delta
+        cout << "Epsilon is finally set to sqrt(delta) = " << epsilon << endl;
+    #endif
 
     // load the query R-tree
     C_RTree query_rtree;
@@ -916,7 +1035,11 @@ int main(int argc, char **argv) {
     for (int exec_i = 0; exec_i < exec_times; exec_i++) {
     	cout << "Execution #" << (exec_i + 1) << ": " << endl << endl;
     	Exec_stat stat = (const struct Exec_stat){ 0 };
-        bool exec_success = exec(&db_meshes, db_rtrees, &mesh_q, &s_q, &query_rtree, delta, epsilon, goicp, m_icps, m_query_icp, stat);
+        #ifdef _TK
+            bool exec_success = exec_tk(&db_meshes, db_rtrees, &mesh_q, &s_q, &query_rtree, k, delta, epsilon, goicp, m_icps, m_query_icp, stat);
+        #else
+            bool exec_success = exec(&db_meshes, db_rtrees, &mesh_q, &s_q, &query_rtree, delta, epsilon, goicp, m_icps, m_query_icp, stat);
+        #endif
         cout << endl;
 
         // cout << "Total number of candidate transformations: " << stat.veri_size << endl;

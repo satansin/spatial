@@ -124,6 +124,8 @@ void write_in_parts(string db_tar_folder, TriMesh* combined_mesh, vector<int>& m
 void exec(int origin_num, vector<string>& origin_names, vector<TriMesh*>& full_meshes, int num_obj, int num_rep, int num_spec, string spec_folder, string db_tar_folder, int num_parts,
 	const unordered_set<int>& spec_set, const unordered_set<int>& empty_set) {
 
+	const int DB_EXT_NUM = 100; // change this such that it matches the all/ size, e.g. if all/ contains 441 * 10000, then set this to 10000
+
 	vector<int> rand_sel_objs;
 	sel_rand_numbers_from_range(0, origin_num - 1, num_obj - spec_set.size(), spec_set, rand_sel_objs);
 
@@ -140,20 +142,20 @@ void exec(int origin_num, vector<string>& origin_names, vector<TriMesh*>& full_m
 
 	for (auto &i: rand_sel_objs) {
 		vector<int> rand_sel_reps;
-		sel_rand_numbers_from_range(0, 9999, num_rep, empty_set, rand_sel_reps);
+		sel_rand_numbers_from_range(0, (DB_EXT_NUM - 1), num_rep, empty_set, rand_sel_reps);
 
 		for (auto &j: rand_sel_reps) {
 			string j_str = to_string(j);
 
 			mesh_names.push_back(origin_names[i] + string(fix_len - j_str.length(), '0') + j_str + ".ply");
 
-			append_mesh(full_meshes[i * 10000 + j], combined_mesh);
-			mesh_sizes.push_back(full_meshes[i * 10000 + j]->vertices.size());
+			append_mesh(full_meshes[i * DB_EXT_NUM + j], combined_mesh);
+			mesh_sizes.push_back(full_meshes[i * DB_EXT_NUM + j]->vertices.size());
 			// cout << "Combined mesh appended: " << combined_mesh->vertices.size() << endl;
 		}
 
 		vector<int>().swap(rand_sel_reps);
-		// clear_mem(full_meshes, i, 10000);
+		// clear_mem(full_meshes, i, DB_EXT_NUM);
 	}
 
 	for (auto &i: spec_set) {
@@ -171,20 +173,20 @@ void exec(int origin_num, vector<string>& origin_names, vector<TriMesh*>& full_m
 		}
 
 		vector<int> rand_sel_reps;
-		sel_rand_numbers_from_range(0, 9999, num_rep - num_spec, empty_set, rand_sel_reps);
+		sel_rand_numbers_from_range(0, (DB_EXT_NUM - 1), num_rep - num_spec, empty_set, rand_sel_reps);
 
 		for (auto &j: rand_sel_reps) {
 			string j_str = to_string(j);
 
 			mesh_names.push_back(origin_names[i] + string(fix_len - j_str.length(), '0') + j_str + ".ply");
 
-			append_mesh(full_meshes[i * 10000 + j], combined_mesh);
-			mesh_sizes.push_back(full_meshes[i * 10000 + j]->vertices.size());
+			append_mesh(full_meshes[i * DB_EXT_NUM + j], combined_mesh);
+			mesh_sizes.push_back(full_meshes[i * DB_EXT_NUM + j]->vertices.size());
 			// cout << "Combined mesh appended: " << combined_mesh->vertices.size() << endl;
 		}
 
 		vector<int>().swap(rand_sel_reps);
-		// clear_mem(full_meshes, i, 10000);
+		// clear_mem(full_meshes, i, DB_EXT_NUM);
 	}
 
 	ofstream ofs_meta(db_tar_folder + "meta.txt");
@@ -252,15 +254,17 @@ int main(int argc, char* argv[]) {
 											376, 3, 281, 213, 195 };
 	const unordered_set<int> spec_single_set = { 340 };
 
+	// !!important: remember to set DB_EXT_NUM properly inside exec function
+
 	// exec(origin_num, origin_names, full_meshes, 100, 1, 1, spec_folder, db_tar_folder + "1_sel_100i/", 1, spec_set, empty_set);
 	// exec(origin_num, origin_names, full_meshes, 250, 4, 2, spec_folder, db_tar_folder + "2_sel_001k/", 1, spec_set, empty_set);
 	// exec(origin_num, origin_names, full_meshes, 400, 25, 5, spec_folder, db_tar_folder + "3_sel_010k/", 1, spec_set, empty_set);
 	// exec(origin_num, origin_names, full_meshes, 400, 250, 10, spec_folder, db_tar_folder + "4_sel_100k/", 1, spec_set, empty_set);
 	// exec(origin_num, origin_names, full_meshes, 400, 2500, 50, spec_folder, db_tar_folder + "5_sel_001m/", 10, spec_set, empty_set);
 
-	// exec(origin_num, origin_names, full_meshes, 250, 4, 2, spec_folder, db_tar_folder + "2_sel_001k_rm/", 1, spec_rm_set, empty_set);
+	exec(origin_num, origin_names, full_meshes, 250, 4, 2, spec_folder, db_tar_folder + "2_sel_001k_rm/", 1, spec_rm_set, empty_set);
 
-	exec(origin_num, origin_names, full_meshes, 20, 50, 50, spec_folder, db_tar_folder + "2_sel_001k_vk/", 1, spec_single_set, empty_set);
+	// exec(origin_num, origin_names, full_meshes, 20, 50, 50, spec_folder, db_tar_folder + "2_sel_001k_vk/", 1, spec_single_set, empty_set);
 
 	clear_mem(full_meshes);
 

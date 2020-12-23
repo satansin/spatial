@@ -61,29 +61,31 @@ public:
         double epsilon_0;
     #endif
 
+    string output_ply;
+
     void read_param(int argc, char** argv) {
 
         #ifdef _TK
             #ifdef _PROB
-                if (argc < 9) {
-                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename_recon query_filename_real k delta epsilon color_err [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+                if (argc < 8) {
+                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename k delta epsilon color_err output_ply [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
                     exit(1);
                 }
             #else
-                if (argc < 8) {
-                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename_recon query_filename_real k delta color_err [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+                if (argc < 7) {
+                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename k delta color_err output_ply [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
                     exit(1);
                 }
             #endif
         #else
             #ifdef _PROB
-                if (argc < 8) {
-                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename_recon query_filename_real delta epsilon color_err [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+                if (argc < 7) {
+                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename delta epsilon color_err output_ply [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
                     exit(1);
                 }
             #else
-                if (argc < 7) {
-                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename_recon query_filename_real delta color_err [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+                if (argc < 6) {
+                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename delta color_err output_ply [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
                     exit(1);
                 }
             #endif
@@ -121,8 +123,8 @@ public:
         db_path = argv[(++argi)];
         grid_filename = argv[(++argi)];
         query_filename_recon = argv[(++argi)];
-        query_filename_real = argv[(++argi)];
-        // query_filename_real = query_filename_recon;
+        // query_filename_real = argv[(++argi)];
+        query_filename_real = query_filename_recon;
 
         #ifdef _TK
             k = atoi(argv[(++argi)]);
@@ -135,6 +137,8 @@ public:
         #endif
 
         color_err = atof(argv[(++argi)]);
+
+        output_ply = argv[(++argi)];
     }
 
     DB_Meshes db_meshes;
@@ -161,7 +165,7 @@ public:
     bool load() {
 
         cout << "Reading database files from " << db_path << endl;
-        const int num_meshes = db_meshes.read_from_path(db_path);
+        const int num_meshes = db_meshes.read_from_file(db_path);
         if (num_meshes < 0) {
             cerr << "Error reading database files" << endl;
             return false;
@@ -227,8 +231,8 @@ public:
         mesh_q_real.read_from_path(query_filename_real);
 
         double q_diam = mesh_q_real.get_bsphere_d();
-        delta *= (q_diam * (double) mesh_q_real.size());
-        cout << "Diameter of query mesh: " << q_diam << ", thus delta is finally set to delta * " << q_diam << " * Q-Size(" << mesh_q_real.size() << ") = " << delta << endl;
+        delta *= q_diam;
+        cout << "Diameter of query mesh: " << q_diam << ", thus delta is finally set to delta * " << q_diam << " = " << delta << endl;
         #ifndef _PROB
             epsilon = sqrt(delta); // for deterministic queries, epsilon is set according to delta
             cout << "Epsilon is finally set to sqrt(delta) = " << epsilon << endl;
@@ -255,7 +259,7 @@ public:
         for (int i = 0; i < db_meshes.size(); i++) {
             auto new_icp = new ICP3D<float>();
             // new_icp->err_diff_def = err_diff;
-            new_icp->err_diff_def = 1; //TODO
+            new_icp->err_diff_def = 0.001; //TODO
             new_icp->do_trim = false;
 
             auto t = db_meshes.get_mesh(i);
@@ -1424,7 +1428,74 @@ void pair_proposal(PtwID* q, Query_Context* qc, vector<Entry*>& v_entries, vecto
     // #endif
 }
 
-bool iter(Query_Context* qc, Exec_stat& stat) {
+bool iter_icp(Query_Context* qc, Exec_stat& stat, Trans& output_xf) {
+
+    stat = (const struct Exec_stat) { 0 };
+
+    timer_start();
+
+    Trans identity_xf = {
+        1.0, 0.0, 0.0,
+        0.0, 1.0, 0.0,
+        0.0, 0.0, 1.0,
+        0.0, 0.0, 0.0
+    };
+
+    double init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, 0, &identity_xf);
+    cout << "Initial distance: " << init_dist << endl;
+
+    int inlier_count = 0;
+    for (int i = 0; i < qc->mesh_q_real.size(); i++) {
+        auto pt = qc->mesh_q_real.get_pt(i);
+        double sing_dist = qc->db_meshes.cal_corr_err(pt->x, pt->y, pt->z, 0);
+        if (sing_dist * sing_dist <= qc->delta) {
+            inlier_count++;
+        }
+    }
+    cout << "Inlier perc: " << ((double) inlier_count / qc->mesh_q_real.size()) << endl;
+
+    double r_array[9] {
+        1.0, 0.0, 0.0,
+        0.0, 1.0, 0.0,
+        0.0, 0.0, 1.0
+    };
+    ICP_Matrix R_icp(3, 3, r_array);
+    double t_array[3] {
+        0.0, 0.0, 0.0
+    };
+    ICP_Matrix t_icp(3, 1, t_array);
+    double updated_err = qc->m_icps[0]->Run(qc->m_query_icp, qc->mesh_q_real.size(), R_icp, t_icp);
+    cout << "Updated distance with ICP-only: " << updated_err << endl;
+
+    cout << R_icp << endl;
+    cout << t_icp << endl;
+
+    output_xf = {
+        R_icp.val[0][0], R_icp.val[0][1], R_icp.val[0][2],
+        R_icp.val[1][0], R_icp.val[1][1], R_icp.val[1][2],
+        R_icp.val[2][0], R_icp.val[2][1], R_icp.val[2][2],
+        t_icp.val[0][0], t_icp.val[0][1], t_icp.val[0][2]
+    };
+    print_trans(&output_xf);
+
+    inlier_count = 0;
+    for (int i = 0; i < qc->mesh_q_real.size(); i++) {
+        auto pt = qc->mesh_q_real.get_pt(i);
+        Pt3D tr_pt;
+        trans_pt(&output_xf, pt, tr_pt);
+        double sing_dist = qc->db_meshes.cal_corr_err(tr_pt.x, tr_pt.y, tr_pt.z, 0);
+        if (sing_dist * sing_dist <= qc->delta) {
+            inlier_count++;
+        }
+    }
+    cout << "Inlier perc: " << ((double) inlier_count / qc->mesh_q_real.size()) << endl;
+
+    stat.user_time = timer_end(SECOND);
+
+    return true;
+}
+
+bool iter(Query_Context* qc, Exec_stat& stat, Trans& output_xf) {
 
     stat = (const struct Exec_stat) { 0 };
 
@@ -1574,152 +1645,91 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
     bool found_one_iter = false;
     double first_time_iter = 0.0;
 
-    vector<Entry_Pair*> ret_left_icp_only;
+    struct Xf_with_rate {
+        double inlier_rate;
+        Trans xf;
+        Xf_with_rate(double ir, Trans p_xf) {
+            inlier_rate = ir;
+            xf = p_xf;
+        }
+        bool operator<(const Xf_with_rate& a) const {
+            return inlier_rate > a.inlier_rate;
+        }
+    };
+
+    vector<Xf_with_rate> xfs;
+
     // Step 1: calculate transformation, initial distance, and leave those for step 2&3
-    int flag = 0;
-    double min_dist = 999999999999;
-    Entry_Pair* min_h = nullptr;
     for (auto &h: *ptr_v_pairs) {
-    	flag++;
-    // 	if (flag == 1 && h->id_db == 0) {
-    // 		cout << "Test flag" << endl;
-    // 		// Trans gt_trans = {
-    // 		// 	0.3469854453, -0.7957764086, 0.4963275212,
-    // 		// 	0.8841788718,  0.4540482132, 0.1098541881,
-    // 		// 	-0.3127759955, 0.4007245034, 0.8611568086,
-    // 		// 	1941.889556, 2613.292487, 920.3011597
-    // 		// }; // ground truth for comp_5
-    // // 		Trans gt_trans = {
-    // // 			0.05323631894, 0.3648394824,  -0.9295472266,
-				// // -0.165052746,  -0.9148487432, -0.3685232259,
-				// // -0.984846935,  0.1730431423,  0.01151457895,
-    // // 			1985.150475, 2547.748512, 969.844323
-    // // 		}; // ground truth for comp_6
-    // 		Trans gt_trans = {
-    // 			0.7079993787, -0.4894832953, 0.5090608838,
-				// 0.4656492706, -0.2183780604, -0.8576023434,
-				// 0.5309497495, 0.8442257556,  0.07331600833,
-    // 			1874.6121, 2497.06769, 938.8244799
-    // 		}; // ground truth for comp_5_5
-
-    // 		double gt_mse = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, h->id_db, &gt_trans);
-    // 		cout << "GT error: " << gt_mse << endl;
-    // 	}
         h->cal_xf();
-        // h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, h->id_db, &h->xf); // TODO: use another unimplemented interface
         // cout << "Cal dist for\n" << h->e_query->to_str() << "\nand\n" << h->e_database->to_str() << "\n in db obj#" << h->id_db << endl;
-        // h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, h->id_db, &h->xf, qc->delta); // TODO: simplified method, stops when error is larger
-        h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, h->id_db, &h->xf, qc->delta); // TODO: simplified method, stops when error is larger
-        // h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, h->id_db, &h->xf); // TODO: simplified method, stops when error is larger
-        // cout << "Initial distance: " << h->init_dist << endl;// << " for pair: " << h->to_str(10) << endl;
-
-        if (h->init_dist < min_dist) {
-        	min_dist = h->init_dist;
-        	min_h = h;
-        }
-
-        // if (h->init_dist <= qc->delta) {
-        if (h->init_dist >= 0) {
-            // print_trans(&h->xf);
-            cout << "Dist: " << h->init_dist << "(MSE=" << (h->init_dist / (double) qc->mesh_q_real.size() / qc->mesh_q_real.get_bsphere_d()) << ")" << endl;
-            cout << "Matched with DB #" << h->id_db << ": " << qc->db_meshes.get_mesh(h->id_db)->get_filename() << endl;
-            // cout << "Matched pair:" << endl;
-            // cout << h->to_str(10) << endl;
-            stat.num_verified++;
-            if (stat.num_verified == 1 && !found_one_iter) {
-                first_time_iter = timer_end(SECOND);
-                found_one_iter = true;
+        int inlier_count = 0;
+        for (int i = 0; i < qc->mesh_q_real.size(); i++) {
+            auto pt = qc->mesh_q_real.get_pt(i);
+            Pt3D tr_pt;
+            trans_pt(&h->xf, pt, tr_pt);
+            double sing_dist = qc->db_meshes.cal_corr_err(tr_pt.x, tr_pt.y, tr_pt.z, h->id_db);
+            if (sing_dist * sing_dist <= qc->delta) {
+                inlier_count++;
             }
-        } else {
-            ret_left_icp_only.push_back(h);
         }
+        double inlier_rate = (double) inlier_count / qc->mesh_q_real.size();
+        xfs.emplace_back(inlier_rate, h->xf);
     }
 
-    // cout << "min_dist found: " << min_dist << endl;
-    // if (min_h) {
-    // 	print_trans(&min_h->xf);
-    // }
+    sort(xfs.begin(), xfs.end());
+    const int max_trial_icp = 3;
+    for (int i = 0; i < max_trial_icp && i < xfs.size(); i++) {
+        cout << "Test inlier rate: " << xfs[i].inlier_rate << endl;
+        if (xfs[i].inlier_rate >= 0.1) {
+            print_trans(&xfs[i].xf);
 
- //    // TODO
- //    Trans xf;
-	// Pt3D* q_array[4];
-	// Pt3D* p_array[4];
-	// q_array[0] = qc->mesh_q.get_pt(525);
-	// q_array[1] = qc->mesh_q.get_pt(2556);
-	// q_array[2] = qc->mesh_q.get_pt(2690);
-	// q_array[3] = qc->mesh_q.get_pt(1737);
-	// p_array[0] = qc->db_meshes.get_mesh(0)->get_pt(97340);
-	// p_array[1] = qc->db_meshes.get_mesh(0)->get_pt(95769);
-	// p_array[2] = qc->db_meshes.get_mesh(0)->get_pt(89497);
-	// p_array[3] = qc->db_meshes.get_mesh(0)->get_pt(94990);
-	// cal_trans(q_array, p_array, 4, xf);
-	// double cheat_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, 0, &xf);
-	// cout << "cheat_dist: " << cheat_dist << endl;
-	// print_trans(&xf);
- //    double r_array[9] {
- //        xf.r11, xf.r12, xf.r13,
- //        xf.r21, xf.r22, xf.r23,
- //        xf.r31, xf.r32, xf.r33
- //    };
- //    ICP_Matrix R_icp(3, 3, r_array);
- //    double t_array[3] {
- //        xf.tx, xf.ty, xf.tz
- //    };
- //    ICP_Matrix t_icp(3, 1, t_array);
- //    double updated_err = qc->m_icps[0]->Run(qc->m_query_icp, qc->mesh_q_real.size(), R_icp, t_icp);
- //    cout << "Updated distance with ICP-only: " << updated_err << endl;
+            double r_array[9] {
+                xfs[i].xf.r11, xfs[i].xf.r12, xfs[i].xf.r13,
+                xfs[i].xf.r21, xfs[i].xf.r22, xfs[i].xf.r23,
+                xfs[i].xf.r31, xfs[i].xf.r32, xfs[i].xf.r33
+            };
+            ICP_Matrix R_icp(3, 3, r_array);
+            double t_array[3] {
+                xfs[i].xf.tx, xfs[i].xf.ty, xfs[i].xf.tz
+            };
+            ICP_Matrix t_icp(3, 1, t_array);
+            qc->m_icps[0]->Run(qc->m_query_icp, qc->mesh_q_real.size(), R_icp, t_icp);
 
-    #if VERBOSE > 0
-        cout << "Left for ICP-only check: " << ret_left_icp_only.size() << endl;
-    #endif
+            Trans icp_xf = {
+                R_icp.val[0][0], R_icp.val[0][1], R_icp.val[0][2],
+                R_icp.val[1][0], R_icp.val[1][1], R_icp.val[1][2],
+                R_icp.val[2][0], R_icp.val[2][1], R_icp.val[2][2],
+                t_icp.val[0][0], t_icp.val[0][1], t_icp.val[0][2]
+            };
+            cout << "After ICP:" << endl;
+            print_trans(&icp_xf);
 
-    stat.num_icp_only = ret_left_icp_only.size();
+            int icp_inlier_count = 0;
+            for (int i = 0; i < qc->mesh_q_real.size(); i++) {
+                auto pt = qc->mesh_q_real.get_pt(i);
+                Pt3D tr_pt;
+                trans_pt(&icp_xf, pt, tr_pt);
+                double sing_dist = qc->db_meshes.cal_corr_err(tr_pt.x, tr_pt.y, tr_pt.z, 0);
+                if (sing_dist * sing_dist <= qc->delta) {
+                    icp_inlier_count++;
+                }
+            }
+            double icp_inlier_rate = (double) icp_inlier_count / qc->mesh_q_real.size();
+            cout << "ICP inlier perc: " << icp_inlier_rate << endl;
 
-    vector<Entry_Pair*> ret_left_goicp;
-    // // Step 2: perform the ICP-only check
-    // if (!found_one_iter) {
-    //     for (auto &r: ret_left_icp_only) {
-    //         double init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, r->id_db, &r->xf);
-    //         cout << "Initial distance: " << init_dist << endl;
-    //         double r_array[9] {
-    //             r->xf.r11, r->xf.r12, r->xf.r13,
-    //             r->xf.r21, r->xf.r22, r->xf.r23,
-    //             r->xf.r31, r->xf.r32, r->xf.r33
-    //         };
-    //         ICP_Matrix R_icp(3, 3, r_array);
-    //         double t_array[3] {
-    //             r->xf.tx, r->xf.ty, r->xf.tz
-    //         };
-    //         ICP_Matrix t_icp(3, 1, t_array);
-    //         double updated_err = qc->m_icps[r->id_db]->Run(qc->m_query_icp, qc->mesh_q_real.size(), R_icp, t_icp);
-    //         cout << "Updated distance with ICP-only: " << updated_err << endl;
+            if (icp_inlier_rate >= 0.7) {
+                output_xf = icp_xf;
+                stat.num_verified++;
+                if (stat.num_verified == 1 && !found_one_iter) {
+                    first_time_iter = timer_end(SECOND);
+                    found_one_iter = true;
+                }
 
-    //         if (updated_err <= qc->delta) {
-    //             stat.num_verified++;
-    //             if (stat.num_verified == 1 && !found_one_iter) {
-    //                 first_time_iter = timer_end(SECOND);
-    //                 found_one_iter = true;
-    //             }
-    //             break;
-    //         } else {
-    //             ret_left_goicp.push_back(r);
-    //         }
-    //     }
-    // }
-
-    #if VERBOSE > 0
-        cout << "Left for GoICP check: " << ret_left_goicp.size() << endl;
-    #endif
-
-    stat.num_goicp = ret_left_goicp.size();
-
-    // // Step 3: perform GoICP
-    // for (auto &r: ret_left_goicp) {
-    //  goicp[r->db_id].fly_init();
-    //  goicp[r->db_id].OuterBnB(); // TODO: return false?
-
-    //  // TODO
-    // }
+                break;
+            }
+        }
+    }
 
     if (!found_one_iter) {
         first_time_iter = timer_end(SECOND);
@@ -1777,7 +1787,7 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
         return false;
 }
 
-void exec(Query_Context* qc, Exec_stat& stat) {
+void exec(Query_Context* qc, Exec_stat& stat, Trans& output_xf) {
 
     #ifdef _PROB
         const int k_m = 20;
@@ -1792,7 +1802,8 @@ void exec(Query_Context* qc, Exec_stat& stat) {
 
     for (int t = 0; t < k_m; t++) {
 
-        find_accept = iter(qc, stats[t]);
+        find_accept = iter(qc, stats[t], output_xf);
+        // find_accept = iter_icp(qc, stats[t], output_xf);
         num_itr++;
 
         if (find_accept)
@@ -1862,9 +1873,26 @@ void exec_tk(Query_Context* qc, Exec_stat& stat) {
     get_sum_stat(&stats[0], num_trial, stat);
 
     stat.num_iterations = num_trial;
-
 }
 #endif
+
+void fuse_ply(Query_Context* qc, Trans* output_xf) {
+
+    Mesh fuse_mesh(qc->db_meshes.get_mesh(0));
+
+    for (int i = 0; i < qc->mesh_q_real.size(); i++) {
+        auto pt = qc->mesh_q_real.get_pt(i);
+        Pt3D tr_pt;
+        trans_pt(output_xf, pt, tr_pt);
+        double sing_dist = qc->db_meshes.cal_corr_err(tr_pt.x, tr_pt.y, tr_pt.z, 0);
+        if (sing_dist * sing_dist > qc->delta) { // add new point to original point cloud
+            fuse_mesh.insert_pt(tr_pt);
+        }
+    }
+
+    fuse_mesh.write(qc->output_ply);
+    cout << "Write fused mesh to " << qc->output_ply << endl;
+}
 
 int main(int argc, char **argv) {
 
@@ -1893,44 +1921,13 @@ int main(int argc, char **argv) {
 
     cout << endl;
 
-    Exec_stat stats[exec_times];
-    Exec_stat tmp_stat;
-    int real_exec_times = 0;
-
-    for (int exec_i = 0; exec_i < exec_times; exec_i++) {
-
-        cout << "Execution #" << (exec_i + 1) << ": " << endl;
-        #ifdef _TK
-            exec_tk(&qc, stats[exec_i]);
-        #else
-            exec(&qc, stats[exec_i]);
-        #endif
-        cout << endl;
-
-        #if VERBOSE >= 0
-            print_stat(stats[exec_i]);
-            cout << endl;
-        #endif
-
-        real_exec_times++;
-
-        if (real_exec_times == 5 || real_exec_times == 10 || real_exec_times == 20) {
-        	get_sum_stat(stats, real_exec_times, tmp_stat);
-        	if (tmp_stat.user_time > 100.0) {
-        		break;
-        	}
-        }
-	}
-
-	Exec_stat avg_stat;
-	get_avg_stat(stats, real_exec_times, avg_stat);
-
-    if (qc.write_stat) {
-    	write_stat(avg_stat, qc.stat_filename);
-    }
-
-    cout << "Average stat over all the executions: " << endl << endl;
-    print_stat(avg_stat);
+    Exec_stat stat;
+    Trans output_xf;
+    exec(&qc, stat, output_xf);
     cout << endl;
 
+    print_stat(stat);
+    cout << endl;
+
+    fuse_ply(&qc, &output_xf);
 }

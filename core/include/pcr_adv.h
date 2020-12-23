@@ -22,8 +22,12 @@ using namespace std;
 
 const int RSTREE_SCALE = 1e5;
 
-#ifdef IDX_3
-	const int INDEX_DIM = 3;
+#ifdef _IDX3
+	#ifdef _CLR
+		const int INDEX_DIM = 6;
+	#else
+		const int INDEX_DIM = 3;
+	#endif
 #else
 	const int INDEX_DIM = 6;
 #endif
@@ -338,6 +342,9 @@ struct Entry_Helper {
 	bool fail;
 	int help;
 	double sides[6];
+	#ifdef _CLR
+		double color[3];
+	#endif
 };
 
 struct Entry {
@@ -348,6 +355,9 @@ struct Entry {
 	bool fail;
 	PtwID* help; // h
 	double sides[6]; // pa, pb, pc, ab, ac, bc
+	#ifdef _CLR
+		double color[3];
+	#endif
 
 	void set(PtwID* repre, PtwID* remai_0, PtwID* remai_1, PtwID* remai_2, double vol, double meas) {
 		this->repre = new PtwID(repre);
@@ -391,6 +401,11 @@ struct Entry {
     	for (int i = 0; i < 6; i++) {
     		sides[i] = 0;
     	}
+		#ifdef _CLR
+	    	for (int i = 0; i < 3; i++) {
+	    		color[i] = 0;
+	    	}
+	    #endif
 	}
 	Entry(PtwID* repre, PtwID* remai_0, PtwID* remai_1, PtwID* remai_2, double vol, double meas, PtwID* help) {
 		set(repre, remai_0, remai_1, remai_2, vol, meas, help);
@@ -419,6 +434,11 @@ struct Entry {
 		for (int i = 0; i < 6; i++) {
 			this->sides[i] = ent->sides[i];
 		}
+		#ifdef _CLR
+			for (int i = 0; i < 3; i++) {
+				this->color[i] = ent->color[i];
+			}
+		#endif
 	}
 	Entry(istream& is, Mesh* mesh_db) {
 		int repre_id, help_id;
@@ -445,7 +465,7 @@ struct Entry {
 		}
 	}
 	void get_index_box(double err, int box_min[INDEX_DIM], int box_max[INDEX_DIM]) {
-		#ifdef IDX_3
+		#ifdef _IDX3
 			// #ifdef _3NN
 				// use 3-side length as index keys
 				box_min[0] = (int) ((sides[3] - err) * RSTREE_SCALE);
@@ -471,8 +491,29 @@ struct Entry {
 			}
 		#endif
 	}
+	#ifdef _CLR
+	void get_index_box(double err, int box_min[INDEX_DIM], int box_max[INDEX_DIM], double err_color) {
+		// use 3-side length as index keys
+		box_min[0] = (int) ((sides[3] - err) * RSTREE_SCALE);
+		box_max[0] = (int) ((sides[3] + err) * RSTREE_SCALE);
+		box_min[1] = (int) ((sides[4] - err) * RSTREE_SCALE);
+		box_max[1] = (int) ((sides[4] + err) * RSTREE_SCALE);
+		box_min[2] = (int) ((sides[5] - err) * RSTREE_SCALE);
+		box_max[2] = (int) ((sides[5] + err) * RSTREE_SCALE);
+		box_min[3] = (int) ((color[0] - err_color) * RSTREE_SCALE);
+		box_max[3] = (int) ((color[0] + err_color) * RSTREE_SCALE);
+		box_min[4] = (int) ((color[1] - err_color) * RSTREE_SCALE);
+		box_max[4] = (int) ((color[1] + err_color) * RSTREE_SCALE);
+		box_min[5] = (int) ((color[2] - err_color) * RSTREE_SCALE);
+		box_max[5] = (int) ((color[2] + err_color) * RSTREE_SCALE);
+	}
+	#endif
 	void get_index_box(int box_min[INDEX_DIM], int box_max[INDEX_DIM]) {
-		get_index_box(0.0, box_min, box_max);
+		#ifdef _CLR
+			get_index_box(0.0, box_min, box_max, 0.0);
+		#else
+			get_index_box(0.0, box_min, box_max);
+		#endif
 	}
 	void fill_sides() {
 		sides[0] = eucl_dist(repre->pt, remai[0]->pt);
@@ -482,6 +523,19 @@ struct Entry {
 		sides[4] = eucl_dist(remai[0]->pt, remai[2]->pt);
 		sides[5] = eucl_dist(remai[1]->pt, remai[2]->pt);
 	}
+	#ifdef _CLR
+	void fill_color(Mesh* db_mesh) {
+		double coor[3] = { repre->pt->x, repre->pt->y, repre->pt->z };
+		for (int i = 0; i < 3; i++) {
+			color[i] = (coor[i] - db_mesh->get_box_min(i)) / (db_mesh->get_box_max(i) - db_mesh->get_box_min(i));
+		}
+	}
+	void set_color(double clr[3]) {
+		for (int i = 0; i < 3; i++) {
+			color[i] = clr[i];
+		}
+	}
+	#endif
 	// not needed
 	void sort_sides() {
 		int prim = primary_remai();
@@ -530,11 +584,14 @@ struct Entry {
 		   << meas << " "
 		   << fail << " "
 		   << help->id << " ";
-		for (int i = 0; i < 6; i++) {
-			ss << sides[i];
-			if (i < 5)
-				ss << " ";
+		for (auto &i: sides) {
+			ss << " " << i;
 		}
+		#ifdef _CLR
+			for (auto &i: color) {
+				ss << " " << i;
+			}
+		#endif
 		return ss.str();
 	}
 	void get_entry_helper(Entry_Helper& ret) const {
@@ -546,6 +603,11 @@ struct Entry {
 		for (int i = 0; i < 6; i++) {
 			ret.sides[i] = this->sides[i];
 		}
+		#ifdef _CLR
+			for (int i = 0; i < 3; i++) {
+				ret.color[i] = this->color[i];
+			}
+		#endif
 	}
 	virtual ~Entry() {
 		if (repre != nullptr) {
@@ -615,6 +677,9 @@ struct Entry_trim {
 	bool fail;
 	PtwID* help; // h
 	double sides[6]; // pa, pb, pc, ab, ac, bc
+	#ifdef _CLR
+		double color[3];
+	#endif
 
 	void set(int repre, int remai_0, int remai_1, int remai_2, int help, Mesh* mesh) {
 		this->repre = mesh->get_ptwid(repre);
@@ -634,6 +699,11 @@ struct Entry_trim {
 		for (int i = 0; i < 6; i++) {
 			this->sides[i] = ent->sides[i];
 		}
+		#ifdef _CLR
+			for (int i = 0; i < 3; i++) {
+				this->color[i] = ent->color[i];
+			}
+		#endif
 	}
 	Entry_trim(istream& is, Mesh* mesh_db) {
 		int repre_id, help_id;
@@ -655,9 +725,14 @@ struct Entry_trim {
 		for (int i = 0; i < 6; i++) {
 			is >> sides[i];
 		}
+		#ifdef _CLR
+			for (int i = 0; i < 3; i++) {
+				is >> color[i];
+			}
+		#endif
 	}
 	void get_index_box(double err, int box_min[INDEX_DIM], int box_max[INDEX_DIM]) {
-		#ifdef IDX_3
+		#ifdef _IDX3
 			// #ifdef _3NN
 				// use 3-side length as index keys
 				box_min[0] = (int) ((sides[3] - err) * RSTREE_SCALE);
@@ -683,8 +758,29 @@ struct Entry_trim {
 			}
 		#endif
 	}
+	#ifdef _CLR
+	void get_index_box(double err, int box_min[INDEX_DIM], int box_max[INDEX_DIM], double err_color) {
+		// use 3-side length as index keys
+		box_min[0] = (int) ((sides[3] - err) * RSTREE_SCALE);
+		box_max[0] = (int) ((sides[3] + err) * RSTREE_SCALE);
+		box_min[1] = (int) ((sides[4] - err) * RSTREE_SCALE);
+		box_max[1] = (int) ((sides[4] + err) * RSTREE_SCALE);
+		box_min[2] = (int) ((sides[5] - err) * RSTREE_SCALE);
+		box_max[2] = (int) ((sides[5] + err) * RSTREE_SCALE);
+		box_min[3] = (int) ((color[0] - err_color) * RSTREE_SCALE);
+		box_max[3] = (int) ((color[0] + err_color) * RSTREE_SCALE);
+		box_min[4] = (int) ((color[1] - err_color) * RSTREE_SCALE);
+		box_max[4] = (int) ((color[1] + err_color) * RSTREE_SCALE);
+		box_min[5] = (int) ((color[2] - err_color) * RSTREE_SCALE);
+		box_max[5] = (int) ((color[2] + err_color) * RSTREE_SCALE);
+	}
+	#endif
 	void get_index_box(int box_min[INDEX_DIM], int box_max[INDEX_DIM]) {
-		get_index_box(0.0, box_min, box_max);
+		#ifdef _CLR
+			get_index_box(0.0, box_min, box_max, 0.0);
+		#else
+			get_index_box(0.0, box_min, box_max);
+		#endif
 	}
 	string to_str(int precision = 6) const {
 		stringstream ss;
@@ -695,12 +791,15 @@ struct Entry_trim {
 		   << remai[2]->id << " "
 		   << "0.0 0.0 "
 		   << fail << " "
-		   << help->id << " ";
-		for (int i = 0; i < 6; i++) {
-			ss << sides[i];
-			if (i < 5)
-				ss << " ";
+		   << help->id;
+		for (auto &i: sides) {
+			ss << " " << i;
 		}
+		#ifdef _CLR
+			for (auto &i: color) {
+				ss << " " << i;
+			}
+		#endif
 		return ss.str();
 	}
 	void get_entry_helper(Entry_Helper& ret) const {
@@ -712,6 +811,11 @@ struct Entry_trim {
 		for (int i = 0; i < 6; i++) {
 			ret.sides[i] = this->sides[i];
 		}
+		#ifdef _CLR
+			for (int i = 0; i < 3; i++) {
+				ret.color[i] = this->color[i];
+			}
+		#endif
 	}
 };
 
@@ -1039,7 +1143,12 @@ struct Entry_Pair {
 };
 
 ////////////////////////// Toggle_1 /////////////////////////////////////
-inline int window_query(IndexTree* tree, Entry* e, double err, vector<int>& ret) {
+#ifdef _CLR
+inline int window_query(IndexTree* tree, Entry* e, double err, double color_err, vector<int>& ret)
+#else
+inline int window_query(IndexTree* tree, Entry* e, double err, vector<int>& ret)
+#endif
+{
 ////////////////////////// Toggle_1 /////////////////////////////////////
 
 ////////////////////////// Toggle_2 /////////////////////////////////////
@@ -1048,7 +1157,11 @@ inline int window_query(IndexTree* tree, Entry* e, double err, vector<int>& ret)
 ////////////////////////// Toggle_2 /////////////////////////////////////
 
 	int query_box_min[INDEX_DIM], query_box_max[INDEX_DIM];
-	e->get_index_box(err, query_box_min, query_box_max);
+	#ifdef _CLR
+		e->get_index_box(err, query_box_min, query_box_max, color_err);
+	#else
+		e->get_index_box(err, query_box_min, query_box_max);
+	#endif
 
 	////////////////////////// Toggle_1 /////////////////////////////////////
 	int num;
@@ -1256,7 +1369,7 @@ double donut_nn(Pt3D* o, Pt3D* n, double r, /*PtwID* p,*/ Mesh* mesh_p, C_RTree*
 }
 
 inline string get_idx_filename(string grid_filename) {
-	#ifdef IDX_3
+	#ifdef _IDX3
 		return (grid_filename + ".idx.s3");
 	#else
 		return (grid_filename + ".idx.s6");
