@@ -466,27 +466,17 @@ struct Entry {
 	}
 	void get_index_box(double err, int box_min[INDEX_DIM], int box_max[INDEX_DIM]) {
 		#ifdef _IDX3
-			// #ifdef _3NN
-				// use 3-side length as index keys
-				box_min[0] = (int) ((sides[3] - err) * RSTREE_SCALE);
-				box_max[0] = (int) ((sides[3] + err) * RSTREE_SCALE);
-				box_min[1] = (int) ((sides[4] - err) * RSTREE_SCALE);
-				box_max[1] = (int) ((sides[4] + err) * RSTREE_SCALE);
-				box_min[2] = (int) ((sides[5] - err) * RSTREE_SCALE);
-				box_max[2] = (int) ((sides[5] + err) * RSTREE_SCALE);
-			// #else
-			// 	// use 3-side length as index keys
-			// 	box_min[0] = (int) ((sides[0] - err) * RSTREE_SCALE);
-			// 	box_max[0] = (int) ((sides[0] + err) * RSTREE_SCALE);
-			// 	box_min[1] = (int) ((sides[3] - err) * RSTREE_SCALE);
-			// 	box_max[1] = (int) ((sides[3] + err) * RSTREE_SCALE);
-			// 	box_min[2] = (int) ((sides[4] - err) * RSTREE_SCALE);
-			// 	box_max[2] = (int) ((sides[4] + err) * RSTREE_SCALE);
-			// #endif
+			// use 3-side length as index keys
+			box_min[0] = (int) ((max(0.0, sides[3] - err)) * RSTREE_SCALE);
+			box_max[0] = (int) ((sides[3] + err) * RSTREE_SCALE);
+			box_min[1] = (int) ((max(0.0, sides[4] - err)) * RSTREE_SCALE);
+			box_max[1] = (int) ((sides[4] + err) * RSTREE_SCALE);
+			box_min[2] = (int) ((max(0.0, sides[5] - err)) * RSTREE_SCALE);
+			box_max[2] = (int) ((sides[5] + err) * RSTREE_SCALE);
 		#else
 			// use 6-side length as index keys
 			for (int i = 0; i < INDEX_DIM; i++) {
-				box_min[i] = (int) ((sides[i] - err) * RSTREE_SCALE);
+				box_min[i] = (int) ((max(0.0, sides[i] - err)) * RSTREE_SCALE);
 				box_max[i] = (int) ((sides[i] + err) * RSTREE_SCALE);
 			}
 		#endif
@@ -494,17 +484,17 @@ struct Entry {
 	#ifdef _CLR
 	void get_index_box(double err, int box_min[INDEX_DIM], int box_max[INDEX_DIM], double err_color) {
 		// use 3-side length as index keys
-		box_min[0] = (int) ((sides[3] - err) * RSTREE_SCALE);
+		box_min[0] = (int) ((max(0.0, sides[3] - err)) * RSTREE_SCALE);
 		box_max[0] = (int) ((sides[3] + err) * RSTREE_SCALE);
-		box_min[1] = (int) ((sides[4] - err) * RSTREE_SCALE);
+		box_min[1] = (int) ((max(0.0, sides[4] - err)) * RSTREE_SCALE);
 		box_max[1] = (int) ((sides[4] + err) * RSTREE_SCALE);
-		box_min[2] = (int) ((sides[5] - err) * RSTREE_SCALE);
+		box_min[2] = (int) ((max(0.0, sides[5] - err)) * RSTREE_SCALE);
 		box_max[2] = (int) ((sides[5] + err) * RSTREE_SCALE);
-		box_min[3] = (int) ((color[0] - err_color) * RSTREE_SCALE);
+		box_min[3] = (int) ((max(0.0, color[0] - err_color)) * RSTREE_SCALE);
 		box_max[3] = (int) ((color[0] + err_color) * RSTREE_SCALE);
-		box_min[4] = (int) ((color[1] - err_color) * RSTREE_SCALE);
+		box_min[4] = (int) ((max(0.0, color[1] - err_color)) * RSTREE_SCALE);
 		box_max[4] = (int) ((color[1] + err_color) * RSTREE_SCALE);
-		box_min[5] = (int) ((color[2] - err_color) * RSTREE_SCALE);
+		box_min[5] = (int) ((max(0.0, color[2] - err_color)) * RSTREE_SCALE);
 		box_max[5] = (int) ((color[2] + err_color) * RSTREE_SCALE);
 	}
 	#endif
@@ -536,25 +526,25 @@ struct Entry {
 		}
 	}
 	#endif
-	// not needed
-	void sort_sides() {
-		int prim = primary_remai();
-		if (prim != 0) {
-			swap(remai[0], remai[prim]);
-			swap(sides[0], sides[prim]);
-			swap(sides[5], sides[5 - prim]);
-		}
-		auto pa = *remai[0]->pt - *repre->pt;
-		auto pb = *remai[1]->pt - *repre->pt;
-		auto pc = *remai[2]->pt - *repre->pt;
-		Pt3D pb_cross_pc; cross_prd(&pb, &pc, pb_cross_pc);
-		double dec = dot_prd(&pa, &pb_cross_pc);
-		if (dec > 0) {
-			swap(remai[1], remai[2]);
-			swap(sides[1], sides[2]);
-			swap(sides[3], sides[4]);
-		}
-	}
+	// // not needed
+	// void sort_sides() {
+	// 	int prim = primary_remai();
+	// 	if (prim != 0) {
+	// 		swap(remai[0], remai[prim]);
+	// 		swap(sides[0], sides[prim]);
+	// 		swap(sides[5], sides[5 - prim]);
+	// 	}
+	// 	auto pa = *remai[0]->pt - *repre->pt;
+	// 	auto pb = *remai[1]->pt - *repre->pt;
+	// 	auto pc = *remai[2]->pt - *repre->pt;
+	// 	Pt3D pb_cross_pc; cross_prd(&pb, &pc, pb_cross_pc);
+	// 	double dec = dot_prd(&pa, &pb_cross_pc);
+	// 	if (dec > 0) {
+	// 		swap(remai[1], remai[2]);
+	// 		swap(sides[1], sides[2]);
+	// 		swap(sides[3], sides[4]);
+	// 	}
+	// }
 	// // depr: not needed:
 	// void sort_sides_3nn() {
 	// 	if (sides[4] < sides[3]) {
@@ -733,27 +723,17 @@ struct Entry_trim {
 	}
 	void get_index_box(double err, int box_min[INDEX_DIM], int box_max[INDEX_DIM]) {
 		#ifdef _IDX3
-			// #ifdef _3NN
-				// use 3-side length as index keys
-				box_min[0] = (int) ((sides[3] - err) * RSTREE_SCALE);
-				box_max[0] = (int) ((sides[3] + err) * RSTREE_SCALE);
-				box_min[1] = (int) ((sides[4] - err) * RSTREE_SCALE);
-				box_max[1] = (int) ((sides[4] + err) * RSTREE_SCALE);
-				box_min[2] = (int) ((sides[5] - err) * RSTREE_SCALE);
-				box_max[2] = (int) ((sides[5] + err) * RSTREE_SCALE);
-			// #else
-			// 	// use 3-side length as index keys
-			// 	box_min[0] = (int) ((sides[0] - err) * RSTREE_SCALE);
-			// 	box_max[0] = (int) ((sides[0] + err) * RSTREE_SCALE);
-			// 	box_min[1] = (int) ((sides[3] - err) * RSTREE_SCALE);
-			// 	box_max[1] = (int) ((sides[3] + err) * RSTREE_SCALE);
-			// 	box_min[2] = (int) ((sides[4] - err) * RSTREE_SCALE);
-			// 	box_max[2] = (int) ((sides[4] + err) * RSTREE_SCALE);
-			// #endif
+			// use 3-side length as index keys
+			box_min[0] = (int) ((max(0.0, sides[3] - err)) * RSTREE_SCALE);
+			box_max[0] = (int) ((sides[3] + err) * RSTREE_SCALE);
+			box_min[1] = (int) ((max(0.0, sides[4] - err)) * RSTREE_SCALE);
+			box_max[1] = (int) ((sides[4] + err) * RSTREE_SCALE);
+			box_min[2] = (int) ((max(0.0, sides[5] - err)) * RSTREE_SCALE);
+			box_max[2] = (int) ((sides[5] + err) * RSTREE_SCALE);
 		#else
 			// use 6-side length as index keys
 			for (int i = 0; i < INDEX_DIM; i++) {
-				box_min[i] = (int) ((sides[i] - err) * RSTREE_SCALE);
+				box_min[i] = (int) ((max(0.0, sides[i] - err)) * RSTREE_SCALE);
 				box_max[i] = (int) ((sides[i] + err) * RSTREE_SCALE);
 			}
 		#endif
@@ -761,17 +741,17 @@ struct Entry_trim {
 	#ifdef _CLR
 	void get_index_box(double err, int box_min[INDEX_DIM], int box_max[INDEX_DIM], double err_color) {
 		// use 3-side length as index keys
-		box_min[0] = (int) ((sides[3] - err) * RSTREE_SCALE);
+		box_min[0] = (int) ((max(0.0, sides[3] - err)) * RSTREE_SCALE);
 		box_max[0] = (int) ((sides[3] + err) * RSTREE_SCALE);
-		box_min[1] = (int) ((sides[4] - err) * RSTREE_SCALE);
+		box_min[1] = (int) ((max(0.0, sides[4] - err)) * RSTREE_SCALE);
 		box_max[1] = (int) ((sides[4] + err) * RSTREE_SCALE);
-		box_min[2] = (int) ((sides[5] - err) * RSTREE_SCALE);
+		box_min[2] = (int) ((max(0.0, sides[5] - err)) * RSTREE_SCALE);
 		box_max[2] = (int) ((sides[5] + err) * RSTREE_SCALE);
-		box_min[3] = (int) ((color[0] - err_color) * RSTREE_SCALE);
+		box_min[3] = (int) ((max(0.0, color[0] - err_color)) * RSTREE_SCALE);
 		box_max[3] = (int) ((color[0] + err_color) * RSTREE_SCALE);
-		box_min[4] = (int) ((color[1] - err_color) * RSTREE_SCALE);
+		box_min[4] = (int) ((max(0.0, color[1] - err_color)) * RSTREE_SCALE);
 		box_max[4] = (int) ((color[1] + err_color) * RSTREE_SCALE);
-		box_min[5] = (int) ((color[2] - err_color) * RSTREE_SCALE);
+		box_min[5] = (int) ((max(0.0, color[2] - err_color)) * RSTREE_SCALE);
 		box_max[5] = (int) ((color[2] + err_color) * RSTREE_SCALE);
 	}
 	#endif
@@ -1048,6 +1028,10 @@ struct Struct_DB {
 
 	int get_help_id(int repre_id, int mesh_id) const {
 		return entries[reverse_entries_maps[mesh_id].at(repre_id)]->help->id;
+	}
+
+	Entry_trim* get_entry_trim(int repre_id, int mesh_id) const {
+		return entries[reverse_entries_maps[mesh_id].at(repre_id)];
 	}
 	#endif
 

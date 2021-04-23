@@ -12,13 +12,14 @@ using namespace std;
 int main(int argc, char **argv) {
 
     if (argc < 3) {
-        cerr << "Usage: " << argv[0] << " database_path query_filename delta [-stat=...] [-cheat=...]*" << endl;
+        cerr << "Usage: " << argv[0] << " database_path query_filename delta [-stat=...] [-cheat=...]* [-run_i=...]*" << endl;
         exit(1);
     }
 
     bool write_stat = false;
     string stat_filename;
     unordered_set<int> cheat_set;
+    unordered_set<int> run_i_set;
     for (int i = 0; i < argc; i++) {
         string argv_str(argv[i]);
         if (argv_str.rfind("-stat", 0) == 0) {
@@ -29,6 +30,8 @@ int main(int argc, char **argv) {
             // spec_delta = true;
         } else if (argv_str.rfind("-cheat", 0) == 0) {
         	cheat_set.insert(atoi(argv[i] + 7));
+        } else if (argv_str.rfind("-run_i", 0) == 0) {
+            run_i_set.insert(atoi(argv[i] + 7));
         }
     }
 
@@ -82,14 +85,17 @@ int main(int argc, char **argv) {
     GoICP* goicp = new GoICP[num_meshes];
 
     for (int i = 0; i < num_meshes; i++) {
-    	// if (i != 984 && i != 985) {
-    	// 	continue;
-    	// }
-        if (i != s_q.get_db_mesh_id()) { // trick for indoor DB
+        // if (i != s_q.get_db_mesh_id()) { // trick for indoor DB
+        //     continue;
+        // }
+
+        if (!run_i_set.empty() && run_i_set.find(i) == run_i_set.end()) {
             continue;
         }
 
     	cout << "For mesh #" << (i + 1) << endl;
+
+        GoICP_Stat gs { 0 };
 
     	bool verbose = true;
     	bool use_dt = true;
@@ -99,13 +105,13 @@ int main(int argc, char **argv) {
     	}
 		loadGoICP(&db_meshes, i, &mesh_q, sse, delta, &goicp[i], verbose, use_dt, dt_size);
 
-		// goicp[i].printParams();
-		// cout << endl;
+		goicp[i].printParams();
+		cout << endl;
 
 		goicp[i].Initialize();
 
 		timer_start();
-		double dist = goicp[i].OuterBnB();
+		double dist = goicp[i].OuterBnB(gs);
 		double query_time = timer_end(SECOND);
 		if (dist <= sse) {
 			cout << "Accepted in " << query_time << "(s)" << endl;
@@ -119,6 +125,10 @@ int main(int argc, char **argv) {
 		user_time += query_time;
 
 		goicp[i].Clear();
+
+        ofstream stat_ofs("stat_icp.0.1.dat", ofstream::app | ofstream::ate);
+        stat_ofs << (i + 1) << " " << gs.max_layer << " " << gs.num_run << endl;
+        stat_ofs.close();
     }
 
 	// Trans trans_opt = {

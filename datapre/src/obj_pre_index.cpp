@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
 	cout << input_meshes.size() << endl;
 
 	vector<rtree_info> info;
-	info.push_back(read_rstree_info("../common/config/rstree.pcd.config"));
+	info.push_back(read_rstree_info("/project/kdd/hliubs/proj_sync/git/spatial/common/config/rstree.pcd.config"));
 
 	string realname = input_folder + "combined.ply." + to_string(part_i) + ".rst.0";
 	cout << "Start building R-tree and save to " << realname << endl;

@@ -185,10 +185,10 @@ void cal_3nn_entry(PtwID* p, double min, double cos_min_ang, Mesh* mesh_p, C_RTr
 }
 
 // order: max -> mid -> min (c -> b -> a)
-void cal_3lnn_entry_nonsim(PtwID* p, double ann_min, double ann_mid, double ann_max, double cos_min_ang, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, Entry* prem_entry /*, Entry_Stat_3lnn& es*/) {
+void cal_3lnn_entry_nonsim(PtwID* p, double radius, double radius_1, double radius_2, double cos_min_ang, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, Entry* prem_entry /*, Entry_Stat_3lnn& es*/) {
 
     int nn_c;
-    r_p->nn_sphere(p->pt, ann_max, &nn_c);
+    r_p->nn_sphere(p->pt, radius_2, &nn_c);
 
     PtwID a, b, c;
     c = PtwID(nn_c, mesh_p);
@@ -198,11 +198,11 @@ void cal_3lnn_entry_nonsim(PtwID* p, double ann_min, double ann_mid, double ann_
     
     bool got_b = false;
     int nn_b[TENT];
-    r_p->nn_sphere(p->pt, ann_mid, nn_b, {}, TENT);
+    r_p->nn_sphere(p->pt, radius_1, nn_b, {}, TENT);
     for (int i = 0; i < TENT; i++) {
         PtwID t = PtwID(nn_b[i], mesh_p);
         auto pt = *t.pt - *p->pt;
-        if (pt.mode() >= ann_max) {
+        if (pt.mode() >= radius_2) {
             break;
         }
         if (verify_angle_3lnn(&pc, &pt, cos_min_ang)) {
@@ -221,11 +221,11 @@ void cal_3lnn_entry_nonsim(PtwID* p, double ann_min, double ann_mid, double ann_
     
     bool got_a = false;
     int nn_a[TENT];
-    r_p->nn_sphere(p->pt, ann_min, nn_a, {}, TENT);
+    r_p->nn_sphere(p->pt, radius, nn_a, {}, TENT);
     for (int i = 0; i < TENT; i++) {
         PtwID t = PtwID(nn_a[i], mesh_p);
         auto pt = *t.pt - *p->pt;
-        if (pt.mode() >= ann_mid) {
+        if (pt.mode() >= radius_1) {
             break;
         }
         if (verify_angle_3lnn(&pc, &pt, cos_min_ang) && verify_angle_3lnn(&pb, &pt, cos_min_ang)) {
@@ -248,14 +248,15 @@ void cal_3lnn_entry_nonsim(PtwID* p, double ann_min, double ann_mid, double ann_
 }
 
 // order: min -> mid -> max
-void cal_3lnn_entry_sim(PtwID* p, double ann_min, double ann_mid, double ann_max, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, Entry* prem_entry /*, Entry_Stat_3lnn& es*/) {
+void cal_3lnn_entry_sim(PtwID* p, double radius, double radius_1, double radius_2, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, Entry* prem_entry /*, Entry_Stat_3lnn& es*/) {
 
     int nn[3];
-    r_p->nn_sphere(p->pt, ann_min, &nn[0]);
-    r_p->nn_sphere(p->pt, ann_mid, &nn[1]);
-    r_p->nn_sphere(p->pt, ann_max, &nn[2]);
+    r_p->nn_sphere(p->pt, radius, &nn[0]);
+    r_p->nn_sphere(p->pt, radius_1, &nn[1]);
+    r_p->nn_sphere(p->pt, radius_2, &nn[2]);
 
     if (nn[0] == nn[1] || nn[0] == nn[2] || nn[1] == nn[2]) {
+        // cout << "fail triggered" << endl;
         return;
     }
 
@@ -271,12 +272,12 @@ void cal_3lnn_entry_sim(PtwID* p, double ann_min, double ann_mid, double ann_max
 
 }
 
-void cal_3lnn_entry(PtwID* p, double ann_min, double ann_mid, double ann_max, double cos_min_ang, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, bool simple, Entry* prem_entry) {
+void cal_3lnn_entry(PtwID* p, double radius, double radius_1, double radius_2, double cos_min_ang, Mesh* mesh_p, C_RTree* r_p, bool debug_mode, bool simple, Entry* prem_entry) {
 
     if (simple) {
-        cal_3lnn_entry_sim(p, ann_min, ann_mid, ann_max, mesh_p, r_p, debug_mode, prem_entry);
+        cal_3lnn_entry_sim(p, radius, radius_1, radius_2, mesh_p, r_p, debug_mode, prem_entry);
     } else {
-        cal_3lnn_entry_nonsim(p, ann_min, ann_mid, ann_max, cos_min_ang, mesh_p, r_p, debug_mode, prem_entry);
+        cal_3lnn_entry_nonsim(p, radius, radius_1, radius_2, cos_min_ang, mesh_p, r_p, debug_mode, prem_entry);
     }
 
 }
@@ -295,6 +296,7 @@ void cal_donut_entry(PtwID* p, double min, Mesh* mesh_p, C_RTree* r_p, bool debu
 
     if (debug_mode) cout << TABTAB << "First pt #" << nn_a << " dist=" << nn_d_a << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
+    // cout << "nn_a: " << nn_a << endl;
     if (nn_a >= 0) {
         a.set(nn_a, mesh_p);
         // es.nn_dist[0] = nn_d_a;
@@ -323,6 +325,7 @@ void cal_donut_entry(PtwID* p, double min, Mesh* mesh_p, C_RTree* r_p, bool debu
 
     if (debug_mode) cout << TABTAB << "Second pt #" << nn_b << " dist=" << nn_d_b << " in " << timer_end(MILLISECOND) << " (ms)" << endl;
 
+    // cout << "nn_b: " << nn_b << endl;
     if (nn_b >= 0) {
         b.set(nn_b, mesh_p);
         // es.nn_dist[1] = nn_d_b;
@@ -437,59 +440,74 @@ void cal_index_entry(PtwID* p, double min, Mesh* mesh_p, C_RTree* r_p, bool debu
 
 }
 
+void analyze_entry(Entry* e, double &avg, double &min, double &max, double &sd) {
+    min = numeric_limits<double>::max();
+    max = -1;
+    avg = 0.0;
+    for (int i = 0; i < 6; i++) {
+        avg += e->sides[i];
+        if (e->sides[i] > max) {
+            max = e->sides[i];
+        }
+        if (e->sides[i] < min) {
+            min = e->sides[i];
+        }
+    }
+    avg /= 6.0;
+    sd = 0.0;
+    for (int i = 0; i < 6; i++) {
+        sd += (e->sides[i] - avg) * (e->sides[i] - avg);
+    }
+    sd /= 6.0;
+    sd = sqrt(sd);
+}
+
 int main(int argc, char **argv) {
 
     srand(time(0));
 
-    if (argc < 4) {
-        cerr << "Usage: " << argv[0] << " database_path ann_min output_grid_filename [-ang_min=...] [-ann_thn=...] [-show_prog_bar] [-debug] [-small] [-simp] [-num_parts=...]" << endl;
+    if (argc < 9) {
+        cerr << "Usage: " << argv[0] << " database_path output_grid_filename alg rad ang_thresh thickness is_simp is_small [-show_prog_bar] [-debug] [-num_parts=...]" << endl;
         exit(1);
     }
 
-    double ang_min = 0.0;
-    double ann_thn = 0.0;
-    #ifdef _3NN
-            ang_min = 15.0;
-        #ifdef _3LNN
-            ann_thn = 30.0;
-        #endif
-    #endif
-
-    bool show_prog_bar = false, debug_mode = false, simple = false, small_set = false, combined = false;
+    bool show_prog_bar = false, debug_mode = false;
     int num_parts = 0;
     for (int i = 0; i < argc; i++) {
         string argv_str(argv[i]);
-             if (argv_str.rfind("-ang_min", 0) == 0)       ang_min = atoi(argv[i] + 9);
-        else if (argv_str.rfind("-ann_thn", 0) == 0)       ann_thn = atoi(argv[i] + 9);
-        else if (argv_str.rfind("-show_prog_bar", 0) == 0) show_prog_bar = true;
+             if (argv_str.rfind("-show_prog_bar", 0) == 0) show_prog_bar = true;
         else if (argv_str.rfind("-debug", 0) == 0)         debug_mode = true;
-        else if (argv_str.rfind("-small", 0) == 0)         small_set = true;
-        else if (argv_str.rfind("-simp", 0) == 0)          simple = true;
         else if (argv_str.rfind("-num_parts", 0) == 0)     num_parts = atoi(argv[i] + 11);
     }
 
-    const double cos_phi = cos(ang_min * PI / 180.0);
-
     int argi = 0;
     const string db_path = argv[++argi];
-    const double w = 0.0;
-    const double ann_min = atof(argv[++argi]);
-    double ann_mid = 0.0;
-    double ann_max = 0.0;
     const string outgrid_filename = argv[++argi];
+    const string algorithm = argv[++argi];
+    const double w = 0.0;
+    const double radius = atof(argv[++argi]);
+    const double ang_min = atof(argv[++argi]);
+    const double ann_thn = atof(argv[++argi]);
+    const int is_simp = atoi(argv[++argi]);
+    const int is_small = atoi(argv[++argi]);
+    // const int use_color = atoi(argv[++argi]);
 
-    #if defined _3NN && defined _3LNN
-        ann_mid = ann_min + ann_thn;
-        ann_max = ann_mid + ann_thn;
-    #endif
+    const double cos_phi = cos(ang_min * PI / 180.0);
+
+    const double radius_1 = radius + ann_thn;
+    const double radius_2 = radius_1 + ann_thn;
 
     cout << "Parameters:" << endl;
     cout << "db_path = " << db_path << endl;
+    cout << "algorithm = " << algorithm << endl;
     cout << "w = " << w << endl;
-    cout << "ann_min = " << ann_min << endl;
-    cout << "ann_mid = " << ann_mid << endl;
-    cout << "ann_max = " << ann_max << endl;
+    cout << "radius = " << radius << endl;
+    cout << "radius_1 = " << radius_1 << endl;
+    cout << "radius_2 = " << radius_2 << endl;
     cout << "ang_min = " << ang_min << endl;
+    cout << "is_simp = " << is_simp << endl;
+    cout << "is_small = " << is_small << endl;
+    cout << "num_parts = " << num_parts << endl;
     cout << "outgrid_filename = " << outgrid_filename << endl;
     cout << endl;
 
@@ -530,14 +548,14 @@ int main(int argc, char **argv) {
 
     // Open grid file and write grid headers
     ofstream ofs(outgrid_filename);
-    ofs << w << " " << ann_min << " " << ann_mid << " " << ann_max << " " << ang_min << " " << num_meshes << " " << db_meshes.total() << endl;
+    ofs << w << " " << radius << " " << radius_1 << " " << radius_2 << " " << ang_min << " " << num_meshes << " " << db_meshes.total() << endl;
     for (int i = 0; i < num_meshes; i++) {
         ofs << i << " 0 0 0 0 0 0" << endl;
     }
 
     // Open binary file and write binary headers
     ofstream bin_ofs(get_bin_filename(outgrid_filename), ios::out | ios::binary);
-    Struct_DB_Helper hdr { w, ann_min, ann_mid, ann_max, ang_min };
+    Struct_DB_Helper hdr { w, radius, radius_1, radius_2, ang_min };
     bin_ofs.write((char *) &hdr, sizeof(Struct_DB_Helper));
 
     // setting up precision for writing
@@ -554,6 +572,9 @@ int main(int argc, char **argv) {
 
     int fail_count = 0;
     int global_cell_id = 0;
+
+    double sum_stat_avg_length = 0.0, sum_stat_max_length = 0.0, sum_stat_min_length = 0.0, sum_stat_sd_length = 0.0;
+    double stat_avg_length = 0.0, stat_max_length = 0.0, stat_min_length = 0.0, stat_sd_length = 0.0;
     
     for (int mesh_id = 0; mesh_id < db_meshes.size(); mesh_id++) {
         mesh_p = db_meshes.get_mesh(mesh_id);
@@ -577,19 +598,15 @@ int main(int argc, char **argv) {
             prem_entry = new Entry();
             prem_entry->fail = true;
 
-            #ifdef _3NN
-                #ifdef _3LNN
-                    cal_3lnn_entry(&p, ann_min, ann_mid, ann_max, cos_phi, mesh_p, db_rtrees[mesh_id], debug_mode, simple, prem_entry);
-                #else
-                    cal_3nn_entry(&p, ann_min, cos_phi, mesh_p, db_rtrees[mesh_id], debug_mode, simple, prem_entry);
-                #endif
-            #else
-                #ifdef _DNT
-                    cal_donut_entry(&p, ann_min, mesh_p, db_rtrees[mesh_id], debug_mode, small_set, prem_entry);
-                #else
-                    cal_index_entry(&p, ann_min, mesh_p, db_rtrees[mesh_id], debug_mode, prem_entry);
-                #endif
-            #endif
+            if (algorithm == "3lnn") {
+                cal_3lnn_entry(&p, radius, radius_1, radius_2, cos_phi, mesh_p, db_rtrees[mesh_id], debug_mode, is_simp, prem_entry);
+            } else if (algorithm == "3nn") {
+                cal_3nn_entry(&p, radius, cos_phi, mesh_p, db_rtrees[mesh_id], debug_mode, is_simp, prem_entry);
+            } else if (algorithm == "donut") {
+                cal_donut_entry(&p, radius, mesh_p, db_rtrees[mesh_id], debug_mode, is_small, prem_entry);
+            } else if (algorithm == "GT") {
+                cal_index_entry(&p, radius, mesh_p, db_rtrees[mesh_id], debug_mode, prem_entry);
+            }
 
             if (prem_entry->fail) {
                 if (debug_mode) cout << TAB << "Fail in finding prem entry" << endl;
@@ -603,6 +620,12 @@ int main(int argc, char **argv) {
                 #ifdef _CLR
                     prem_entry->fill_color(mesh_p);
                 #endif
+
+                analyze_entry(prem_entry, stat_avg_length, stat_min_length, stat_max_length, stat_sd_length);
+                sum_stat_avg_length += stat_avg_length;
+                sum_stat_min_length += stat_min_length;
+                sum_stat_max_length += stat_max_length;
+                sum_stat_sd_length += stat_sd_length;
             }
 
             ofs << mesh_id << " " << i << " " << global_cell_id << " 0 0 0 1 " << i << endl;
@@ -644,14 +667,25 @@ int main(int argc, char **argv) {
     cout << "Total # of failed cells: " << fail_count << endl << endl;
     cout << "Total user time: " << user_time << "(s)" << endl << endl;
 
+    double valid_num = (double) (n - fail_count);
+    double avg_stat_avg_length = sum_stat_avg_length / valid_num;
+    double avg_stat_min_length = sum_stat_min_length / valid_num;
+    double avg_stat_max_length = sum_stat_max_length / valid_num;
+    double avg_stat_sd_length = sum_stat_sd_length / valid_num;
+
 
     string outgrid_stat_filename = outgrid_filename + ".gstat";
     ofstream ofs_stat(outgrid_stat_filename);
 
-    ofs_stat << "num_pts = " << n << endl;
-    ofs_stat << "num_fail = " << fail_count << endl;
-    ofs_stat << "I_time = " << i_time << endl;
-    ofs_stat << "user_time = " << user_time << endl;
+    ofs_stat << "num_pts=" << n << endl;
+    ofs_stat << "num_fail=" << fail_count << endl;
+    ofs_stat << "I_time=" << i_time << endl;
+    ofs_stat << "user_time=" << user_time << endl;
+
+    ofs_stat << "avg_avg=" << avg_stat_avg_length << endl;
+    ofs_stat << "avg_min=" << avg_stat_min_length << endl;
+    ofs_stat << "avg_max=" << avg_stat_max_length << endl;
+    ofs_stat << "avg_sd=" << avg_stat_sd_length << endl;
 
     ofs_stat.close();
 

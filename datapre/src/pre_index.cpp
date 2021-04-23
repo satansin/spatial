@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
     }
 
 	vector<rtree_info> info;
-	info.push_back(read_rstree_info("../common/config/rstree.pcd.config"));
+	info.push_back(read_rstree_info("/project/kdd/hliubs/proj_sync/git/spatial/common/config/rstree.pcd.config"));
 
     vector<TriMesh*> db_meshes;
 	cout << "Process batch #" << batch_id << endl;

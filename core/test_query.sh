@@ -29,7 +29,7 @@ source ../common/config/dir_loc.sh
 
 # test for different sampling rate
 # ./out/query_donut_prob3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_donut_color/comp_5/comp_5.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_5_5/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_5_5/q_01.1.ply 3.2 -delta=1
-./out/query_donut_prob3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_donut_color/comp_5/comp_5.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_1_5/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_1_5/q_01.1.ply 3.2 -delta=1
+# ./out/query_donut_prob3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_donut_color/comp_5/comp_5.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5_recon_1_5/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_1_5/q_01.1.ply 3.2 -delta=1
 # ./out/query_donut_prob3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_donut_color/comp_5/comp_5.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_5/q_01.1.ply 3.2 -delta=1
 
 # ./out/query_donut_prob3.out "$DIR_DB"/indoor_scans/comp_5/ "$DIR_INDEX"/indoor_scans_donut_color/comp_5/comp_5.200.grid "$DIR_QUERY"/indoor_scans_spec/comp_5/q_01.1.ply "$DIR_QUERY"/indoor_scans_spec/comp_5/q_01.1.ply 5 -delta=0.1
@@ -79,8 +79,17 @@ source ../common/config/dir_loc.sh
 
 
 # ./out/goicp.out "$DIR_DB"/indoor_scans/comp_6/ "$DIR_QUERY"/indoor_scans_pro_noise/comp_6/q_01.0.ply 10
+# ./out/goicp.out /ssd/hliubs/3dor_exp/dat_db/exe/14/output/ /ssd/hliubs/3dor_exp/dat_query/exe/4/output/query.ply 0.01
+# ./out/goicp.out /ssd/hliubs/3dor_exp/dat_db/exe/15/output/ /ssd/hliubs/3dor_exp/dat_query/exe/77/output/query.ply 0.01 -run_i=5
 # ./out/goicp.out "$DIR_OBJ_DB"/1_sel_100i/ "$DIR_OBJ_QUERY"/spec/q_02.1.ply -cheat=96            # -stat=test_query.1_sel_100i.q_02_1.txt > test_query.1_sel_100i.q_02_1.log # 97->q_01(07216) 96->q_02(08279) 98->q_03 99->q_04 95->q_05
 # ./out/goicp.out "$DIR_OBJ_DB"/2_sel_001k/ "$DIR_OBJ_QUERY"/spec/q_02.1.ply -cheat=984 -cheat=985 -stat=test_query.2_sel_001k.q_02_1.txt > test_query.2_sel_001k.q_02_1.log
+
+
+# tmux new-session -d -s run_0 "./out/goicp.out /ssd/hliubs/3dor_exp/dat_db/exe/15/output/ /ssd/hliubs/3dor_exp/dat_query/exe/77/output/query.ply 0.01 -run_i=0"
+# tmux new-session -d -s run_1 "./out/goicp.out /ssd/hliubs/3dor_exp/dat_db/exe/15/output/ /ssd/hliubs/3dor_exp/dat_query/exe/77/output/query.ply 0.01 -run_i=1"
+for i in {0..7}; do
+	tmux new-session -d -s run_"$i" "./out/goicp.out /ssd/hliubs/3dor_exp/dat_db/exe/15/output/ /ssd/hliubs/3dor_exp/dat_query/exe/77/output/query.ply 0.01 -run_i=$i"
+done
 
 
 

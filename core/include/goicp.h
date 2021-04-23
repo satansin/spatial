@@ -18,6 +18,11 @@ using namespace std;
 #define PI 3.1415926536
 #define SQRT3 1.732050808
 
+struct GoICP_Stat {
+    int max_layer;
+    long long num_run;
+};
+
 typedef struct _POINT3D
 {
 	float x, y, z;
@@ -43,6 +48,7 @@ typedef struct _TRANSNODE
 {
 	float x, y, z, w;
 	float ub, lb;
+	int l;
 	friend bool operator < (const struct _TRANSNODE & n1, const struct _TRANSNODE & n2)
 	{
 		if(n1.lb != n2.lb)
@@ -86,6 +92,8 @@ public:
 	float SSEThresh;
 	float icpThresh;
 
+	float stopSSE;
+
 	float optError;
 	ICP_Matrix optR;
 	ICP_Matrix optT;
@@ -98,7 +106,7 @@ public:
 
 	bool icp_only;
 
-	float OuterBnB();
+	float OuterBnB(GoICP_Stat& gs);
 	void Initialize();
 	void Clear();
 
@@ -116,7 +124,7 @@ private:
 	float * M_icp;
 	float * D_icp;
 
-	float InnerBnB(float* maxRotDisL, TRANSNODE* nodeTransOut);
+	float InnerBnB(float* maxRotDisL, TRANSNODE* nodeTransOut, int outer_layer, GoICP_Stat& gs);
 	float ICP(ICP_Matrix& R_icp, ICP_Matrix& t_icp);
 
 	//temp variables: changes while executing
@@ -133,6 +141,7 @@ GoICP::GoICP()
 	initNodeRot.c = -PI;
 	initNodeRot.w = 2*PI;
 	initNodeRot.l = 0;
+	initNodeTrans.l = 0;
 
 	initNodeRot.lb = 0;
 	initNodeTrans.lb = 0;
@@ -307,7 +316,7 @@ void GoICP::Clear()
 }
 
 // Inner Branch-and-Bound, iterating over the translation space
-float GoICP::InnerBnB(float* maxRotDisL, TRANSNODE* nodeTransOut)
+float GoICP::InnerBnB(float* maxRotDisL, TRANSNODE* nodeTransOut, int outer_layer, GoICP_Stat& gs)
 {
 	int i, j;
 	float t_transX, t_transY, t_transZ;
@@ -323,6 +332,8 @@ float GoICP::InnerBnB(float* maxRotDisL, TRANSNODE* nodeTransOut)
 	// Push top-level translation node into the priority queue
 	queueTrans.push(initNodeTrans);
 
+	long long count = 0;
+
 	//
 	while(1)
 	{
@@ -332,15 +343,24 @@ float GoICP::InnerBnB(float* maxRotDisL, TRANSNODE* nodeTransOut)
 		t_nodeTransParent = queueTrans.top();
 		queueTrans.pop();
 
-		// if(t_optErrorT-t_nodeTransParent.lb < SSEThresh)
-		// {
-		// 	break;
-		// }
+		if(t_optErrorT-t_nodeTransParent.lb < stopSSE)
+		{
+			break;
+		}
+
+		if(verbose && count>0 && count%100000 == 0)
+			printf("Inner: Print for every 100000 run: w=%f, LB=%f, L=%d, error_diff=%f\n", t_nodeTransParent.w, t_nodeTransParent.lb, t_nodeTransParent.l, t_optErrorT-t_nodeTransParent.lb);
+		count ++;
+
+		if (gs.max_layer < outer_layer + t_nodeTransParent.l) {
+			gs.max_layer = outer_layer + t_nodeTransParent.l;
+		}
+		gs.num_run++;
 
 		t_nodeTrans.w = t_nodeTransParent.w/2;
-		if (t_nodeTrans.w < transThresh) {
-			continue;
-		}
+		// if (t_nodeTrans.w < transThresh) {
+		// 	continue;
+		// }
 		// cout << "Inner_w: " << t_nodeTrans.w << endl;
 		t_maxTransDis = SQRT3/2.0*t_nodeTrans.w;
 
@@ -353,6 +373,8 @@ float GoICP::InnerBnB(float* maxRotDisL, TRANSNODE* nodeTransOut)
 			t_transX = t_nodeTrans.x + t_nodeTrans.w/2;
 			t_transY = t_nodeTrans.y + t_nodeTrans.w/2;
 			t_transZ = t_nodeTrans.z + t_nodeTrans.w/2;
+
+			t_nodeTrans.l = t_nodeTransParent.l+1;
 			
 			// For each data point, calculate the distance to it's closest point in the model cloud
 			for(i = 0; i < Nd; i++)
@@ -421,16 +443,16 @@ float GoICP::InnerBnB(float* maxRotDisL, TRANSNODE* nodeTransOut)
 			queueTrans.push(t_nodeTrans);
 		}
 
-		if(t_optErrorT <= SSEThresh)
-		{
-			break;
-		}
+		// if(t_optErrorT <= SSEThresh)
+		// {
+		// 	break;
+		// }
 	}
 
 	return t_optErrorT;
 }
 
-float GoICP::OuterBnB()
+float GoICP::OuterBnB(GoICP_Stat& gs)
 {
 	int i, j;
 	ROTNODE t_nodeRot, t_nodeRotParent;
@@ -504,27 +526,34 @@ float GoICP::OuterBnB()
 		// ...and remove it from the queue
 		queueRot.pop();
 
-		// // Exit if the optError is less than or equal to the lower bound plus a small epsilon
-		// if((optError-t_nodeRotParent.lb) <= SSEThresh)
-		// {
-		// 	// cout << "Error*: " << optError << ", LB: " << t_nodeRotParent.lb << ", epsilon: " << SSEThresh << endl;
-		//   printf("Error*: %.6f, LB: %.6f, SSE: %.6f\n", optError, t_nodeRotParent.lb, SSEThresh);
-		// 	break;
-		// }
-
-		if (t_nodeRotParent.lb > SSEThresh) {
-			continue;
+		// Exit if the optError is less than or equal to the lower bound plus a small epsilon
+		if((optError-t_nodeRotParent.lb) <= stopSSE)
+		{
+			// cout << "Error*: " << optError << ", LB: " << t_nodeRotParent.lb << ", epsilon: " << SSEThresh << endl;
+		  printf("Error*: %.6f, LB: %.6f, SSE: %.6f\n", optError, t_nodeRotParent.lb, 0.001); // SSEThresh);
+			break;
 		}
 
-		if(verbose && count>0 && count%300 == 0)
-			printf("Print for every 300 run: LB=%f  L=%d\n", t_nodeRotParent.lb, t_nodeRotParent.l);
+		// // added by me to filter by delta
+		// if (t_nodeRotParent.lb > SSEThresh) {
+		// 	continue;
+		// }
+
+		if(verbose && count>0 && count%100 == 0)
+			printf("Outer: Print for every 100 run: w=%f, LB=%f, L=%d, error_diff=%f\n", t_nodeRotParent.w, t_nodeRotParent.lb, t_nodeRotParent.l, optError-t_nodeRotParent.lb);
 		count ++;
+
+		if (gs.max_layer < t_nodeRotParent.l) {
+			gs.max_layer = t_nodeRotParent.l;
+		}
+		gs.num_run++;
 		
 		// Subdivide rotation cube into octant subcubes and calculate upper and lower bounds for each
 		t_nodeRot.w = t_nodeRotParent.w/2;
-		if (t_nodeRot.w < rotThresh) {
-			continue;
-		}
+		// TODO: do not split anymore if less than rot_thresh
+		// if (t_nodeRot.w < rotThresh) {
+		// 	continue;
+		// }
 		// cout << "Outer_w: " << t_nodeRot.w << endl;
 		t_nodeRot.l = t_nodeRotParent.l+1;
 
@@ -587,7 +616,7 @@ float GoICP::OuterBnB()
 			// Run Inner Branch-and-Bound to find rotation upper bound
 			// Calculates the rotation upper bound by finding the translation upper bound for a given rotation,
 			// assuming that the rotation is known (zero rotation uncertainty radius)
-			t_ub = InnerBnB(NULL /*Rotation Uncertainty Radius*/, &t_nodeTrans);
+			t_ub = InnerBnB(NULL /*Rotation Uncertainty Radius*/, &t_nodeTrans, t_nodeRotParent.l, gs);
 			// printf("Current UB: %.6f, optError: %.6f\n", t_ub, optError);
 
 			// If the upper bound is the best so far, run ICP
@@ -644,7 +673,7 @@ float GoICP::OuterBnB()
 			// Calculates the rotation lower bound by finding the translation upper bound for a given rotation,
 			// assuming that the rotation is uncertain (a positive rotation uncertainty radius)
 			// Pass an array of rotation uncertainties for every point in data cloud at this level
-			t_lb = InnerBnB(maxRotDis[t_nodeRot.l], NULL /*Translation Node*/);
+			t_lb = InnerBnB(maxRotDis[t_nodeRot.l], NULL /*Translation Node*/, t_nodeRotParent.l, gs);
 			// printf("Current LB: %.6f, optError: %.6f\n", t_lb, optError);
 
 			// If the best error so far is less than the lower bound, remove the rotation subcube from the queue
@@ -659,10 +688,10 @@ float GoICP::OuterBnB()
 			queueRot.push(t_nodeRot);
 		}
 
-		if (optError <= SSEThresh) {
-			if (verbose) printf("Accepted, optError: %.6f, SSE: %.6f\n", optError, SSEThresh);
-			break;
-		}
+		// if (optError <= SSEThresh) {
+		// 	if (verbose) printf("Accepted, optError: %.6f, SSE: %.6f\n", optError, SSEThresh);
+		// 	break;
+		// }
 	}
 
 	return optError;
@@ -671,7 +700,7 @@ float GoICP::OuterBnB()
 float GoICP::Register()
 {
 	Initialize();
-	OuterBnB();
+	// OuterBnB();
 	Clear();
 
 	return optError;
@@ -685,6 +714,7 @@ void GoICP::printParams() {
 	cout << "Init trans: [" << initNodeTrans.x << ", " << initNodeTrans.y << ", " << initNodeTrans.z << "] -> " << initNodeTrans.w << endl;
 	cout << "MSE thresh: " << MSEThresh << endl;
 	cout << "SSE thresh: " << SSEThresh << endl;
+	cout << "Stop SSE: " << stopSSE << endl;
 	// cout << "Trim Frac: " << trimFraction << endl;
 	// cout << "# inliers: " << inlierNum << endl;
 	// cout << "Trim? " << doTrim << endl;
@@ -741,6 +771,8 @@ void loadGoICP(DB_Meshes* db_meshes, int db_id, Mesh* mesh_q, double sse, double
 
 	goicp->SSEThresh = sse;
 	goicp->MSEThresh = mse;
+	// goicp->stopSSE = mesh_q->get_bsphere_d() * 0.001 * mesh_q->size();
+	goicp->stopSSE = mesh_q->get_bsphere_d() * 0.1 * mesh_q->size();
 
 	goicp->verbose = verbose;
 

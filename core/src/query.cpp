@@ -27,33 +27,33 @@
 using namespace std;
 using namespace trimesh;
 
-#ifdef TEST_MODE
-    const int exec_times = 1;
-#else
-    const int exec_times = 50;
-#endif
-
 class Query_Context {
 public:
     int force_cell;
     unordered_set<int> force_pts;
-    bool write_stat;
     bool stop_once;
-    bool small_set;
-    string stat_filename;
-    bool sort_entry;
-    bool simple;
 
     string db_path;
     string grid_filename;
     string query_filename_recon;
+    string query_filename_real;
+    string question;
     double delta;
+    int k;
+    string require;
+    string algorithm;
     double epsilon;
+    int use_cf; // not yet include cf_h
     double color_err;
+    int num_exe;
+    int is_small;
+    int is_simp;
+
+    bool write_stat;
+    string stat_filename;
 
     double cos_phi; // in query this threshold is slightly larger
 
-    string query_filename_real;
 
     #ifdef _TK
         int k;
@@ -63,38 +63,30 @@ public:
 
     void read_param(int argc, char** argv) {
 
-        #ifdef _TK
-            #ifdef _PROB
-                if (argc < 9) {
-                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename_recon query_filename_real k delta epsilon color_err [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
-                    exit(1);
-                }
-            #else
-                if (argc < 8) {
-                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename_recon query_filename_real k delta color_err [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
-                    exit(1);
-                }
-            #endif
-        #else
-            #ifdef _PROB
-                if (argc < 8) {
-                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename_recon query_filename_real delta epsilon color_err [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
-                    exit(1);
-                }
-            #else
-                if (argc < 7) {
-                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename_recon query_filename_real delta color_err [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
-                    exit(1);
-                }
-            #endif
-        #endif
+        if (argc < 16) {
+            cerr << "Usage: " << argv[0]
+                 << " database_path"
+                 << " grid_filename"
+                 << " query_filename_recon"
+                 << " query_filename_real"
+                 << " question(delta_sim/top_k)"
+                 << " delta"
+                 << " k"
+                 << " require(det/prob)"
+                 << " algorithm"
+                 << " epsilon"
+                 << " use_cf"
+                 << " color_err"
+                 << " num_exe"
+                 << " is_small"
+                 << " is_simp"
+                 << " [-stop_once] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+            exit(1);
+        }
 
         force_cell = -1;
         force_pts.clear();
         stop_once = false;
-        small_set = false;
-        sort_entry = false;
-        simple = false;
         write_stat = false;
         stat_filename = "";
         for (int i = 0; i < argc; i++) {
@@ -108,12 +100,7 @@ public:
             else if (argv_str.rfind("-stat", 0) == 0) {
                 write_stat = true;
                 stat_filename = string(argv[i] + 6);
-            } else if (argv_str == "-sort_entry")
-                sort_entry = true;
-            else if (argv_str == "-simple")
-            	simple = true;
-            else if (argv_str == "-small")
-                small_set = true;
+            }
         }
 
         int argi = 0;
@@ -124,17 +111,21 @@ public:
         query_filename_real = argv[(++argi)];
         // query_filename_real = query_filename_recon;
 
-        #ifdef _TK
-            k = atoi(argv[(++argi)]);
-        #endif
-
+        question = argv[(++argi)];
         delta = atof(argv[(++argi)]);
-
-        #ifdef _PROB
-            epsilon = atof(argv[(++argi)]);
-        #endif
-
+        k = atoi(argv[(++argi)]);
+        require = argv[(++argi)];
+        algorithm = argv[(++argi)];
+        epsilon = atof(argv[(++argi)]);
+        use_cf = atoi(argv[(++argi)]);
         color_err = atof(argv[(++argi)]);
+        num_exe = atoi(argv[(++argi)]);
+        is_small = atoi(argv[(++argi)]);
+        is_simp = atoi(argv[(++argi)]);
+
+        #ifdef TEST_MODE
+            num_exe = 1;
+        #endif
     }
 
     DB_Meshes db_meshes;
@@ -229,10 +220,11 @@ public:
         double q_diam = mesh_q_real.get_bsphere_d();
         delta *= (q_diam * (double) mesh_q_real.size());
         cout << "Diameter of query mesh: " << q_diam << ", thus delta is finally set to delta * " << q_diam << " * Q-Size(" << mesh_q_real.size() << ") = " << delta << endl;
-        #ifndef _PROB
+        
+        if (require == "det") {
             epsilon = sqrt(delta); // for deterministic queries, epsilon is set according to delta
             cout << "Epsilon is finally set to sqrt(delta) = " << epsilon << endl;
-        #endif
+        }
 
         #ifdef _TK
             delta_0 = delta;
@@ -250,12 +242,12 @@ public:
 
         //     goicp[i]->Initialize();
         // }
-        cout << endl;
+        // cout << endl;
 
         for (int i = 0; i < db_meshes.size(); i++) {
             auto new_icp = new ICP3D<float>();
             // new_icp->err_diff_def = err_diff;
-            new_icp->err_diff_def = 1; //TODO
+            new_icp->err_diff_def = 10; //TODO
             new_icp->do_trim = false;
 
             auto t = db_meshes.get_mesh(i);
@@ -285,24 +277,30 @@ public:
     }
 };
 
-void get_potential_set(Pt3D* q, double rad, Query_Context* qc, vector<int>& ret, int excl_id_list[] = {}, int excl_id_num = 0) {
+Query_Context qc;
 
-    qc->r_q.nn_sphere_range(q, sq(rad + 2 * qc->epsilon), 4 * qc->epsilon, ret, excl_id_list, excl_id_num);
+double run_icp(Entry_Pair* ep) {
+    double init_dist = qc.db_meshes.cal_corr_err(&qc.mesh_q, ep->id_db, &ep->xf);
+    // cout << "Initial distance: " << init_dist << endl;
+    double r_array[9] {
+        ep->xf.r11, ep->xf.r12, ep->xf.r13,
+        ep->xf.r21, ep->xf.r22, ep->xf.r23,
+        ep->xf.r31, ep->xf.r32, ep->xf.r33
+    };
+    ICP_Matrix R_icp(3, 3, r_array);
+    double t_array[3] {
+        ep->xf.tx, ep->xf.ty, ep->xf.tz
+    };
+    ICP_Matrix t_icp(3, 1, t_array);
+    double updated_err = qc.m_icps[ep->id_db]->Run(qc.m_query_icp, qc.mesh_q.size(), R_icp, t_icp);
+    // cout << "Updated distance with ICP-only: " << updated_err << endl;
 
-    unordered_set<int> new_excl_id_set;
-    for (int i = 0; i < excl_id_num; i++) {
-        new_excl_id_set.insert(excl_id_list[i]);
-    }
-    for (auto &v: ret) {
-        new_excl_id_set.insert(v);
-    }
-
-    qc->r_q.range_sphere_min_max(q, rad - 2 * qc->epsilon, qc->s_db.ann_min + 2 * qc->epsilon, ret, new_excl_id_set);
+    return updated_err;
 }
 
-void get_potential_set_and_show(Pt3D* q, double rad, Query_Context* qc, vector<int>& ret, string nav = "", int excl_id_list[] = {}, int excl_id_num = 0) {
+void get_potential_set(Pt3D* q, double rad, vector<int>& ret, int excl_id_list[] = {}, int excl_id_num = 0) {
 
-    qc->r_q.nn_sphere_range(q, sq(rad + 2 * qc->epsilon), 4 * qc->epsilon, ret, excl_id_list, excl_id_num);
+    qc.r_q.nn_sphere_range(q, sq(rad + 2 * qc.epsilon), 4 * qc.epsilon, ret, excl_id_list, excl_id_num);
 
     unordered_set<int> new_excl_id_set;
     for (int i = 0; i < excl_id_num; i++) {
@@ -312,29 +310,87 @@ void get_potential_set_and_show(Pt3D* q, double rad, Query_Context* qc, vector<i
         new_excl_id_set.insert(v);
     }
 
-    qc->r_q.range_sphere_min_max(q, rad - 2 * qc->epsilon, qc->s_db.ann_min + 2 * qc->epsilon, ret, new_excl_id_set);
+    qc.r_q.range_sphere_min_max(q, rad - 2 * qc.epsilon, qc.s_db.ann_min + 2 * qc.epsilon, ret, new_excl_id_set);
+}
+
+void get_potential_set_and_show(Pt3D* q, double rad, vector<int>& ret, string nav = "", int excl_id_list[] = {}, int excl_id_num = 0) {
+
+    qc.r_q.nn_sphere_range(q, sq(rad + 2 * qc.epsilon), 4 * qc.epsilon, ret, excl_id_list, excl_id_num);
+
+    unordered_set<int> new_excl_id_set;
+    for (int i = 0; i < excl_id_num; i++) {
+        new_excl_id_set.insert(excl_id_list[i]);
+    }
+    for (auto &v: ret) {
+        new_excl_id_set.insert(v);
+    }
+
+    qc.r_q.range_sphere_min_max(q, rad - 2 * qc.epsilon, rad + 2 * qc.epsilon, ret, new_excl_id_set);
 
     cout << nav << "Potential set:";
     for (auto &it: ret) {
         // cout << " " << s_q->id_q_to_str(it.oid) << "=" << (sqrt(it.dist) / RSTREE_SCALE);
-        cout << " " << qc->s_q.id_q_to_str(it);
+        cout << " " << qc.s_q.id_q_to_str(it);
     }
     cout << endl;
 }
 
-void nn_sphere_range(Pt3D* q, double sq_dist, double err, Query_Context* qc, vector<int>& ret, int excl_id_list[] = {}, int excl_id_num = 0) {
+void get_potential_3nn_set(Pt3D* q, double rad, vector<int>& ret, string nav = "") {
 
-    qc->r_q.nn_sphere_range(q, sq_dist, err, ret, excl_id_list, excl_id_num);
+	int nn_sp_3[3];
+	qc.r_q.nn_sphere(q, rad + 2 * qc.epsilon, nn_sp_3, {}, 3);
+
+	ret.push_back(nn_sp_3[0]);
+	ret.push_back(nn_sp_3[1]);
+
+	auto pt_nn_sp_3 = qc.mesh_q.get_pt(nn_sp_3[2]);
+	auto nn_sp_3_dist = eucl_dist(q, pt_nn_sp_3);
+
+	qc.r_q.range_sphere_min_max(q, nn_sp_3_dist - 0.01, nn_sp_3_dist + 2 * qc.epsilon, ret);
+    qc.r_q.range_sphere_min_max(q, rad - 2 * qc.epsilon, rad + 2 * qc.epsilon, ret);
 }
 
-void nn_sphere_range_and_show(Pt3D* q, double sq_dist, double err, Query_Context* qc, vector<int>& ret, string nav = "", int excl_id_list[] = {}, int excl_id_num = 0) {
+void get_potential_3nn_set_and_show(Pt3D* q, double rad, vector<int>& ret, string nav = "") {
 
-    qc->r_q.nn_sphere_range(q, sq_dist, err, ret, excl_id_list, excl_id_num);
+	int nn_sp_3[3];
+	qc.r_q.nn_sphere(q, rad + 2 * qc.epsilon, nn_sp_3, {}, 3);
+	cout << nav << "Found the 3 NNs out of r+2e:";
+	for (int i = 0; i < 3; i++) {
+		cout << " " << nn_sp_3[i];
+	}
+	cout << endl;
+
+	ret.push_back(nn_sp_3[0]);
+	ret.push_back(nn_sp_3[1]);
+
+	auto pt_nn_sp_3 = qc.mesh_q.get_pt(nn_sp_3[2]);
+	auto nn_sp_3_dist = eucl_dist(q, pt_nn_sp_3);
+	cout << nav << "NN dist of NN-3: " << nn_sp_3_dist << endl;
+
+	qc.r_q.range_sphere_min_max(q, nn_sp_3_dist - 0.01, nn_sp_3_dist + 2 * qc.epsilon, ret);
+    qc.r_q.range_sphere_min_max(q, rad - 2 * qc.epsilon, rad + 2 * qc.epsilon, ret);
+
+    cout << nav << "Potential 3NN set:";
+    for (auto &it: ret) {
+        // cout << " " << s_q->id_q_to_str(it.oid) << "=" << (sqrt(it.dist) / RSTREE_SCALE);
+        cout << " " << qc.s_q.id_q_to_str(it);
+    }
+    cout << endl;
+}
+
+void nn_sphere_range(Pt3D* q, double sq_dist, double err, vector<int>& ret, int excl_id_list[] = {}, int excl_id_num = 0) {
+
+    qc.r_q.nn_sphere_range(q, sq_dist, err, ret, excl_id_list, excl_id_num);
+}
+
+void nn_sphere_range_and_show(Pt3D* q, double sq_dist, double err, vector<int>& ret, string nav = "", int excl_id_list[] = {}, int excl_id_num = 0) {
+
+    qc.r_q.nn_sphere_range(q, sq_dist, err, ret, excl_id_list, excl_id_num);
     
     cout << nav << "nn_sphere_range-------RR:";
     for (auto &it: ret) {
         // cout << " " << s_q->id_q_to_str(it.oid) << "=" << (sqrt(it.dist) / RSTREE_SCALE);
-        cout << " " << qc->s_q.id_q_to_str(it);
+        cout << " " << qc.s_q.id_q_to_str(it);
     }
     cout << endl;
 }
@@ -347,9 +403,9 @@ int get_th_index(int L, int i, int j) {
 }
 
 // #ifdef TEST_MODE
-// int cal_entries_3nn(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret, vector<int>& cheat_list_id, vector<double>& cheat_list_dist)
+// int cal_entries_3nn(PtwID* q, vector<Entry*>& v_ret, vector<int>& cheat_list_id, vector<double>& cheat_list_dist)
 // #else
-int cal_entries_3nn_nonsim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
+int cal_entries_3nn_nonsim(PtwID* q, vector<Entry*>& v_ret)
 // #endif
 {
 
@@ -358,13 +414,13 @@ int cal_entries_3nn_nonsim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
     cout.precision(10);
 
     int ret = 0;
-    double err = qc->epsilon * 2;
+    double err = qc.epsilon * 2;
 
     vector<int> range;
     #if VERBOSE > 0
-        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), 1.2 * err, qc, range); // set to (1.2 * err) instead of err to ensure the accuracy
+        nn_sphere_range_and_show(q->pt, sq(qc.s_db.ann_min - err), 1.2 * err, range); // set to (1.2 * err) instead of err to ensure the accuracy
     #else
-        nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), 1.2 * err, qc, range);
+        nn_sphere_range(q->pt, sq(qc.s_db.ann_min - err), 1.2 * err, range);
     #endif
 
     int range_size = range.size();
@@ -375,7 +431,7 @@ int cal_entries_3nn_nonsim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
     vector<PtwID> range_pts;
     vector<Pt3D> range_qa;
     for (int &id: range) {
-        auto pt = PtwID(id, &qc->mesh_q);
+        auto pt = PtwID(id, &qc.mesh_q);
         range_pts.push_back(pt);
         range_qa.push_back(*pt.pt - *q->pt);
     }
@@ -387,7 +443,7 @@ int cal_entries_3nn_nonsim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
     }
 
     // #ifdef TEST_MODE
-    //     Entry* q_entry = new Entry(q, PtwID(cheat_list_id[1], &qc->mesh_q), PtwID(cheat_list_id[2], &qc->mesh_q), PtwID(cheat_list_id[3], &qc->mesh_q));
+    //     Entry* q_entry = new Entry(q, PtwID(cheat_list_id[1], &qc.mesh_q), PtwID(cheat_list_id[2], &qc.mesh_q), PtwID(cheat_list_id[3], &qc.mesh_q));
     //     q_entry->fill_sides();
     //     v_ret.push_back(q_entry);
     // #else
@@ -399,7 +455,7 @@ int cal_entries_3nn_nonsim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
                     double cos_th_ij = cos_th[get_th_index(range_size, i, j)]; // the angle of i & j
                     double cos_th_ik = cos_th[get_th_index(range_size, i, k)]; // the angle of i & k
                     double cos_th_jk = cos_th[get_th_index(range_size, j, k)]; // the angle of j & k
-                    if (cos_th_ij > qc->cos_phi || cos_th_ik > qc->cos_phi || cos_th_jk > qc->cos_phi) {
+                    if (cos_th_ij > qc.cos_phi || cos_th_ik > qc.cos_phi || cos_th_jk > qc.cos_phi) {
                         continue; // if th < phi, skip it
                     }
 
@@ -415,9 +471,9 @@ int cal_entries_3nn_nonsim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
 }
 
 // #ifdef TEST_MODE
-// int cal_entries_3nn_sim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret, vector<int>& cheat_list_id, vector<double>& cheat_list_dist)
+// int cal_entries_3nn_sim(PtwID* q, vector<Entry*>& v_ret, vector<int>& cheat_list_id, vector<double>& cheat_list_dist)
 // #else
-int cal_entries_3nn_sim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
+int cal_entries_3nn_sim(PtwID* q, vector<Entry*>& v_ret)
 // #endif
 {
 
@@ -426,13 +482,21 @@ int cal_entries_3nn_sim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
     cout.precision(10);
 
     int ret = 0;
-    double err = qc->epsilon * 2;
+    double err = qc.epsilon * 2;
 
     vector<int> range;
     #if VERBOSE > 0
-        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), err, qc, range);
+    	if (qc.require == "prob") {
+        	nn_sphere_range_and_show(q->pt, sq(qc.s_db.ann_min - err), err, range);
+    	} else {
+    		get_potential_3nn_set_and_show(q->pt, qc.s_db.ann_min, range);
+    	}
     #else
-        nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), err, qc, range);
+    	if (qc.require == "prob") {
+        	nn_sphere_range(q->pt, sq(qc.s_db.ann_min - err), err, range);
+    	} else {
+    		get_potential_3nn_set(q->pt, qc.s_db.ann_min, range);
+    	}
     #endif
 
     int range_size = range.size();
@@ -442,73 +506,71 @@ int cal_entries_3nn_sim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
 
     vector<PtwID> range_pts;
     for (int &id: range) {
-        auto pt = PtwID(id, &qc->mesh_q);
-        range_pts.push_back(pt);
+        range_pts.emplace_back(id, &qc.mesh_q);
     }
 
     // #ifdef TEST_MODE
-    //     Entry* q_entry = new Entry(q, PtwID(cheat_list_id[1], &qc->mesh_q), PtwID(cheat_list_id[2], &qc->mesh_q), PtwID(cheat_list_id[3], &qc->mesh_q));
+    //     Entry* q_entry = new Entry(q, PtwID(cheat_list_id[1], &qc.mesh_q), PtwID(cheat_list_id[2], &qc.mesh_q), PtwID(cheat_list_id[3], &qc.mesh_q));
     //     q_entry->fill_sides();
     //     v_ret.push_back(q_entry);
     // #else
         // loop for all the 3-combinations
         for (int i = 0; i < range_size; i++) {
-            for (int j = i + 1; j < range_size; j++) {
-                for (int k = j + 1; k < range_size; k++) {
-
-                    Entry* q_entry = new Entry(q, &range_pts[i], &range_pts[j], &range_pts[k]);
-                    q_entry->fill_sides();
-
-                    v_ret.push_back(q_entry);
-
+            for (int j = 0; j < range_size; j++) {
+                for (int k = 0; k < range_size; k++) {
+                	if (i != j && i != k && j != k) {
+	                    Entry* q_entry = new Entry(q, &range_pts[i], &range_pts[j], &range_pts[k]);
+	                    q_entry->fill_sides();
+	                    v_ret.push_back(q_entry);
+	                }
                 }
             }
         }
     // #endif
 }
 
-int cal_entries_3nn(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
-	if (qc->simple) {
-		return cal_entries_3nn_sim(q, qc, v_ret);
+int cal_entries_3nn(PtwID* q, vector<Entry*>& v_ret) {
+	if (qc.is_simp) {
+		return cal_entries_3nn_sim(q, v_ret);
 	} else {
-		return cal_entries_3nn_nonsim(q, qc, v_ret);
+		return cal_entries_3nn_nonsim(q, v_ret);
 	}
 }
 
-int cal_entries_3lnn_nonsim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
+int cal_entries_3lnn_nonsim(PtwID* q, vector<Entry*>& v_ret) {
 
     v_ret.clear();
 
     cout.precision(10);
 
     int ret = 0;
-    double err = qc->epsilon * 2;
+    double err = qc.epsilon * 2;
 
     vector<int> range_a, range_b, range_c;
     #if VERBOSE > 0
-        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
-        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_mid - err), err, qc, range_b);
-        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_max - err), err, qc, range_c);
+        nn_sphere_range_and_show(q->pt, sq(qc.s_db.ann_min - err), err, range_a);
+        nn_sphere_range_and_show(q->pt, sq(qc.s_db.ann_mid - err), err, range_b);
+        nn_sphere_range_and_show(q->pt, sq(qc.s_db.ann_max - err), err, range_c);
     #else
-        nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
-        nn_sphere_range(q->pt, sq(qc->s_db.ann_mid - err), err, qc, range_b);
-        nn_sphere_range(q->pt, sq(qc->s_db.ann_max - err), err, qc, range_c);
+        nn_sphere_range(q->pt, sq(qc.s_db.ann_min - err), err, range_a);
+        nn_sphere_range(q->pt, sq(qc.s_db.ann_mid - err), err, range_b);
+        nn_sphere_range(q->pt, sq(qc.s_db.ann_max - err), err, range_c);
     #endif
 
     vector<PtwID> range_pts_a, range_pts_b, range_pts_c;
     vector<Pt3D> range_qa, range_qb, range_qc;
     for (int &id: range_a) {
-        auto pt = PtwID(id, &qc->mesh_q);
+        auto pt = PtwID(id, &qc.mesh_q);
         range_pts_a.push_back(pt);
         range_qa.push_back(*pt.pt - *q->pt);
     }
     for (int &id: range_b) {
-        auto pt = PtwID(id, &qc->mesh_q);
+        auto pt = PtwID(id, &qc.mesh_q);
         range_pts_b.push_back(pt);
         range_qb.push_back(*pt.pt - *q->pt);
     }
     for (int &id: range_c) {
-        auto pt = PtwID(id, &qc->mesh_q);
+        auto pt = PtwID(id, &qc.mesh_q);
         range_pts_c.push_back(pt);
         range_qc.push_back(*pt.pt - *q->pt);
     }
@@ -522,7 +584,7 @@ int cal_entries_3lnn_nonsim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) 
                 double cos_th_ik = cos_theta(&range_qa[i], &range_qc[k]); // the angle of i & k
                 double cos_th_jk = cos_theta(&range_qb[j], &range_qc[k]); // the angle of j & k
                 // cout << cos_th_ij << " " << cos_th_ik << " " << cos_th_jk << endl;
-                if (cos_th_ij > qc->cos_phi || cos_th_ik > qc->cos_phi || cos_th_jk > qc->cos_phi) {
+                if (cos_th_ij > qc.cos_phi || cos_th_ik > qc.cos_phi || cos_th_jk > qc.cos_phi) {
                     continue; // if th < phi, skip it
                 }
 
@@ -535,37 +597,37 @@ int cal_entries_3lnn_nonsim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) 
     }
 }
 
-int cal_entries_3lnn_sim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
+int cal_entries_3lnn_sim(PtwID* q, vector<Entry*>& v_ret) {
 
     v_ret.clear();
 
     cout.precision(10);
 
     int ret = 0;
-    double err = qc->epsilon * 2;
+    double err = qc.epsilon * 2;
 
     vector<int> range_a, range_b, range_c;
     #if VERBOSE > 0
-        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
-        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_mid - err), err, qc, range_b);
-        nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_max - err), err, qc, range_c);
+        nn_sphere_range_and_show(q->pt, sq(qc.s_db.ann_min - err), err, range_a);
+        nn_sphere_range_and_show(q->pt, sq(qc.s_db.ann_mid - err), err, range_b);
+        nn_sphere_range_and_show(q->pt, sq(qc.s_db.ann_max - err), err, range_c);
     #else
-        nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
-        nn_sphere_range(q->pt, sq(qc->s_db.ann_mid - err), err, qc, range_b);
-        nn_sphere_range(q->pt, sq(qc->s_db.ann_max - err), err, qc, range_c);
+        nn_sphere_range(q->pt, sq(qc.s_db.ann_min - err), err, range_a);
+        nn_sphere_range(q->pt, sq(qc.s_db.ann_mid - err), err, range_b);
+        nn_sphere_range(q->pt, sq(qc.s_db.ann_max - err), err, range_c);
     #endif
 
     vector<PtwID> range_pts_a, range_pts_b, range_pts_c;
     for (int &id: range_a) {
-        auto pt = PtwID(id, &qc->mesh_q);
+        auto pt = PtwID(id, &qc.mesh_q);
         range_pts_a.push_back(pt);
     }
     for (int &id: range_b) {
-        auto pt = PtwID(id, &qc->mesh_q);
+        auto pt = PtwID(id, &qc.mesh_q);
         range_pts_b.push_back(pt);
     }
     for (int &id: range_c) {
-        auto pt = PtwID(id, &qc->mesh_q);
+        auto pt = PtwID(id, &qc.mesh_q);
         range_pts_c.push_back(pt);
     }
 
@@ -573,6 +635,10 @@ int cal_entries_3lnn_sim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
     for (int i = 0; i < range_a.size(); i++) {
         for (int j = 0; j < range_b.size(); j++) {
             for (int k = 0; k < range_c.size(); k++) {
+
+                if (i == j || i == k || j == k) {
+                    continue;
+                }
 
                 Entry* q_entry = new Entry(q, &range_pts_a[i], &range_pts_b[j], &range_pts_c[k]);
                 q_entry->fill_sides();
@@ -583,11 +649,11 @@ int cal_entries_3lnn_sim(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
     }
 }
 
-int cal_entries_3lnn(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
-	if (qc->simple) {
-		return cal_entries_3lnn_sim(q, qc, v_ret);
+int cal_entries_3lnn(PtwID* q, vector<Entry*>& v_ret) {
+	if (qc.is_simp) {
+		return cal_entries_3lnn_sim(q, v_ret);
 	} else {
-		return cal_entries_3lnn_nonsim(q, qc, v_ret);
+		return cal_entries_3lnn_nonsim(q, v_ret);
 	}
 }
 
@@ -620,13 +686,13 @@ bool insert_entry(Entry* new_entry, vector<Entry*>& v_ret, unordered_set<long lo
 }
 
 #ifdef TEST_MODE
-double brute_force_nn(vector<int>& list, int cheat, Query_Context* qc, PtwID& ret) {
-    PtwID cheat_pt = PtwID(cheat, &qc->mesh_q);
+double brute_force_nn(vector<int>& list, int cheat, PtwID& ret) {
+    PtwID cheat_pt = PtwID(cheat, &qc.mesh_q);
 
     double nn_dist = numeric_limits<double>::max();
     for (int i = 0; i < list.size(); i++) {
         if (list[i] != cheat) {
-            PtwID pt = PtwID(list[i], &qc->mesh_q);
+            PtwID pt = PtwID(list[i], &qc.mesh_q);
             double dist = eucl_dist(pt.pt, cheat_pt.pt);
             if (dist < nn_dist) {
                 nn_dist = dist;
@@ -640,9 +706,9 @@ double brute_force_nn(vector<int>& list, int cheat, Query_Context* qc, PtwID& re
 #endif
 
 // #ifdef TEST_MODE
-// int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret, vector<int>& cheat_list_id, vector<double>& cheat_list_dist)
+// int cal_entries(PtwID* q, vector<Entry*>& v_ret, vector<int>& cheat_list_id, vector<double>& cheat_list_dist)
 // #else
-int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
+int cal_entries(PtwID* q, vector<Entry*>& v_ret)
 // #endif
 {
 
@@ -653,7 +719,7 @@ int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
     cout.precision(10);
 
     int ret = 0;
-    double err = qc->epsilon * 2;
+    double err = qc.epsilon * 2;
 
     vector<int> range_a, range_h, range_b, range_c;
     PtwID ten_a, ten_h, ten_b, ten_c;
@@ -663,22 +729,22 @@ int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
     // #endif
 
     #if VERBOSE > 1
-        #ifdef _ACC
-            nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
-        #else
-            get_potential_set_and_show(q->pt, qc->s_db.ann_min, qc, range_a);
-        #endif
+        if (qc.require == "prob") { // TODO change to deter range?
+            nn_sphere_range_and_show(q->pt, sq(qc.s_db.ann_min - err), err, range_a);
+        } else {
+            get_potential_set_and_show(q->pt, qc.s_db.ann_min, range_a);
+        }
     #else
-        #ifdef _ACC
-            nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
-        #else
-            get_potential_set(q->pt, qc->s_db.ann_min, qc, range_a);
-        #endif
+        if (qc.require == "prob") {
+            nn_sphere_range(q->pt, sq(qc.s_db.ann_min - err), err, range_a);
+        } else {
+            get_potential_set(q->pt, qc.s_db.ann_min, range_a);
+        }
     #endif
 
     // #ifdef TEST_MODE // depr, used for identifying the nearest query tetrahedron candidate, and to test the error
     //     if (cheat_list_id[1] >= 0) {
-    //         double nn_a_dist = brute_force_nn(range_a, cheat_list_id[1], qc, nn_a);
+    //         double nn_a_dist = brute_force_nn(range_a, cheat_list_id[1], nn_a);
     //         cout << "The NN of ground-truth a = #" << cheat_list_id[1] << " is recognized: #" << nn_a.id << ", dist = " << nn_a_dist << endl;
     //     }
     // #endif
@@ -694,10 +760,10 @@ int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
         // #endif
 
         // #if VERBOSE > 2
-        //     cout << endl << "For a = " << qc->s_q.id_q_to_str(it_a) << endl;
+        //     cout << endl << "For a = " << qc.s_q.id_q_to_str(it_a) << endl;
         // #endif
 
-        ten_a.set(it_a, &qc->mesh_q);
+        ten_a.set(it_a, &qc.mesh_q);
 
         Pt3D m;
         middle_pt(q->pt, ten_a.pt, m);
@@ -706,17 +772,17 @@ int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
         int excl_qa[2] = { q->id, ten_a.id };
 
         #if VERBOSE > 2
-            #ifdef _ACC
-                nn_sphere_range_and_show(&m, sq(d_pm - err), err, qc, range_h, "", excl_qa, 2);
-            #else
-                get_potential_set_and_show(&m, d_pm, qc, range_h, "", excl_qa, 2);
-            #endif
+            if (qc.require == "prob") {
+                nn_sphere_range_and_show(&m, sq(d_pm - err), err, range_h, "", excl_qa, 2);
+            } else {
+                get_potential_set_and_show(&m, d_pm, range_h, "", excl_qa, 2);
+            }
         #else
-            #ifdef _ACC
-                nn_sphere_range(&m, sq(d_pm - err), err, qc, range_h, excl_qa, 2);
-            #else
-                get_potential_set(&m, d_pm, qc, range_h, excl_qa, 2);
-            #endif
+            if (qc.require == "prob") {
+                nn_sphere_range(&m, sq(d_pm - err), err, range_h, excl_qa, 2);
+            } else {
+                get_potential_set(&m, d_pm, range_h, excl_qa, 2);
+            }
         #endif
 
         for (auto &it_h: range_h) {
@@ -730,10 +796,10 @@ int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
 			// #endif
 
             #if VERBOSE > 3
-                cout << endl << TAB << "For h = " << qc->s_q.id_q_to_str(it_h) << endl;
+                cout << endl << TAB << "For h = " << qc.s_q.id_q_to_str(it_h) << endl;
             #endif
 
-            ten_h.set(it_h, &qc->mesh_q);
+            ten_h.set(it_h, &qc.mesh_q);
 
             Pt3D ten_b_est, ten_c_est;
             auto got_b_c = get_est_b_c(&m, ten_a.pt, ten_h.pt, ten_b_est, ten_c_est);
@@ -742,14 +808,14 @@ int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
             }
 
             #if VERBOSE > 3
-                nn_sphere_range_and_show(&ten_b_est, 0.0, err, qc, range_b, TAB, excl_qa, 2);
+                nn_sphere_range_and_show(&ten_b_est, 0.0, err, range_b, TAB, excl_qa, 2);
             #else
-                nn_sphere_range(&ten_b_est, 0.0, err, qc, range_b, excl_qa, 2);
+                nn_sphere_range(&ten_b_est, 0.0, err, range_b, excl_qa, 2);
             #endif
 
             // #ifdef TEST_MODE // depr, used for identifying the nearest query tetrahedron candidate, and to test the error
             //     if (cheat_list_id[2] >= 0) {
-            //         double nn_b_dist = brute_force_nn(range_b, cheat_list_id[2], qc, nn_b);
+            //         double nn_b_dist = brute_force_nn(range_b, cheat_list_id[2], nn_b);
             //         cout << "The NN of ground-truth b = #" << cheat_list_id[2] << " is recognized: #" << nn_b.id << ", dist = " << nn_b_dist << endl;
             //     }
             // #endif
@@ -765,22 +831,22 @@ int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
                 // #endif
 
                 #if VERBOSE > 4
-                    cout << endl << TABTAB << "For b = " << qc->s_q.id_q_to_str(it_b) << endl;
+                    cout << endl << TABTAB << "For b = " << qc.s_q.id_q_to_str(it_b) << endl;
                 #endif
 
-                ten_b.set(it_b, &qc->mesh_q);
+                ten_b.set(it_b, &qc.mesh_q);
 
                 int excl_qab[3] = { q->id, ten_a.id, ten_b.id };
 
                 #if VERBOSE > 4
-                    nn_sphere_range_and_show(&ten_c_est, 0.0, err, qc, range_c, TABTAB, excl_qab, 3);
+                    nn_sphere_range_and_show(&ten_c_est, 0.0, err, range_c, TABTAB, excl_qab, 3);
                 #else
-                    nn_sphere_range(&ten_c_est, 0.0, err, qc, range_c, excl_qab, 3);
+                    nn_sphere_range(&ten_c_est, 0.0, err, range_c, excl_qab, 3);
                 #endif
 
                 // #ifdef TEST_MODE // depr, used for identifying the nearest query tetrahedron candidate, and to test the error
                 //     if (cheat_list_id[3] >= 0) {
-                //     	double nn_c_dist = brute_force_nn(range_c, cheat_list_id[3], qc, nn_c);
+                //     	double nn_c_dist = brute_force_nn(range_c, cheat_list_id[3], nn_c);
                 //     	cout << "The NN of ground-truth c = #" << cheat_list_id[3] << " is recognized: #" << nn_c.id << ", dist = " << nn_c_dist << endl;
                 //     }
                 // #endif
@@ -796,10 +862,10 @@ int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
                     // #endif
 
                     #if VERBOSE > 5
-                        cout << endl << TABTABTAB << "For c = " << qc->s_q.id_q_to_str(it_c) << endl;
+                        cout << endl << TABTABTAB << "For c = " << qc.s_q.id_q_to_str(it_c) << endl;
                     #endif
 
-                    ten_c = PtwID(it_c, &qc->mesh_q);
+                    ten_c = PtwID(it_c, &qc.mesh_q);
 
                     // // currently the ratio set (including the volume and volume ratio) is not required
                     // // since the indexing key are the side length
@@ -814,11 +880,6 @@ int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
                         #endif
 
 						q_entry->fill_sides();
-
-                        // // no need to sort_entry anymore
-                        // if (qc->sort_entry) {
-                        //     q_entry->sort_sides();
-                        // }
 
                         ret++;
                     }
@@ -841,28 +902,28 @@ int cal_entries(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret)
     return ret;
 }
 
-void prob_donut_range(Pt3D* o, Pt3D* n, double r/*?*/, double err, Query_Context* qc, vector<int>& ret) {
+void prob_donut_range(Pt3D* o, Pt3D* n, double r/*?*/, double err, vector<int>& ret) {
 
     int q_donut_nn;
     double q_donut_dist;
-    if (qc->small_set) {
-        q_donut_dist = donut_nn_quick(o, n, r, &qc->mesh_q, &qc->r_q, &q_donut_nn);
+    if (qc.is_small) {
+        q_donut_dist = donut_nn_quick(o, n, r, &qc.mesh_q, &qc.r_q, &q_donut_nn);
     } else {
-        q_donut_dist = donut_nn(o, n, r, &qc->mesh_q, &qc->r_q, &q_donut_nn);
+        q_donut_dist = donut_nn(o, n, r, &qc.mesh_q, &qc.r_q, &q_donut_nn);
     }
-    if (q_donut_nn < 0 || q_donut_nn >= qc->mesh_q.size()) {
+    if (q_donut_nn < 0 || q_donut_nn >= qc.mesh_q.size()) {
         return;
     }
 
-    auto donut_nn_pt = PtwID(q_donut_nn, &qc->mesh_q);
+    auto donut_nn_pt = PtwID(q_donut_nn, &qc.mesh_q);
     double L = eucl_dist(donut_nn_pt.pt, o);
 
     vector<int> donut_range_cand;
-    qc->r_q.range_sphere_min_max(o, L - 0.01, L + err * 2.0, donut_range_cand);
+    qc.r_q.range_sphere_min_max(o, L - 0.01, L + err * 2.0, donut_range_cand);
 
     double sq_r = sq(r);
     for (auto &i: donut_range_cand) {
-        auto i_pt = PtwID(i, &qc->mesh_q);
+        auto i_pt = PtwID(i, &qc.mesh_q);
         double donut_dist = sqrt(donut_dist_sq(i_pt.pt, o, n, r, sq_r));
         if (donut_dist <= q_donut_dist + err * 2.0) {
             ret.push_back(i);
@@ -870,44 +931,44 @@ void prob_donut_range(Pt3D* o, Pt3D* n, double r/*?*/, double err, Query_Context
     }
 }
 
-void prob_donut_range_and_show(Pt3D* o, Pt3D* n, double r/*?*/, double err, Query_Context* qc, vector<int>& ret, string nav = "") {
+void prob_donut_range_and_show(Pt3D* o, Pt3D* n, double r/*?*/, double err, vector<int>& ret, string nav = "") {
 
-    prob_donut_range(o, n, r, err, qc, ret);
+    prob_donut_range(o, n, r, err, ret);
     
     cout << nav << "donut_range-------RR:";
     for (auto &it: ret) {
         // cout << " " << s_q->id_q_to_str(it.oid) << "=" << (sqrt(it.dist) / RSTREE_SCALE);
-        cout << " " << qc->s_q.id_q_to_str(it);
+        cout << " " << qc.s_q.id_q_to_str(it);
     }
     cout << endl;
 }
 
-void detm_donut_range(Pt3D* o, Pt3D* n, double r/*?*/, double err, Query_Context* qc, vector<int>& ret) { // TODO: more research
+void detm_donut_range(Pt3D* o, Pt3D* n, double r/*?*/, double err, vector<int>& ret) { // TODO: more research
 
     int q_donut_nn;
     double q_donut_dist;
-    if (qc->small_set) {
-        q_donut_dist = donut_nn_quick(o, n, r, &qc->mesh_q, &qc->r_q, &q_donut_nn);
+    if (qc.is_small) {
+        q_donut_dist = donut_nn_quick(o, n, r, &qc.mesh_q, &qc.r_q, &q_donut_nn);
     } else {
-        q_donut_dist = donut_nn(o, n, r, &qc->mesh_q, &qc->r_q, &q_donut_nn);
+        q_donut_dist = donut_nn(o, n, r, &qc.mesh_q, &qc.r_q, &q_donut_nn);
     }
-    if (q_donut_nn < 0 || q_donut_nn >= qc->mesh_q.size()) {
+    if (q_donut_nn < 0 || q_donut_nn >= qc.mesh_q.size()) {
         return;
     }
 
     // cout << "q_donut_nn: " << q_donut_nn << endl;
 
-    auto donut_nn_pt = PtwID(q_donut_nn, &qc->mesh_q);
+    auto donut_nn_pt = PtwID(q_donut_nn, &qc.mesh_q);
     double L = eucl_dist(donut_nn_pt.pt, o);
 
     vector<int> donut_range_cand;
-    qc->r_q.range_sphere_min_max(o, L - err * 2.0, L + err * 2.0, donut_range_cand);
+    qc.r_q.range_sphere_min_max(o, L - err * 2.0, L + err * 2.0, donut_range_cand);
     // cout << "Filter dist to o between " << (L - err * 2.0) << " and " << (L + err * 2.0) << endl;
-    // cout << "Dist 15: " << eucl_dist(qc->mesh_q.get_pt(15), o) << endl;
+    // cout << "Dist 15: " << eucl_dist(qc.mesh_q.get_pt(15), o) << endl;
 
     double sq_r = sq(r);
     for (auto &i: donut_range_cand) {
-        auto i_pt = PtwID(i, &qc->mesh_q);
+        auto i_pt = PtwID(i, &qc.mesh_q);
         double donut_dist = sqrt(donut_dist_sq(i_pt.pt, o, n, r, sq_r));
         // cout << i << ": " << donut_dist << endl;
         if (donut_dist <= q_donut_dist + err * 4.0) {
@@ -916,43 +977,42 @@ void detm_donut_range(Pt3D* o, Pt3D* n, double r/*?*/, double err, Query_Context
     }
 }
 
-void detm_donut_range_and_show(Pt3D* o, Pt3D* n, double r/*?*/, double err, Query_Context* qc, vector<int>& ret, string nav = "") {
+void detm_donut_range_and_show(Pt3D* o, Pt3D* n, double r/*?*/, double err, vector<int>& ret, string nav = "") {
 
-	detm_donut_range(o, n, r, err, qc, ret);
+	detm_donut_range(o, n, r, err, ret);
 
     cout << nav << "donut_range-------RR:";
     for (auto &it: ret) {
         // cout << " " << s_q->id_q_to_str(it.oid) << "=" << (sqrt(it.dist) / RSTREE_SCALE);
-        cout << " " << qc->s_q.id_q_to_str(it);
+        cout << " " << qc.s_q.id_q_to_str(it);
     }
     cout << endl;
 }
 
-int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
+int cal_entries_donut(PtwID* q, vector<Entry*>& v_ret) {
 
     v_ret.clear();
     
     cout.precision(10);
 
     int ret = 0;
-    double err = qc->epsilon * 2;
-    err = 3.0;
+    double err = qc.epsilon * 2;
 
     vector<int> range_a, range_b, range_c;
     PtwID ten_a, ten_b, ten_c;
 
     #if VERBOSE > 1
-        #ifdef _ACC
-            nn_sphere_range_and_show(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
-        #else
-            get_potential_set_and_show(q->pt, qc->s_db.ann_min, qc, range_a);
-        #endif
+        if (qc.require == "prob") {
+            nn_sphere_range_and_show(q->pt, sq(qc.s_db.ann_min - err), err, range_a);
+        } else {
+            get_potential_set_and_show(q->pt, qc.s_db.ann_min, range_a);
+        }
     #else
-        #ifdef _ACC
-            nn_sphere_range(q->pt, sq(qc->s_db.ann_min - err), err, qc, range_a);
-        #else
-            get_potential_set(q->pt, qc->s_db.ann_min, qc, range_a);
-        #endif
+        if (qc.require == "prob") {
+            nn_sphere_range(q->pt, sq(qc.s_db.ann_min - err), err, range_a);
+        } else {
+            get_potential_set(q->pt, qc.s_db.ann_min, range_a);
+        }
     #endif
 
     for (auto &it_a: range_a) {
@@ -961,10 +1021,10 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
             continue;
 
         #if VERBOSE > 2
-            cout << endl << "For a = " << qc->s_q.id_q_to_str(it_a) << endl;
+            cout << endl << "For a = " << qc.s_q.id_q_to_str(it_a) << endl;
         #endif
 
-        ten_a.set(it_a, &qc->mesh_q);
+        ten_a.set(it_a, &qc.mesh_q);
         auto qa = *(q->pt) - *(ten_a.pt);
 
         Pt3D m;
@@ -973,17 +1033,17 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
         double r_donut = d_pm * 1.73205080757;
 
         #if VERBOSE > 2
-            #ifdef _ACC
-                prob_donut_range_and_show(&m, &qa, r_donut, err, qc, range_b, "");
-            #else
-                detm_donut_range_and_show(&m, &qa, r_donut, err, qc, range_b, "");
-            #endif
+            if (qc.require == "prob") {
+                prob_donut_range_and_show(&m, &qa, r_donut, err, range_b, "");
+            } else {
+                detm_donut_range_and_show(&m, &qa, r_donut, err, range_b, "");
+            }
         #else
-            #ifdef _ACC
-                prob_donut_range(&m, &qa, r_donut, err, qc, range_b);
-            #else
-                detm_donut_range(&m, &qa, r_donut, err, qc, range_b);
-            #endif
+            if (qc.require == "prob") {
+                prob_donut_range(&m, &qa, r_donut, err, range_b);
+            } else {
+                detm_donut_range(&m, &qa, r_donut, err, range_b);
+            }
         #endif
 
         for (auto &it_b: range_b) {
@@ -992,10 +1052,10 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
                 continue;
 
             #if VERBOSE > 3
-                cout << endl << TAB << "For b = " << qc->s_q.id_q_to_str(it_b) << endl;
+                cout << endl << TAB << "For b = " << qc.s_q.id_q_to_str(it_b) << endl;
             #endif
 
-            ten_b.set(it_b, &qc->mesh_q);
+            ten_b.set(it_b, &qc.mesh_q);
 
             Pt3D ten_b_est, ten_c_est;
             auto got_b_c = get_est_b_c(&m, ten_a.pt, ten_b.pt, ten_b_est, ten_c_est);
@@ -1006,9 +1066,9 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
             int excl_qab[3] = { q->id, ten_a.id, ten_b.id };
 
             #if VERBOSE > 3
-                nn_sphere_range_and_show(&ten_c_est, 0.0, err, qc, range_c, TAB, excl_qab, 3);
+                nn_sphere_range_and_show(&ten_c_est, 0.0, err, range_c, TAB, excl_qab, 3);
             #else
-                nn_sphere_range(&ten_c_est, 0.0, err, qc, range_c, excl_qab, 3);
+                nn_sphere_range(&ten_c_est, 0.0, err, range_c, excl_qab, 3);
             #endif
 
             for (auto &it_c: range_c) {
@@ -1017,10 +1077,10 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
                     continue;
 
                 #if VERBOSE > 4
-                    cout << endl << TABTAB << "For c = " << qc->s_q.id_q_to_str(it_c) << endl;
+                    cout << endl << TABTAB << "For c = " << qc.s_q.id_q_to_str(it_c) << endl;
                 #endif
 
-                ten_c.set(it_c, &qc->mesh_q);
+                ten_c.set(it_c, &qc.mesh_q);
 
                 // currently the ratio set (including the volume and volume ratio) is not required
                 // since the indexing key are the side length
@@ -1030,10 +1090,6 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
                 Entry* q_entry = new Entry(q, &ten_a, &ten_b, &ten_c);
 
                 q_entry->fill_sides();
-
-                // if (qc->sort_entry) {
-                //     q_entry->sort_sides();
-                // }
 
                 #if VERBOSE > 4
                     cout << TABTAB << "Include query entry: " << q_entry->to_str(10) << endl;
@@ -1053,34 +1109,22 @@ int cal_entries_donut(PtwID* q, Query_Context* qc, vector<Entry*>& v_ret) {
 
 bool recheck_congr(const Entry* e, const Entry_trim* f, double err) {
 
-    // #ifdef _3NN
-        if (abs(e->sides[0] - f->sides[0]) > err) {
-            return false;
-        }
-        if (abs(e->sides[1] - f->sides[1]) > err) {
-            return false;
-        }
-        if (abs(e->sides[2] - f->sides[2]) > err) {
-            return false;
-        }
-    // #else
-    //     if (abs(e->sides[1] - f->sides[1]) > err) {
-    //         return false;
-    //     }
-    //     if (abs(e->sides[2] - f->sides[2]) > err) {
-    //         return false;
-    //     }
-    //     if (abs(e->sides[5] - f->sides[5]) > err) {
-    //         return false;
-    //     }
-    // #endif
+    if (abs(e->sides[0] - f->sides[0]) > err) {
+        return false;
+    }
+    if (abs(e->sides[1] - f->sides[1]) > err) {
+        return false;
+    }
+    if (abs(e->sides[2] - f->sides[2]) > err) {
+        return false;
+    }
 
     return true;
 }
 
-int retrieve_congr_entry(vector<Entry*>& e_list, Query_Context* qc, vector<Entry_Pair*>& ret) {
+int retrieve_congr_entry(vector<Entry*>& e_list, vector<Entry_Pair*>& ret) {
 
-    double corr_err = max(0.001, 2 * qc->epsilon);
+    double corr_err = max(0.001, 2 * qc.epsilon);
 
     int total_nhits = 0;
 
@@ -1089,14 +1133,14 @@ int retrieve_congr_entry(vector<Entry*>& e_list, Query_Context* qc, vector<Entry
     for (auto &e: e_list) {
 
         #ifdef _CLR
-            e->set_color(qc->color_q[e->repre->id].clr);
+            e->set_color(qc.color_q[e->repre->id].clr);
         #endif
 
         vector<int> rr_ret;
         #ifdef _CLR
-            int rr_num = window_query(&qc->tree, e, corr_err, qc->color_err, rr_ret);
+            int rr_num = window_query(&qc.tree, e, corr_err, qc.color_err, rr_ret);
         #else
-            int rr_num = window_query(&qc->tree, e, corr_err, rr_ret);
+            int rr_num = window_query(&qc.tree, e, corr_err, rr_ret);
         #endif
 
         #if VERBOSE > 4
@@ -1106,16 +1150,16 @@ int retrieve_congr_entry(vector<Entry*>& e_list, Query_Context* qc, vector<Entry
 	    for (auto &hit: rr_ret) {
             int hit_key = hit;
 
-	        auto f = qc->s_db.get_entry(hit_key);
+	        auto f = qc.s_db.get_entry(hit_key);
 
-            #ifdef IDX_3
+            #ifdef _IDX3
                 if (!recheck_congr(e, f, corr_err)) {
                 	continue;
                 }
             #endif
 
             total_nhits++;
-	        auto new_pair = new Entry_Pair(e, f, qc->s_db.get_grid_id_by_global_cell_id(hit_key));
+	        auto new_pair = new Entry_Pair(e, f, qc.s_db.get_grid_id_by_global_cell_id(hit_key));
 	        ret.push_back(new_pair);
 
             #if VERBOSE > 4
@@ -1130,28 +1174,28 @@ int retrieve_congr_entry(vector<Entry*>& e_list, Query_Context* qc, vector<Entry
 }
 
 #ifdef TEST_MODE
-bool test_verification_pt(PtwID* p, Query_Context* qc, vector<int>& ret_id, vector<double>& ret_dist, bool verbose = false) {
+bool test_verification_pt(PtwID* p, vector<int>& ret_id, vector<double>& ret_dist, bool verbose = false) {
 
-    const int db_mesh_id = qc->s_q.get_db_mesh_id();
+    const int db_mesh_id = qc.s_q.get_db_mesh_id();
     // get point ID mapped in DB
-    const int mapping = qc->s_q.get_id_db_by_q(p->id);
+    const int mapping = qc.s_q.get_id_db_by_q(p->id);
     if (mapping >= 0) {
-    	if (qc->s_db.look_up_repre_index(mapping, db_mesh_id)) { // if mapping is a repre point in DB
+    	if (qc.s_db.look_up_repre_index(mapping, db_mesh_id)) { // if mapping is a repre point in DB
 	    	ret_id.push_back(p->id);
-	    	ret_dist.push_back(qc->s_q.get_drift_by_q(p->id));
+	    	ret_dist.push_back(qc.s_q.get_drift_by_q(p->id));
 	        if (verbose) {
-	            cout << "Query pt #" << p->id << " matched with a repre. pt #" << mapping << " with drift = " << qc->s_q.get_drift_by_q(p->id) << endl;
+	            cout << "Query pt #" << p->id << " matched with a repre. pt #" << mapping << " with drift = " << qc.s_q.get_drift_by_q(p->id) << endl;
 	            cout << "Backtrace:" << endl;
 	        }
 
 	        for (int i = 0; i < 3; i++) {
-	        	const int remai_id_db = qc->s_db.get_remai_id(mapping, i, db_mesh_id);
-	        	const int remai_id_q = qc->s_q.get_id_q_by_db(remai_id_db);
+	        	const int remai_id_db = qc.s_db.get_remai_id(mapping, i, db_mesh_id);
+	        	const int remai_id_q = qc.s_q.get_id_q_by_db(remai_id_db);
 	        	if (remai_id_q >= 0) {
 	        		ret_id.push_back(remai_id_q);
-	        		ret_dist.push_back(qc->s_q.get_drift_by_q(remai_id_q));
+	        		ret_dist.push_back(qc.s_q.get_drift_by_q(remai_id_q));
 	        		if (verbose) {
-	        			cout << "Query pt #" << remai_id_q << " matched with remai[" << i << "] (db#" << remai_id_db << ") with drift = " << qc->s_q.get_drift_by_q(remai_id_q) << endl;
+	        			cout << "Query pt #" << remai_id_q << " matched with remai[" << i << "] (db#" << remai_id_db << ") with drift = " << qc.s_q.get_drift_by_q(remai_id_q) << endl;
 	        		}
 	        	} else {
 	        		ret_id.push_back(-1);
@@ -1162,13 +1206,13 @@ bool test_verification_pt(PtwID* p, Query_Context* qc, vector<int>& ret_id, vect
 	        	}
 	        }
 
-	        const int help_id_db = qc->s_db.get_help_id(mapping, db_mesh_id);
-	        const int help_id_q = qc->s_q.get_id_q_by_db(help_id_db);
+	        const int help_id_db = qc.s_db.get_help_id(mapping, db_mesh_id);
+	        const int help_id_q = qc.s_q.get_id_q_by_db(help_id_db);
 	        if (help_id_q >= 0) {
 	        	ret_id.push_back(help_id_q);
-	        	ret_dist.push_back(qc->s_q.get_drift_by_q(help_id_q));
+	        	ret_dist.push_back(qc.s_q.get_drift_by_q(help_id_q));
 	        	if (verbose) {
-	        		cout << "Query pt #" << help_id_q << " matched with help (db#" << help_id_q << ") with drift = " << qc->s_q.get_drift_by_q(help_id_q) << endl;
+	        		cout << "Query pt #" << help_id_q << " matched with help (db#" << help_id_q << ") with drift = " << qc.s_q.get_drift_by_q(help_id_q) << endl;
 	        	}
 	        } else {
         		ret_id.push_back(-1);
@@ -1281,8 +1325,8 @@ public:
     unordered_map<int, Single_Coll_Tree*> coll_map;
     double nn_dist;
 
-    void set_coll_map(vector<Entry_Pair*>& nn_v_pairs, double t_nn_dist, Query_Context* qc) {
-    	coll_map.reserve(min(static_cast<int>(nn_v_pairs.size()), qc->db_meshes.size()));
+    void set_coll_map(vector<Entry_Pair*>& nn_v_pairs, double t_nn_dist) {
+    	coll_map.reserve(min(static_cast<int>(nn_v_pairs.size()), qc.db_meshes.size()));
         for (auto &i: nn_v_pairs) {
             auto got = coll_map.find(i->id_db);
             if (got == coll_map.end()) { // i->id_db not exists in coll_map
@@ -1322,8 +1366,8 @@ private:
     }
 
 public:
-    void check_coll_filter(vector<Entry_Pair*>& v_pairs, Query_Context* qc, vector<Entry_Pair*>& v_ret) {
-        double nn_dist_thresh = nn_dist + 2 * qc->epsilon + 0.01;
+    void check_coll_filter(vector<Entry_Pair*>& v_pairs, vector<Entry_Pair*>& v_ret) {
+        double nn_dist_thresh = nn_dist + 2 * qc.epsilon + 0.01;
         double sq_dist_thresh = sq(nn_dist_thresh);
 
         v_ret.reserve(v_pairs.size());
@@ -1353,35 +1397,23 @@ struct Proposal_Stat {
     // int num_hits;
 };
 
-void pair_proposal(PtwID* q, Query_Context* qc, vector<Entry*>& v_entries, vector<Entry_Pair*>& v_pairs, Proposal_Stat& ps) {
+void pair_proposal(PtwID* q, vector<Entry*>& v_entries, vector<Entry_Pair*>& v_pairs, Proposal_Stat& ps) {
 
     #if VERBOSE > 0
-        cout << endl << "Calculating entry list for query pt #" << q->id << " with min=" << qc->s_db.ann_min << endl;
+        cout << endl << "Calculating entry list for query pt #" << q->id << " with min=" << qc.s_db.ann_min << endl;
     #endif
 
     timer_start();
 
-    // #ifdef TEST_MODE
-    //     #ifdef _3NN
-    //         cal_entries_3nn(q, qc, v_entries, test_ret_id, test_ret_dist);
-    //     #else
-    //         cal_entries(q, qc, v_entries, test_ret_id, test_ret_dist);
-    //     #endif
-    // #else
-        #ifdef _3NN
-        	#ifdef _3LNN
-                cal_entries_3lnn(q, qc, v_entries);
-            #else
-                cal_entries_3nn(q, qc, v_entries);
-            #endif
-        #else
-            #ifdef _DNT
-                cal_entries_donut(q, qc, v_entries);
-            #else
-                cal_entries(q, qc, v_entries);
-            #endif
-        #endif
-    // #endif
+    if (qc.algorithm == "3lnn-adv") {
+        cal_entries_3lnn(q, v_entries);
+    } else if (qc.algorithm == "3nn-adv") {
+        cal_entries_3nn(q, v_entries);
+    } else if (qc.algorithm == "donut-adv") {
+        cal_entries_donut(q, v_entries);
+    } else if (qc.algorithm == "gt-adv") {
+        cal_entries(q, v_entries);
+    }
 
     ps.cal_entries_time += timer_end(SECOND);
     ps.num_entries = v_entries.size();
@@ -1397,7 +1429,7 @@ void pair_proposal(PtwID* q, Query_Context* qc, vector<Entry*>& v_entries, vecto
 
     timer_start();
 
-    retrieve_congr_entry(v_entries, qc, v_pairs);
+    retrieve_congr_entry(v_entries, v_pairs);
 
     ps.retrieve_congr_time += timer_end(SECOND);
     // ps.num_hits += v_pairs.size();
@@ -1424,7 +1456,7 @@ void pair_proposal(PtwID* q, Query_Context* qc, vector<Entry*>& v_entries, vecto
     // #endif
 }
 
-bool iter(Query_Context* qc, Exec_stat& stat) {
+bool iter(Exec_stat& stat) {
 
     stat = (const struct Exec_stat) { 0 };
 
@@ -1437,57 +1469,65 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
 
     do {
 
-        if (!v_entries.empty()) {
-            for (auto &v: v_entries) {
-                if (v != nullptr) {
-                    delete v;
-                    v = nullptr;
-                }
-            }
-            vector<Entry*>().swap(v_entries);
+        // if (!v_entries.empty()) {
+        //     for (auto &v: v_entries) {
+        //         if (v != nullptr) {
+        //             delete v;
+        //             v = nullptr;
+        //         }
+        //     }
+        //     vector<Entry*>().swap(v_entries);
+        // }
+        // if (!v_pairs.empty()) {
+        //     for (auto &v: v_pairs) {
+        //         if (v != nullptr) {
+        //             delete v;
+        //             v = nullptr;
+        //         }
+        //     }
+        //     vector<Entry_Pair*>().swap(v_pairs);
+        // }
+
+        int selected_pt_id = rand() % qc.mesh_q.size();
+
+        if (qc.force_cell >= 0) {
+            selected_pt_id = qc.force_cell;
         }
-        if (!v_pairs.empty()) {
-            for (auto &v: v_pairs) {
-                if (v != nullptr) {
-                    delete v;
-                    v = nullptr;
-                }
-            }
-            vector<Entry_Pair*>().swap(v_pairs);
-        }
 
-        int selected_pt_id = rand() % qc->mesh_q.size();
-
-        #ifdef TEST_MODE
-            if (qc->force_cell >= 0) {
-                selected_pt_id = qc->force_cell;
-            }
-        #endif
-
-        q.set(selected_pt_id, &qc->mesh_q);
+        q.set(selected_pt_id, &qc.mesh_q);
 
         // try to find non-boundary points
         Pt3D q_mbs_center;
-        qc->mesh_q.get_bsphere_o(q_mbs_center);
-        // cout << "Eucl dist: " << eucl_dist(q.pt, &q_mbs_center) << ", to compare with " << (qc->mesh_q.get_bsphere_r() - qc->s_db.ann_min) << endl;
-        double sel_ratio = qc->small_set ? 0.8 : 0.5;
-        while (eucl_dist(q.pt, &q_mbs_center) > sel_ratio * (qc->mesh_q.get_bsphere_r() - qc->s_db.ann_min)) { // set to 0.5 such that the largest dataset obtain the best performance
+        qc.mesh_q.get_bsphere_o(q_mbs_center);
+        // cout << "Eucl dist: " << eucl_dist(q.pt, &q_mbs_center) << ", to compare with " << (qc.mesh_q.get_bsphere_r() - qc.s_db.ann_min) << endl;
+        double sel_ratio; // a ratio to avoid too boundary cases
+        if (qc.is_small) {
+        	if ((qc.algorithm == "3nn-adv" || qc.algorithm == "3lnn-adv") && qc.is_simp) {
+        		sel_ratio = 0.5;
+        	} else {
+        		sel_ratio = 0.8;
+        	}
+        } else {
+        	sel_ratio = 0.5;
+        }
+        // cout << "sel_ratio: " << sel_ratio << endl;
+        while (eucl_dist(q.pt, &q_mbs_center) > sel_ratio * (qc.mesh_q.get_bsphere_r() - qc.s_db.ann_min)) { // set to 0.5 such that the largest dataset obtain the best performance
             // cout << "Boundary! reselect." << endl;
-            selected_pt_id = rand() % qc->mesh_q.size();
-            q.set(selected_pt_id, &qc->mesh_q);
+            selected_pt_id = rand() % qc.mesh_q.size();
+            q.set(selected_pt_id, &qc.mesh_q);
         }
 
         #ifdef TEST_MODE
             vector<int> test_ret_id;
             vector<double> test_ret_dist;
-            if (!test_verification_pt(&q, qc, test_ret_id, test_ret_dist, true)) {
+            if (!test_verification_pt(&q, test_ret_id, test_ret_dist, true)) {
             	cout << "Test failed because the selected query pt cannot be mapped to a repre pt in DB!" << endl;
             	// timer_end(SECOND);
             	// return false;
             }
         #endif
 
-        pair_proposal(&q, qc, v_entries, v_pairs, prop_stat);
+        pair_proposal(&q, v_entries, v_pairs, prop_stat);
 
     } while (false); // (v_pairs.size() > 50000); // reselect when exceeding 50000, this helps to accelerate for large return set
 
@@ -1501,27 +1541,32 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
 
     vector<Entry_Pair*>* ptr_v_pairs = &v_pairs;
 
-    #ifdef _CPQ
+    int nn_q_id;
+    double nn_q_d;
+    PtwID nn_q;
+    Proposal_Stat nn_prop_stat = (const struct Proposal_Stat){ 0 };
+    CPQ_Detector detector;
+    vector<Entry*> nn_v_entries;
+    vector<Entry_Pair*> nn_v_pairs;
+
+    vector<Entry_Pair*> v_pairs_ret;
+
+    if (qc.use_cf) {
 
         timer_start();
 
-        int nn_q_id;
-    	double nn_q_d = qc->r_q.nn_sphere(q.pt, 0.01, &nn_q_id);
+    	nn_q_d = qc.r_q.nn_sphere(q.pt, 0.01, &nn_q_id);
 
-        PtwID nn_q(nn_q_id, &qc->mesh_q);
+        nn_q.set(nn_q_id, &qc.mesh_q);
 
         #if VERBOSE > 0
-           cout << "Pair proposal for query NN pt " << qc->s_q.id_q_to_str(nn_q_id) << " of dist = " << nn_q_d << endl;
+           cout << "Pair proposal for query NN pt " << qc.s_q.id_q_to_str(nn_q_id) << " of dist = " << nn_q_d << endl;
         #endif
-
-        vector<Entry*> nn_v_entries;
-        vector<Entry_Pair*> nn_v_pairs;
-        Proposal_Stat nn_prop_stat = (const struct Proposal_Stat){ 0 };
 
         #ifdef TEST_MODE
             vector<int> nn_test_ret_id;
             vector<double> nn_test_ret_dist;
-            if (!test_verification_pt(&nn_q, qc, nn_test_ret_id, nn_test_ret_dist, true)) {
+            if (!test_verification_pt(&nn_q, nn_test_ret_id, nn_test_ret_dist, true)) {
                 cout << "Test failed because the selected query pt cannot be mapped to a repre pt in DB!" << endl;
                 timer_end(SECOND);
                 return false;
@@ -1529,22 +1574,18 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
         #endif
 
         timer_start();
-        pair_proposal(&nn_q, qc, nn_v_entries, nn_v_pairs, nn_prop_stat);
+        pair_proposal(&nn_q, nn_v_entries, nn_v_pairs, nn_prop_stat);
         stat.cpq_prop_time = timer_end(SECOND);
-
-        vector<Entry_Pair*> v_pairs_ret;
 
         if (nn_v_pairs.size() > 0) {
 
-            CPQ_Detector detector;
-
             // timer_start();
-            detector.set_coll_map(nn_v_pairs, nn_q_d, qc);
+            detector.set_coll_map(nn_v_pairs, nn_q_d);
             // cout << "set_coll_map time: " << timer_end(SECOND) << endl;
 
             // timer_start();
             // cout << "check_coll_filter from size " << v_pairs.size() << endl;
-            detector.check_coll_filter(v_pairs, qc, v_pairs_ret);
+            detector.check_coll_filter(v_pairs, v_pairs_ret);
             // cout << "check_coll_filter time: " << timer_end(SECOND) << endl;
         
             #if VERBOSE > 0
@@ -1564,7 +1605,7 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
         stat.prop_time += stat.cpq_total_time;
         stat.cpq_ovh_time = stat.cpq_total_time - stat.cpq_prop_time;
 
-    #endif
+    }
 
     stat.veri_size = ptr_v_pairs->size();
 
@@ -1576,53 +1617,29 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
 
     vector<Entry_Pair*> ret_left_icp_only;
     // Step 1: calculate transformation, initial distance, and leave those for step 2&3
-    int flag = 0;
-    double min_dist = 999999999999;
-    Entry_Pair* min_h = nullptr;
-    for (auto &h: *ptr_v_pairs) {
-    	flag++;
-    // 	if (flag == 1 && h->id_db == 0) {
-    // 		cout << "Test flag" << endl;
-    // 		// Trans gt_trans = {
-    // 		// 	0.3469854453, -0.7957764086, 0.4963275212,
-    // 		// 	0.8841788718,  0.4540482132, 0.1098541881,
-    // 		// 	-0.3127759955, 0.4007245034, 0.8611568086,
-    // 		// 	1941.889556, 2613.292487, 920.3011597
-    // 		// }; // ground truth for comp_5
-    // // 		Trans gt_trans = {
-    // // 			0.05323631894, 0.3648394824,  -0.9295472266,
-				// // -0.165052746,  -0.9148487432, -0.3685232259,
-				// // -0.984846935,  0.1730431423,  0.01151457895,
-    // // 			1985.150475, 2547.748512, 969.844323
-    // // 		}; // ground truth for comp_6
-    // 		Trans gt_trans = {
-    // 			0.7079993787, -0.4894832953, 0.5090608838,
-				// 0.4656492706, -0.2183780604, -0.8576023434,
-				// 0.5309497495, 0.8442257556,  0.07331600833,
-    // 			1874.6121, 2497.06769, 938.8244799
-    // 		}; // ground truth for comp_5_5
 
-    // 		double gt_mse = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, h->id_db, &gt_trans);
-    // 		cout << "GT error: " << gt_mse << endl;
-    // 	}
+    // double min_dist = 999999999999;
+    // Entry_Pair* min_h = nullptr;
+
+    for (auto &h: *ptr_v_pairs) {
         h->cal_xf();
-        // h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, h->id_db, &h->xf); // TODO: use another unimplemented interface
         // cout << "Cal dist for\n" << h->e_query->to_str() << "\nand\n" << h->e_database->to_str() << "\n in db obj#" << h->id_db << endl;
-        // h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, h->id_db, &h->xf, qc->delta); // TODO: simplified method, stops when error is larger
-        h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, h->id_db, &h->xf, qc->delta); // TODO: simplified method, stops when error is larger
-        // h->init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, h->id_db, &h->xf); // TODO: simplified method, stops when error is larger
+        h->init_dist = qc.db_meshes.cal_corr_err(&qc.mesh_q_real, h->id_db, &h->xf, qc.delta); // TODO: simplified method, stops when error is larger
+        // h->init_dist = qc.db_meshes.cal_corr_err(&qc.mesh_q_real, h->id_db, &h->xf); // TODO: simplified method, stops when error is larger
         // cout << "Initial distance: " << h->init_dist << endl;// << " for pair: " << h->to_str(10) << endl;
 
-        if (h->init_dist < min_dist) {
-        	min_dist = h->init_dist;
-        	min_h = h;
-        }
+        // h->init_dist = run_icp(h);
 
-        // if (h->init_dist <= qc->delta) {
+        // if (h->init_dist < min_dist) {
+        // 	min_dist = h->init_dist;
+        // 	min_h = h;
+        // }
+
+        // if (h->init_dist <= qc.delta) {
         if (h->init_dist >= 0) {
             // print_trans(&h->xf);
-            cout << "Dist: " << h->init_dist << "(MSE=" << (h->init_dist / (double) qc->mesh_q_real.size() / qc->mesh_q_real.get_bsphere_d()) << ")" << endl;
-            cout << "Matched with DB #" << h->id_db << ": " << qc->db_meshes.get_mesh(h->id_db)->get_filename() << endl;
+            cout << "Dist: " << h->init_dist << "(MSE=" << (h->init_dist / (double) qc.mesh_q_real.size() / qc.mesh_q_real.get_bsphere_d()) << ")" << endl;
+            cout << "Matched with DB #" << h->id_db << ": " << qc.db_meshes.get_mesh(h->id_db)->get_filename() << endl;
             // cout << "Matched pair:" << endl;
             // cout << h->to_str(10) << endl;
             stat.num_verified++;
@@ -1640,46 +1657,17 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
     // 	print_trans(&min_h->xf);
     // }
 
- //    // TODO
- //    Trans xf;
-	// Pt3D* q_array[4];
-	// Pt3D* p_array[4];
-	// q_array[0] = qc->mesh_q.get_pt(525);
-	// q_array[1] = qc->mesh_q.get_pt(2556);
-	// q_array[2] = qc->mesh_q.get_pt(2690);
-	// q_array[3] = qc->mesh_q.get_pt(1737);
-	// p_array[0] = qc->db_meshes.get_mesh(0)->get_pt(97340);
-	// p_array[1] = qc->db_meshes.get_mesh(0)->get_pt(95769);
-	// p_array[2] = qc->db_meshes.get_mesh(0)->get_pt(89497);
-	// p_array[3] = qc->db_meshes.get_mesh(0)->get_pt(94990);
-	// cal_trans(q_array, p_array, 4, xf);
-	// double cheat_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, 0, &xf);
-	// cout << "cheat_dist: " << cheat_dist << endl;
-	// print_trans(&xf);
- //    double r_array[9] {
- //        xf.r11, xf.r12, xf.r13,
- //        xf.r21, xf.r22, xf.r23,
- //        xf.r31, xf.r32, xf.r33
- //    };
- //    ICP_Matrix R_icp(3, 3, r_array);
- //    double t_array[3] {
- //        xf.tx, xf.ty, xf.tz
- //    };
- //    ICP_Matrix t_icp(3, 1, t_array);
- //    double updated_err = qc->m_icps[0]->Run(qc->m_query_icp, qc->mesh_q_real.size(), R_icp, t_icp);
- //    cout << "Updated distance with ICP-only: " << updated_err << endl;
-
     #if VERBOSE > 0
         cout << "Left for ICP-only check: " << ret_left_icp_only.size() << endl;
     #endif
 
     stat.num_icp_only = ret_left_icp_only.size();
 
-    vector<Entry_Pair*> ret_left_goicp;
+    // vector<Entry_Pair*> ret_left_goicp;
     // // Step 2: perform the ICP-only check
     // if (!found_one_iter) {
     //     for (auto &r: ret_left_icp_only) {
-    //         double init_dist = qc->db_meshes.cal_corr_err(&qc->mesh_q_real, r->id_db, &r->xf);
+    //         double init_dist = qc.db_meshes.cal_corr_err(&qc.mesh_q_real, r->id_db, &r->xf);
     //         cout << "Initial distance: " << init_dist << endl;
     //         double r_array[9] {
     //             r->xf.r11, r->xf.r12, r->xf.r13,
@@ -1691,10 +1679,10 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
     //             r->xf.tx, r->xf.ty, r->xf.tz
     //         };
     //         ICP_Matrix t_icp(3, 1, t_array);
-    //         double updated_err = qc->m_icps[r->id_db]->Run(qc->m_query_icp, qc->mesh_q_real.size(), R_icp, t_icp);
+    //         double updated_err = qc.m_icps[r->id_db]->Run(qc.m_query_icp, qc.mesh_q_real.size(), R_icp, t_icp);
     //         cout << "Updated distance with ICP-only: " << updated_err << endl;
 
-    //         if (updated_err <= qc->delta) {
+    //         if (updated_err <= qc.delta) {
     //             stat.num_verified++;
     //             if (stat.num_verified == 1 && !found_one_iter) {
     //                 first_time_iter = timer_end(SECOND);
@@ -1707,11 +1695,11 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
     //     }
     // }
 
-    #if VERBOSE > 0
-        cout << "Left for GoICP check: " << ret_left_goicp.size() << endl;
-    #endif
+    // #if VERBOSE > 0
+    //     cout << "Left for GoICP check: " << ret_left_goicp.size() << endl;
+    // #endif
 
-    stat.num_goicp = ret_left_goicp.size();
+    // stat.num_goicp = ret_left_goicp.size();
 
     // // Step 3: perform GoICP
     // for (auto &r: ret_left_goicp) {
@@ -1731,45 +1719,43 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
 
     cout << "# verified: " << stat.num_verified << endl;
 
-    if (!v_entries.empty()) {
-        for (auto &v: v_entries) {
-            if (v != nullptr) {
-                delete v;
-                v = nullptr;
-            }
-        }
-        vector<Entry*>().swap(v_entries);
-    }
-    if (!v_pairs.empty()) {
-        for (auto &v: v_pairs) {
-            if (v != nullptr) {
-                delete v;
-                v = nullptr;
-            }
-        }
-        vector<Entry_Pair*>().swap(v_pairs);
-    }
+    // if (!v_entries.empty()) {
+    //     for (auto &v: v_entries) {
+    //         if (v != nullptr) {
+    //             delete v;
+    //             v = nullptr;
+    //         }
+    //     }
+    //     vector<Entry*>().swap(v_entries);
+    // }
+    // if (!v_pairs.empty()) {
+    //     for (auto &v: v_pairs) {
+    //         if (v != nullptr) {
+    //             delete v;
+    //             v = nullptr;
+    //         }
+    //     }
+    //     vector<Entry_Pair*>().swap(v_pairs);
+    // }
 
-    #ifdef _CPQ
-        if (!nn_v_entries.empty()) {
-            for (auto &v: nn_v_entries) {
-                if (v != nullptr) {
-                    delete v;
-                    v = nullptr;
-                }
-            }
-            vector<Entry*>().swap(nn_v_entries);
-        }
-        if (!nn_v_pairs.empty()) {
-            for (auto &v: nn_v_pairs) {
-                if (v != nullptr) {
-                    delete v;
-                    v = nullptr;
-                }
-            }
-            vector<Entry_Pair*>().swap(nn_v_pairs);
-        }
-    #endif
+    // if (!nn_v_entries.empty()) {
+    //     for (auto &v: nn_v_entries) {
+    //         if (v != nullptr) {
+    //             delete v;
+    //             v = nullptr;
+    //         }
+    //     }
+    //     vector<Entry*>().swap(nn_v_entries);
+    // }
+    // if (!nn_v_pairs.empty()) {
+    //     for (auto &v: nn_v_pairs) {
+    //         if (v != nullptr) {
+    //             delete v;
+    //             v = nullptr;
+    //         }
+    //     }
+    //     vector<Entry_Pair*>().swap(nn_v_pairs);
+    // }
 
     if (stat.num_verified > 0)
         return true;
@@ -1777,13 +1763,18 @@ bool iter(Query_Context* qc, Exec_stat& stat) {
         return false;
 }
 
-void exec(Query_Context* qc, Exec_stat& stat) {
+void exec(Exec_stat& stat) {
 
-    #ifdef _PROB
-        const int k_m = 20;
-    #else
-        const int k_m = 1;
-    #endif
+    int k_m;
+    if (qc.require == "prob") {
+        if (qc.use_cf) {
+            k_m = 20;
+        } else {
+            k_m = 8;
+        }
+    } else {
+        k_m = 1;
+    }
 
     Exec_stat stats[k_m];
 
@@ -1792,7 +1783,7 @@ void exec(Query_Context* qc, Exec_stat& stat) {
 
     for (int t = 0; t < k_m; t++) {
 
-        find_accept = iter(qc, stats[t]);
+        find_accept = iter(stats[t]);
         num_itr++;
 
         if (find_accept)
@@ -1814,30 +1805,36 @@ void exec(Query_Context* qc, Exec_stat& stat) {
 }
 
 #ifdef _TK
-void exec_tk(Query_Context* qc, Exec_stat& stat) {
+void exec_tk(Exec_stat& stat) {
 
     vector<Exec_stat> stats;
 
-    qc->delta = qc->delta_0;
-    qc->epsilon = qc->epsilon_0;
+    qc.delta = qc.delta_0;
+    qc.epsilon = qc.epsilon_0;
 
-    #ifdef _PROB
-        int k_m = 12;
-    #else
-        int k_m = 1;
-    #endif
+    int k_m;
+    if (qc.require == "prob") {
+        if (qc.use_cf) {
+            k_m = 20;
+        } else {
+            k_m = 8;
+        }
+    } else {
+        k_m = 1;
+    }
+
     int num_trial = 0;
 
     while (true) {
 
-        cout << "Trial #" << (++num_trial) << " with delta: " << qc->delta << ", epsilon " << qc->epsilon << ": " << endl;
+        cout << "Trial #" << (++num_trial) << " with delta: " << qc.delta << ", epsilon " << qc.epsilon << ": " << endl;
 
         Exec_stat stats_itr[k_m];
         int num_itr = 0;
         int num_accepted = 0;
         for (int t = 0; t < k_m; t++) {
             num_itr++;
-            if (iter(qc, stats_itr[t])) {
+            if (iter(stats_itr[t])) {
                 num_accepted = stats_itr[t].num_verified;
                 break;
             }
@@ -1848,15 +1845,15 @@ void exec_tk(Query_Context* qc, Exec_stat& stat) {
 
         stats.push_back(stat_itr);
         // cout << stat_itr.num_verified << endl;
-        // cout << qc->k << endl;
+        // cout << qc.k << endl;
 
-        if (num_accepted >= qc->k)
+        if (num_accepted >= qc.k)
             break;
 
         #ifndef _PROB
-            qc->epsilon *= 2.0;
+            qc.epsilon *= 2.0;
         #endif
-        qc->delta *= 4.0;
+        qc.delta *= 4.0;
     }
 
     get_sum_stat(&stats[0], num_trial, stat);
@@ -1868,12 +1865,6 @@ void exec_tk(Query_Context* qc, Exec_stat& stat) {
 
 int main(int argc, char **argv) {
 
-    // for (int i = 0; i < argc; i++) {
-    //     cout << argv[i] << " ";
-    // }
-    // cout << endl << endl;
-
-    Query_Context qc;
     qc.read_param(argc, argv);
 
     cout << "delta: " << qc.delta << endl;
@@ -1893,17 +1884,17 @@ int main(int argc, char **argv) {
 
     cout << endl;
 
-    Exec_stat stats[exec_times];
+    Exec_stat stats[qc.num_exe];
     Exec_stat tmp_stat;
     int real_exec_times = 0;
 
-    for (int exec_i = 0; exec_i < exec_times; exec_i++) {
+    for (int exec_i = 0; exec_i < qc.num_exe; exec_i++) {
 
         cout << "Execution #" << (exec_i + 1) << ": " << endl;
         #ifdef _TK
-            exec_tk(&qc, stats[exec_i]);
+            exec_tk(stats[exec_i]);
         #else
-            exec(&qc, stats[exec_i]);
+            exec(stats[exec_i]);
         #endif
         cout << endl;
 

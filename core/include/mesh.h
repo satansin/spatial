@@ -100,7 +100,7 @@ private:
 	// std::vector<float*> m_data_icps;
 
 private:
-	void read_normal(std::ifstream& ifs_meta);
+	void read_normal(std::ifstream& ifs_meta, const std::string folder);
 	void read_combined(std::ifstream& ifs_meta, std::ifstream& ifs_combined, std::string folder);
 
 public:

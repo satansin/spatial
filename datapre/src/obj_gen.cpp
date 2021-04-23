@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
 	ofs_comb_meta_ovr << num_parts << endl;
 	for (auto &v: part_sizes) {
 		ofs_comb_meta_ovr << v << endl;
-	} 
+	}
 	ofs_comb_meta_ovr.close();
 
 	for (auto &m: db_meshes) {

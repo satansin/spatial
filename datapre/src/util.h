@@ -128,7 +128,7 @@ int read_db_meshes(const std::string path, std::vector<trimesh::TriMesh*>& db_me
 
     for (int i = 0; i < num; i++) {
         ifs >> id >> s_file;
-    	db_meshes.push_back(trimesh::TriMesh::read(s_file));
+    	db_meshes.push_back(trimesh::TriMesh::read(db_folder + s_file));
     	std::cout << "Reading mesh #" << id << ": " << s_file << std::endl;
     }
 

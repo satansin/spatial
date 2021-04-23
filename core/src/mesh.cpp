@@ -186,14 +186,14 @@ void DB_Meshes::free_mesh() {
     }
 }
 
-void DB_Meshes::read_normal(ifstream& ifs_meta) {
+void DB_Meshes::read_normal(ifstream& ifs_meta, const string folder) {
     int id;
     string s_file;
     for (int i = 0; i < m_size; i++) {
         ifs_meta >> id >> s_file;
 
         Mesh* new_mesh = new Mesh(id);
-        new_mesh->read_from_path(s_file);
+        new_mesh->read_from_path(folder + s_file);
 
         m_total += new_mesh->size();
         m_db_meshes.push_back(new_mesh);
@@ -277,7 +277,7 @@ int DB_Meshes::read_from_path(const string db_path) {
         read_combined(ifs, ifs_combined, folder);
     } else {
         cout << "Start normal reading" << endl;
-        read_normal(ifs);
+        read_normal(ifs, folder);
     }
 
     ifs_combined.close();

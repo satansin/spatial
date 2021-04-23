@@ -1,0 +1,4 @@
+In order to successfully compile and run it, you need to go to $(TRIMESHDIR), and update "Makedefs.Linux" to the following:
+CXX = g++ -std=c++0x
+
+Remember to change it back to avoid further issue!

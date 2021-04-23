@@ -1,0 +1,92 @@
+Szymon Rusinkiewicz
+Princeton University
+
+icptests version 1.0
+
+
+This distribution contains code and data to accompany:
+
+	"A Symmetric Objective Function for ICP"
+	ACM Transactions on Graphics (Proc. SIGGRAPH) 38(4), July 2019.
+
+
+All of the programs require trimesh2, version 2.15 or later, which may be
+downloaded from trimesh2.cs.princeton.edu - please contact smr@princeton.edu
+if you cannot get the programs to compile.
+
+
+The following programs are included:
+
+
+icpconvergence
+--------------
+
+Computes data for plots of per-iteration convergence (Figure 4 in the paper),
+for a variety of ICP variants.
+
+Usage: icpconvergence in1.ply in2.ply [variant] [ntrials]
+
+The following values for "variant" are accepted:
+
+0: Point-to-point
+1: Point-to-plane
+2: Symmetric
+3: Two-plane
+4: Symmetric-RN
+5: Quadratic
+
+For final results, an ntrials value of 1000 is suggested.
+
+
+compute_icpconvergence.sh
+-------------------------
+
+This is a shell script to run icpconvergence on all pairs of meshes listed
+in data/convergence_tests.txt
+
+It will place its results in convergence_results/*.txt
+
+If gnuplot is installed, it will additionally produce plots of the results
+in convergence_results/*.pdf
+
+Note that the plots for aligning bun000 and bun090 will be slightly different
+from those in the paper (though qualitatively the same), because of small
+differences in the bun000.ply and bun090.ply that are included in this
+distribution.
+
+For generating final results, it is suggested that the script be edited to set
+ntrials=1000
+
+
+icprobustness
+-------------
+
+Computes data testing ICP robustness under perturbations to initial
+translation/rotation (Figure 5 in the paper).
+
+Usage: icprobustness in1.ply in2.ply [variant] [ntrials]
+
+
+The same values for "variant" as above are accepted, plus:
+
+6: Levenberg-Marquardt Point-to-plane
+7: Levenberg-Marquardt Symmetric
+
+For final results, an ntrials value of 1000 is suggested.
+
+
+compute_icprobustness.sh
+------------------------
+
+This is a shell script to run icprobustness on all pairs of meshes listed
+in data/robustness_tests.txt
+
+It will place its results in robustness_results/*.txt, then execute
+results2svg to make SVG charts.
+
+If inkscape is installed, it will additionally convert the SVG charts to PDF,
+placing the results in robustness_results/*.pdf
+
+For generating final results, it is suggested that the script be edited to set
+ntrials=1000
+

@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
 			string input_realname = input_foldername + s_files[i];
 			string output_realname = output_foldername + s_files[i];
 			if (process_single(input_realname, output_realname, scale_val)) {
-				ofs_meta << i << " " << output_realname << endl;
+				ofs_meta << i << " " << s_files[i] << endl;
 				cout << "Input " << input_realname << " processed and saved into " << output_realname << endl;
 			}
 		}

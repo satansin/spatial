@@ -1,0 +1,4 @@
+dragon.ply dragon.ply
+bun000.ply bun090.ply
+tum1.ply tum2.ply
+ellipsoid.ply ellipsoid.ply

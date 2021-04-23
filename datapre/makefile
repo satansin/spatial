@@ -25,7 +25,7 @@ extract_query_spec:
 	$(CXX) $(INC) $(USE_TM) $(USE_GSL) $(SRC)/extract_query_spec.cpp -o $(OUT)/extract_query_spec.out -ltrimesh -lgluit -fopenmp -lgsl -lgslcblas -lm
 
 pre_index:
-	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/pre_index.cpp -o $(OUT)/pre_index.out -ltrimesh -lgluit -fopenmp
+	$(CXX) $(INC) $(USE_TM) $(USE_RS) $(SRC)/pre_index.cpp -o $(OUT)/pre_index.out -ltrimesh -lgluit -fopenmp -g
 
 obj_gen:
 	$(CXX) $(INC) $(USE_TM) $(USE_GSL) $(SRC)/obj_gen.cpp -o $(OUT)/obj_gen.out -ltrimesh -lgluit -fopenmp -lgsl -lgslcblas -lm

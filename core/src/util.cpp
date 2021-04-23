@@ -141,6 +141,9 @@ void print_stat(const Exec_stat& stat) {
     cout << "Number of fail: " << stat.num_fail << endl;
     cout << "Number of exec: " << stat.num_exec << endl;
 
+    cout << "Number of nar success: " << stat.num_nar_success << endl;
+    cout << "Number of icp success: " << stat.num_icp_success << endl;
+
 }
 
 void write_stat(const Exec_stat& stat, string filename) {
@@ -170,6 +173,8 @@ void write_stat(const Exec_stat& stat, string filename) {
 
     stat_ofs << "num_fail=" << stat.num_fail << endl;
     stat_ofs << "num_exec=" << stat.num_exec << endl;
+    stat_ofs << "num_nar_success=" << stat.num_nar_success << endl;
+    stat_ofs << "num_icp_success=" << stat.num_icp_success << endl;
 
     stat_ofs.close();
 
@@ -203,6 +208,12 @@ void get_sum_stat(Exec_stat stats[], int num, Exec_stat& ret) {
 
         if (stats[i].num_verified < 1)
             ret.num_fail++;
+
+        if (stats[i].num_nar_success)
+            ret.num_nar_success++;
+
+        if (stats[i].num_icp_success)
+            ret.num_icp_success++;
     }
 
     ret.num_exec = num;

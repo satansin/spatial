@@ -55,6 +55,9 @@ struct Exec_stat {
 
     int num_fail;
     int num_exec;
+
+    int num_nar_success;
+    int num_icp_success;
 };
 
 void print_stat(const Exec_stat& stat);

@@ -62,30 +62,31 @@ public:
     #endif
 
     string output_ply;
+    double fuse_delta;
 
     void read_param(int argc, char** argv) {
 
         #ifdef _TK
             #ifdef _PROB
                 if (argc < 8) {
-                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename k delta epsilon color_err output_ply [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename k delta epsilon color_err output_ply fuse_delta [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
                     exit(1);
                 }
             #else
                 if (argc < 7) {
-                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename k delta color_err output_ply [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename k delta color_err output_ply fuse_delta [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
                     exit(1);
                 }
             #endif
         #else
             #ifdef _PROB
                 if (argc < 7) {
-                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename delta epsilon color_err output_ply [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename delta epsilon color_err output_ply fuse_delta [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
                     exit(1);
                 }
             #else
                 if (argc < 6) {
-                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename delta color_err output_ply [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
+                    cerr << "Usage: " << argv[0] << " database_path grid_filename query_filename delta color_err output_ply fuse_delta [-simple (for 3NN or 3LNN)] [-sort_entry (for gt or donut)] [-stop_once] [-small] [-force_cell=...] [-force_pt=...]* [-stat=...]" << endl;
                     exit(1);
                 }
             #endif
@@ -139,6 +140,7 @@ public:
         color_err = atof(argv[(++argi)]);
 
         output_ply = argv[(++argi)];
+        fuse_delta = atof(argv[(++argi)]);
     }
 
     DB_Meshes db_meshes;
@@ -233,6 +235,8 @@ public:
         double q_diam = mesh_q_real.get_bsphere_d();
         delta *= q_diam;
         cout << "Diameter of query mesh: " << q_diam << ", thus delta is finally set to delta * " << q_diam << " = " << delta << endl;
+        fuse_delta *= q_diam;
+        cout << "Diameter of query mesh: " << q_diam << ", thus fuse_delta is finally set to fuse_delta * " << q_diam << " = " << fuse_delta << endl;
         #ifndef _PROB
             epsilon = sqrt(delta); // for deterministic queries, epsilon is set according to delta
             cout << "Epsilon is finally set to sqrt(delta) = " << epsilon << endl;
@@ -1880,15 +1884,18 @@ void fuse_ply(Query_Context* qc, Trans* output_xf) {
 
     Mesh fuse_mesh(qc->db_meshes.get_mesh(0));
 
+    int add_count = 0;
     for (int i = 0; i < qc->mesh_q_real.size(); i++) {
         auto pt = qc->mesh_q_real.get_pt(i);
         Pt3D tr_pt;
         trans_pt(output_xf, pt, tr_pt);
         double sing_dist = qc->db_meshes.cal_corr_err(tr_pt.x, tr_pt.y, tr_pt.z, 0);
-        if (sing_dist * sing_dist > qc->delta) { // add new point to original point cloud
+        if (sing_dist * sing_dist > qc->fuse_delta) { // add new point to original point cloud
             fuse_mesh.insert_pt(tr_pt);
+            add_count++;
         }
     }
+    cout << "Num new pts: " << add_count << endl;
 
     fuse_mesh.write(qc->output_ply);
     cout << "Write fused mesh to " << qc->output_ply << endl;
@@ -1906,6 +1913,7 @@ int main(int argc, char **argv) {
 
     cout << "delta: " << qc.delta << endl;
     cout << "epsilon: " << qc.epsilon << endl;
+    cout << "fuse_delta: " << qc.fuse_delta << endl;
     cout << endl;
 
     srand(time(NULL));

@@ -198,6 +198,11 @@ export LD_LIBRARY_PATH
 	# done
 
 
+
+
+
+
+
 # mkdir -p "$DIR_OBJ_DB"/
 # mkdir -p "$DIR_OBJ_QUERY"/
 # spec_list=( 05842 06284 00942 06274 08719 ) # version 1: 214, 400, 601, 801, 1025; resp. id: 176, 231, 48, 228, 373
