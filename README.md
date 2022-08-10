@@ -1,4 +1,4 @@
-# spatial
+# spatial (no longer maintained)
 Spatial and computational geometry related algorithms
 
 TODO:
